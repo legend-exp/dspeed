@@ -7,10 +7,10 @@ import numpy as np
 from dspeed import build_dsp
 
 config_dir = Path(__file__).parent / "configs"
-dsp_file = "/tmp/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp.lh5"
 
 
-def test_list_parisng(lgnd_test_data):
+def test_list_parisng(lgnd_test_data, tmptestdir):
+    dsp_file = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp.lh5"
     dsp_config = {
         "outputs": ["wf_out"],
         "processors": {

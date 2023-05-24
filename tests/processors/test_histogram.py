@@ -5,8 +5,8 @@ import lgdo.lh5_store as store
 from dspeed import build_dsp
 
 
-def test_histogram_fixed_width(lgnd_test_data):
-    dsp_file = "/tmp/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp.lh5"
+def test_histogram_fixed_width(lgnd_test_data, tmptestdir):
+    dsp_file = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp.lh5"
     dsp_config = {
         "outputs": ["hist_weights", "hist_borders"],
         "processors": {

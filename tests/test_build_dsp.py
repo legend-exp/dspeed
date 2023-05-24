@@ -10,8 +10,8 @@ from dspeed import build_dsp
 config_dir = Path(__file__).parent / "configs"
 
 
-def test_build_dsp_basics(lgnd_test_data):
-    out_name = "/tmp/LDQTA_r117_20200110T105115Z_cal_geds_dsp.lh5"
+def test_build_dsp_basics(lgnd_test_data, tmptestdir):
+    out_name = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds_dsp.lh5"
     build_dsp(
         lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
         out_name,
@@ -22,32 +22,32 @@ def test_build_dsp_basics(lgnd_test_data):
     assert os.path.exists(out_name)
 
 
-def test_build_dsp_errors(lgnd_test_data):
+def test_build_dsp_errors(lgnd_test_data, tmptestdir):
     with pytest.raises(FileExistsError):
         build_dsp(
             lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
-            "/tmp/LDQTA_r117_20200110T105115Z_cal_geds_dsp.lh5",
+            f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds_dsp.lh5",
             dsp_config=f"{config_dir}/icpc-dsp-config.json",
         )
 
     with pytest.raises(FileNotFoundError):
         build_dsp(
             "non-existent-file.lh5",
-            "/tmp/LDQTA_r117_20200110T105115Z_cal_geds_dsp.lh5",
+            f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds_dsp.lh5",
             dsp_config=f"{config_dir}/icpc-dsp-config.json",
             write_mode="r",
         )
 
 
 @pytest.fixture(scope="session")
-def dsp_test_file_spm(lgnd_test_data):
+def dsp_test_file_spm(lgnd_test_data, tmptestdir):
     chan_config = {
         "ch0/raw": f"{config_dir}/sipm-dsp-config.json",
         "ch1/raw": f"{config_dir}/sipm-dsp-config.json",
         "ch2/raw": f"{config_dir}/sipm-dsp-config.json",
     }
 
-    out_file = "/tmp/L200-comm-20211130-phy-spms_dsp.lh5"
+    out_file = f"{tmptestdir}/L200-comm-20211130-phy-spms_dsp.lh5"
     build_dsp(
         lgnd_test_data.get_path("lh5/L200-comm-20211130-phy-spms.lh5"),
         out_file,
