@@ -10,3 +10,4 @@ Tutorials are currently available as `Jupyter notebooks on GitHub
 
    notebooks/IntroToDSP
    notebooks/DSPTutorial
+   notebooks/WaveformBrowser

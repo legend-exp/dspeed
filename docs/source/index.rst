@@ -1,7 +1,7 @@
 dspeed
 ======
 
-*dspeed* is a package for applying Digital Signal Processing to particle
+|dspeed| is a package for applying Digital Signal Processing to particle
 detector digitized signals.
 
 Getting started
@@ -35,5 +35,10 @@ Table of Contents
 .. toctree::
    :maxdepth: 1
 
+   manuals/index
    tutorials
    Package API reference <api/modules>
+
+.. _2: https://pypi.org/project/dspeed
+.. _3: https://pip.pypa.io/en/stable/getting-started
+.. |dspeed| replace:: *dspeed*
