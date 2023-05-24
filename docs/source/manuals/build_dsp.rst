@@ -5,10 +5,11 @@ Global Numba options
 --------------------
 
 Pygama offers the possibility to change the value of some default Numba options
-either using environment variables or at runtime. One typical use case is to enable `caching the result of compilation
+either using environment variables or at runtime. One typical use case is to
+enable `caching the result of compilation
 <https://numba.readthedocs.io/en/stable/user/jit.html?#cache>`_,
 which significantly reduces loading times. Numba options globally set by pygama
-are defined as attributes of the :class:`~.dsp.utils.NumbaDefaults` class. Have
+are defined as attributes of the :class:`~.utils.NumbaDefaults` class. Have
 a look to the documentation for :func:`numba.jit` and :func:`numba.guvectorize`
 to learn about their meaning.
 
@@ -17,18 +18,18 @@ to learn about their meaning.
 
 The environment variables that can be set are:
 
-:``PYGAMA_CACHE``: Set caching behavior (default false)
-:``PYGAMA_BOUNDSCHECK``: Set automatic bounds checking (default false)
+:``DSPEED_CACHE``: Set caching behavior (default false)
+:``DSPEED_BOUNDSCHECK``: Set automatic bounds checking (default false)
 
 Here's an example of how global option customization can achieved in user
 scripts:
 
 .. code-block:: python
 
-    from pygama.dsp.utils import numba_defaults
-    from pygama.dsp import build_dsp
+    from dspeed.utils import numba_defaults
+    from dspeed import build_dsp
 
-    # must set options before explicitly importing pygama.dsp.processors!
+    # must set options before explicitly importing dspeed.processors!
     numba_defaults.cache = True
 
     # processors imports happen here, if not explicitly done before
@@ -37,14 +38,14 @@ scripts:
 Command line interface
 ----------------------
 
-A command line interface to :func:`~.dsp.build_dsp.build_dsp` is available
-through the ``pygama`` executable via the ``build-dsp`` sub-command. This can
-be used to quickly run signal processing routines without custom scripting.
-Here are some examples of what can be achieved:
+A command line interface to :func:`~.build_dsp.build_dsp` is available through
+the ``dspeed`` executable. This can be used to quickly run signal processing
+routines without custom scripting.  Here are some examples of what can be
+achieved:
 
 .. code-block:: console
 
-    $ pygama build-dsp --help  # display usage and exit
+    $ dspeed --help  # display usage and exit
 
 Convert files and save them in the original directory with the same filenames
 (but new extension ``_dsp.lh5``):
@@ -52,15 +53,15 @@ Convert files and save them in the original directory with the same filenames
 .. code-block:: console
 
     $ pygama [-v] build-dsp --config dsp-config.json raw/*.lh5  # increase verbosity with -v
-    $ pygama build-dsp --overwrite -c dsp-config.json raw/*.lh5  # overwrite output files
+    $ dspeed --overwrite -c dsp-config.json raw/*.lh5  # overwrite output files
     $ # set maximum number of rows to be considered from each file
-    $ pygama build-dsp --max-rows 100 -c dsp-config.json raw/*.lh5
+    $ dspeed --max-rows 100 -c dsp-config.json raw/*.lh5
 
 The signal processors are configured with the ``dsp-config.json`` JSON file
-(refer to the :func:`~.dsp.build_dsp.build_dsp` documentation for details).
+(refer to the :func:`~.build_dsp.build_dsp` documentation for details).
 
 .. seealso::
-   See :func:`~.dsp.build_dsp.build_dsp` and ``pygama build-dsp --help`` for a
+   See :func:`~.dsp.build_dsp.build_dsp` and ``dspeed --help`` for a
    full list of conversion options.
 
 Writing custom processors
@@ -75,8 +76,8 @@ Writing custom processors
     import numpy as np
     from numba import guvectorize
 
-    from pygama.dsp.errors import DSPFatal
-    from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+    from dspeed.errors import DSPFatal
+    from dspeed.utils import numba_defaults_kwargs as nb_kwargs
 
     # 2) Provide instructions to Numba
     #
@@ -139,7 +140,7 @@ Writing custom processors
 
             "wf_bl": {
                 "function": "the_processor_template",
-                "module": "pygama.dsp.processors",
+                "module": "dspeed.processors",
                 "args": ["waveform", "t_a", "a_b", "wf_filtered", "t_result"],
                 "unit": "ADC"
             }
