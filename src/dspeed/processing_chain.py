@@ -310,8 +310,7 @@ class ProcChainVar:
 
 
 class ProcessingChain:
-    """A class to efficiently perform a sequence of digital signal processing
-    (DSP) transforms.
+    """A class to efficiently perform a sequence of digital signal processing (DSP) transforms.
 
     It contains a list of DSP functions and a set of constant values and named
     variables contained in fixed memory locations. When executing the
@@ -372,26 +371,26 @@ class ProcessingChain:
 
         Parameters
         ----------
-        name : str
-            name of variable
-        dtype : numpy.dtype or str, optional, default='auto'
+        name
+            name of variable.
+        dtype
             default is ``None``, meaning `dtype` will be deduced later, if
-            possible
-        shape : int or tuple, optional, default='auto'
+            possible.
+        shape
             length or shape tuple of element. Default is ``None``, meaning length
-            will be deduced later, if possible
-        grid : CoordinateGrid
-            for variable, containing period and offset
+            will be deduced later, if possible.
+        grid
+            for variable, containing period and offset.
         unit
-            unit of variable
+            unit of variable.
         period
             unit with period of waveform associated with object. Do not use if
-            `grid` is provided
+            `grid` is provided.
         offset
             unit with offset of waveform associated with object. Requires a
-            `period` to be provided
-        is_coord : bool
-            if ``True``, transform value based on `period` and `offset`
+            `period` to be provided.
+        is_coord
+            if ``True``, transform value based on `period` and `offset`.
         """
         self._validate_name(name, raise_exception=True)
         if name in self._vars_dict:
@@ -498,7 +497,7 @@ class ProcessingChain:
             created with a similar shape to the provided buffer.
         buff
             object to use as output buffer. If ``None``, create a new buffer
-            with a similar shape to the variable
+            with a similar shape to the variable.
 
         Returns
         -------
@@ -1550,7 +1549,7 @@ class LGDOWaveformIOManager(IOManager):
 
     def __str__(self) -> str:
         return (
-            f"{self.var} linked to pygama.lgdo.WaveformTable("
+            f"{self.var} linked to lgdo.WaveformTable("
             f"values(shape={self.wf_table.values.nda.shape}, dtype={self.wf_table.values.nda.dtype}, attrs={self.wf_table.values.attrs}), "
             f"dt(shape={self.wf_table.dt.nda.shape}, dtype={self.wf_table.dt.nda.dtype}, attrs={self.wf_table.dt.attrs}), "
             f"t0(shape={self.wf_table.t0.nda.shape}, dtype={self.wf_table.t0.nda.dtype}, attrs={self.wf_table.t0.attrs}))"
@@ -1565,8 +1564,8 @@ def build_processing_chain(
     block_width: int = 16,
 ) -> tuple[ProcessingChain, list[str], lgdo.Table]:
     """Produces a :class:`ProcessingChain` object and an LH5
-    :class:`~.lgdo.table.Table` for output parameters from an input LH5
-    :class:`~.lgdo.table.Table` and a JSON recipe.
+    :class:`~lgdo.table.Table` for output parameters from an input LH5
+    :class:`~lgdo.table.Table` and a JSON recipe.
 
     Parameters
     ----------

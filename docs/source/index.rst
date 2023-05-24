@@ -2,7 +2,19 @@ dspeed
 ======
 
 |dspeed| is a package for applying Digital Signal Processing to particle
-detector digitized signals.
+detector digitized signals. The main contents of this package are:
+
+* :mod:`.processors`: A collection of `Numba <http://numba.pydata.org>`_
+  functions that perform individual DSP transforms and reductions on our data.
+  Available processors include all :class:`numpy.ufunc`\ s as well.
+* :class:`.ProcessingChain`: A class that manages and efficiently runs a list
+  of DSP processors.
+* :func:`.build_processing_chain`: A function that builds a
+  :class:`.ProcessingChain` using LH5-formatted input and output files, and a
+  JSON configuration file.
+* :func:`.build_dsp`: A function that runs :func:`.build_processing_chain` to
+  build a :class:`.ProcessingChain` from a JSON config file and then processes
+  an input file and writes into an output file, using the LH5 file format.
 
 Getting started
 ---------------
