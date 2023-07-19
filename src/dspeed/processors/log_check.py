@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from numba import guvectorize
 
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 @guvectorize(
@@ -30,7 +30,7 @@ def log_check(w_in: np.ndarray, w_log: np.ndarray) -> None:
 
         "wf_logged": {
             "function": "log_check",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_blsub[2100:]", "wf_logged"],
             "unit": "ADC"
         }

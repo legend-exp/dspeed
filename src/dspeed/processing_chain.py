@@ -13,20 +13,19 @@ import re
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any
 
+import lgdo
 import numpy as np
+from lgdo import LGDO
+from lgdo.lgdo_utils import expand_path
 from numba import vectorize
+from pint import Quantity, Unit
 
-import pygama.lgdo as lgdo
-from pygama.dsp.errors import DSPFatal, ProcessingChainError
-from pygama.lgdo.lgdo_utils import expand_path
-from pygama.math.units import Quantity, Unit
-from pygama.math.units import unit_registry as ureg
+from .errors import DSPFatal, ProcessingChainError
+from .units import unit_registry as ureg
 
 log = logging.getLogger(__name__)
-
-LGDO = Union[lgdo.Scalar, lgdo.Array, lgdo.VectorOfVectors, lgdo.Struct]
 
 # Filler value for variables to be automatically deduced later
 auto = "auto"
@@ -129,22 +128,22 @@ class ProcChainVar:
         Parameters
         ----------
         proc_chain
-            ProcessingChain that contains this variable
+            :class:`ProcessingChain` that contains this variable.
         name
-            Name of variable used to look it up
+            Name of variable used to look it up.
         shape
-            Shape of variable, without buffer_len dimension
+            Shape of variable, without `buffer_len` dimension.
         dtype
-            Data type of variable
+            Data type of variable.
         grid
             Coordinate grid associated with variable. This contains the
             period and offset of the variable. For variables where
-            is_coord is True, use this to perform unit conversions
+            is_coord is True, use this to perform unit conversions.
         unit
             Unit associated with variable during I/O.
         is_coord
-            If True, variable represents an array index and can be converted
-            into a unitted number using grid
+            If ``True``, variable represents an array index and can be converted
+            into a unitted number using grid.
         """
         assert isinstance(proc_chain, ProcessingChain) and isinstance(name, str)
         self.proc_chain = proc_chain
@@ -310,8 +309,7 @@ class ProcChainVar:
 
 
 class ProcessingChain:
-    """A class to efficiently perform a sequence of digital signal processing
-    (DSP) transforms.
+    """A class to efficiently perform a sequence of digital signal processing (DSP) transforms.
 
     It contains a list of DSP functions and a set of constant values and named
     variables contained in fixed memory locations. When executing the
@@ -344,7 +342,7 @@ class ProcessingChain:
             number of entries to simultaneously process.
         buffer_len
             length of input and output buffers. Should be a multiple of
-            `block_width`
+            `block_width`.
         """
         # Dictionary from name to scratch data buffers as ProcChainVar
         self._vars_dict = {}
@@ -372,26 +370,26 @@ class ProcessingChain:
 
         Parameters
         ----------
-        name : str
-            name of variable
-        dtype : numpy.dtype or str, optional, default='auto'
+        name
+            name of variable.
+        dtype
             default is ``None``, meaning `dtype` will be deduced later, if
-            possible
-        shape : int or tuple, optional, default='auto'
+            possible.
+        shape
             length or shape tuple of element. Default is ``None``, meaning length
-            will be deduced later, if possible
-        grid : CoordinateGrid
-            for variable, containing period and offset
+            will be deduced later, if possible.
+        grid
+            for variable, containing period and offset.
         unit
-            unit of variable
+            unit of variable.
         period
             unit with period of waveform associated with object. Do not use if
-            `grid` is provided
+            `grid` is provided.
         offset
             unit with offset of waveform associated with object. Requires a
-            `period` to be provided
-        is_coord : bool
-            if ``True``, transform value based on `period` and `offset`
+            `period` to be provided.
+        is_coord
+            if ``True``, transform value based on `period` and `offset`.
         """
         self._validate_name(name, raise_exception=True)
         if name in self._vars_dict:
@@ -498,7 +496,7 @@ class ProcessingChain:
             created with a similar shape to the provided buffer.
         buff
             object to use as output buffer. If ``None``, create a new buffer
-            with a similar shape to the variable
+            with a similar shape to the variable.
 
         Returns
         -------
@@ -1319,11 +1317,12 @@ class UnitConversionManager(ProcessorManager):
 
 
 class IOManager(metaclass=ABCMeta):
-    """
-    Base class. IOManagers will be associated with a type of input/output
-    buffer, and must define a read and write for each one. __init__ methods
-    should update variable with any information from buffer, and check that
-    buffer and variable are compatible.
+    r"""Base class.
+
+    :class:`IOManager`\ s will be associated with a type of input/output
+    buffer, and must define a read and write for each one. ``__init__()``
+    methods should update variable with any information from buffer, and check
+    that buffer and variable are compatible.
     """
 
     @abstractmethod
@@ -1341,7 +1340,7 @@ class IOManager(metaclass=ABCMeta):
 
 # Ok, this one's not LGDO
 class NumpyIOManager(IOManager):
-    """IO Manager for buffers that are numpy arrays"""
+    r""":class:`IOManager` for buffers that are :class:`numpy.ndarray`\ s."""
 
     def __init__(self, io_buf: np.ndarray, var: ProcChainVar) -> None:
         assert isinstance(io_buf, np.ndarray) and isinstance(var, ProcChainVar)
@@ -1376,7 +1375,7 @@ class NumpyIOManager(IOManager):
 
 
 class LGDOArrayIOManager(IOManager):
-    """IO Manager for buffers that are lgdo Arrays"""
+    r"""IO Manager for buffers that are :class:`lgdo.Array`\ s."""
 
     def __init__(self, io_array: lgdo.Array, var: ProcChainVar) -> None:
         assert isinstance(io_array, lgdo.Array) and isinstance(var, ProcChainVar)
@@ -1428,7 +1427,7 @@ class LGDOArrayIOManager(IOManager):
 
 
 class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
-    """IO Manager for buffers that are numpy ArrayOfEqualSizedArrays"""
+    r""":class:`IOManager` for buffers that are :class:`lgdo.ArrayOfEqualSizedArray`\ s."""
 
     def __init__(self, io_array: np.ArrayOfEqualSizedArrays, var: ProcChainVar) -> None:
         assert isinstance(io_array, lgdo.ArrayOfEqualSizedArrays) and isinstance(
@@ -1557,7 +1556,7 @@ class LGDOWaveformIOManager(IOManager):
 
     def __str__(self) -> str:
         return (
-            f"{self.var} linked to pygama.lgdo.WaveformTable("
+            f"{self.var} linked to lgdo.WaveformTable("
             f"values(shape={self.wf_table.values.nda.shape}, dtype={self.wf_table.values.nda.dtype}, attrs={self.wf_table.values.attrs}), "
             f"dt(shape={self.wf_table.dt.nda.shape}, dtype={self.wf_table.dt.nda.dtype}, attrs={self.wf_table.dt.attrs}), "
             f"t0(shape={self.wf_table.t0.nda.shape}, dtype={self.wf_table.t0.nda.dtype}, attrs={self.wf_table.t0.attrs}))"
@@ -1572,8 +1571,8 @@ def build_processing_chain(
     block_width: int = 16,
 ) -> tuple[ProcessingChain, list[str], lgdo.Table]:
     """Produces a :class:`ProcessingChain` object and an LH5
-    :class:`~.lgdo.table.Table` for output parameters from an input LH5
-    :class:`~.lgdo.table.Table` and a JSON recipe.
+    :class:`~lgdo.table.Table` for output parameters from an input LH5
+    :class:`~lgdo.table.Table` and a JSON recipe.
 
     Parameters
     ----------
@@ -1649,7 +1648,7 @@ def build_processing_chain(
     (proc_chain, field_mask, lh5_out)
         - `proc_chain` -- :class:`ProcessingChain` object that is executed
         - `field_mask` -- list of input fields that are used
-        - `lh5_out` -- output :class:`~.lgdo.table.Table` containing processed
+        - `lh5_out` -- output :class:`~lgdo.table.Table` containing processed
           values
     """
     proc_chain = ProcessingChain(block_width, lh5_in.size)

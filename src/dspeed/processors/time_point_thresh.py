@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 from numba import guvectorize
 
-from pygama.dsp.errors import DSPFatal
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..errors import DSPFatal
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 @guvectorize(
@@ -41,7 +41,7 @@ def time_point_thresh(
 
         "tp_0": {
             "function": "time_point_thresh",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_atrap", "bl_std", "tp_start", 0, "tp_0"],
             "unit": "ns"
         }
@@ -134,7 +134,7 @@ def interpolated_time_point_thresh(
 
         "tp_0": {
             "function": "time_point_thresh",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_atrap", "bl_std", "tp_start", 0, "'l'", "tp_0"],
             "unit": "ns"
         }

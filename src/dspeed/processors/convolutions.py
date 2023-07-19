@@ -5,8 +5,8 @@ from typing import Callable
 import numpy as np
 from numba import guvectorize
 
-from pygama.dsp.errors import DSPFatal
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..errors import DSPFatal
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 def cusp_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
@@ -36,7 +36,7 @@ def cusp_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
 
         "wf_cusp": {
             "function": "cusp_filter",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_bl", "wf_cusp(101,f)"],
             "unit": "ADC",
             "init_args": ["len(wf_bl)-100", "40*us", "3*us", "45*us"]
@@ -130,7 +130,7 @@ def zac_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
 
         "wf_zac": {
             "function": "zac_filter",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_bl", "wf_zac(101,f)"],
             "unit": "ADC",
             "init_args": ["len(wf_bl)-100", "40*us", "3*us", "45*us"],
@@ -240,7 +240,7 @@ def t0_filter(rise: int, fall: int) -> Callable:
 
         "wf_t0_filter": {
             "function": "t0_filter",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_pz", "wf_t0_filter(3748,f)"],
             "unit": "ADC",
             "init_args": ["128*ns", "2*us"]
@@ -286,3 +286,66 @@ def t0_filter(rise: int, fall: int) -> Callable:
         w_out[:] = np.convolve(w_in, t0_kern)[: len(w_in)]
 
     return t0_filter_out
+
+
+def moving_slope(length):
+    """Calculates the linear slope of a waveform in sections of length
+
+    Note
+    ----
+    This processor is composed of a factory function that is called using the
+    `init_args` argument. The input and output waveforms are passed using
+    `args`.
+
+    Parameters
+    ----------
+    length
+        the length of the section to calculate slope
+
+    JSON Configuration Example
+    --------------------------
+
+    .. code-block :: json
+
+        "wf_slopes": {
+            "function": "moving_slope",
+            "module": "pygama.dsp.processors",
+            "args": ["wf_pz", "wf_slopes(len(wf_pz)-11,f)"],
+            "unit": "ADC",
+            "init_args": ["12"]
+        }
+    """
+
+    if length <= 0:
+        raise DSPFatal("The length of the filter must be positive")
+
+    if np.floor(length) != length:
+        raise DSPFatal("The length of the filter must be an integer")
+
+    sum_x = length * (length + 1) / 2
+    sum_x2 = length * (length + 1) * (2 * length + 1) / 6
+
+    kernel = (np.arange(1, length + 1, 1) * length) - (np.ones(length) * sum_x)
+    kernel /= length * sum_x2 - sum_x * sum_x
+    kernel = kernel[::-1]
+
+    @guvectorize(
+        ["void(float32[:], float32[:])", "void(float64[:], float64[:])"],
+        "(n),(m)",
+        **nb_kwargs(
+            cache=False,
+            forceobj=True,
+        ),
+    )
+    def moving_slope_out(w_in, w_out):
+        w_out[:] = np.nan
+
+        if np.isnan(w_in).any():
+            return
+
+        if len(kernel) > len(w_in):
+            raise DSPFatal("The filter is longer than the input waveform")
+
+        w_out[:] = np.convolve(w_in, kernel, "valid")
+
+    return moving_slope_out

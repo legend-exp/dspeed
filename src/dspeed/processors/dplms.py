@@ -5,8 +5,8 @@ from typing import Callable
 import numpy as np
 from numba import guvectorize
 
-from pygama.dsp.errors import DSPFatal
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..errors import DSPFatal
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 def dplms(
@@ -62,7 +62,7 @@ def dplms(
 
         "wf_dplms": {
             "function": "dplms",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_diff", "wf_dplms(len(wf_diff)-49, 'f')"],
             "unit": "ADC",
             "init_args": [

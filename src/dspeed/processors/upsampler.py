@@ -5,8 +5,8 @@ from math import ceil, floor
 import numpy as np
 from numba import guvectorize
 
-from pygama.dsp.errors import DSPFatal
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..errors import DSPFatal
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 @guvectorize(
@@ -93,7 +93,7 @@ def interpolating_upsampler(
 
         "wf_up": {
             "function": "interpolating_upsampler",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf", "'s'", "wf_up(len(wf)*10, period=wf.period/10)"],
             "unit": "ADC"
         }

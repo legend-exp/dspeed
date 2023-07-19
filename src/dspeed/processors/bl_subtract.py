@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from numba import guvectorize
 
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 @guvectorize(
@@ -30,7 +30,7 @@ def bl_subtract(w_in: np.ndarray, a_baseline: float, w_out: np.ndarray) -> None:
 
         "wf_bl": {
             "function": "bl_subtract",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["waveform", "baseline", "wf_bl"],
             "unit": "ADC"
         }

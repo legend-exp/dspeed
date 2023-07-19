@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 from numba import guvectorize
 
-from pygama.dsp.errors import DSPFatal
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..errors import DSPFatal
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 @guvectorize(
@@ -35,7 +35,7 @@ def moving_window_left(w_in: np.ndarray, length: float, w_out: np.ndarray) -> No
 
         "wf_mw": {
             "function": "moving_window_left",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_pz", "96*ns", "wf_mw"],
             "unit": "ADC"
         }
@@ -82,7 +82,7 @@ def moving_window_right(w_in: np.ndarray, length: float, w_out: np.ndarray) -> N
 
         "wf_mw": {
             "function": "moving_window_right",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_pz", "96*ns", "wf_mw"],
             "unit": "ADC"
         }
@@ -146,7 +146,7 @@ def moving_window_multi(
 
         "curr_av": {
             "function": "moving_window_multi",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["curr", "96*ns", "3", "0", "curr_av"],
             "unit": "ADC/sample"
         }
@@ -219,7 +219,7 @@ def avg_current(w_in: np.ndarray, length: float, w_out: np.ndarray) -> None:
 
         "curr": {
             "function": "avg_current",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_pz", 1, "curr(len(wf_pz)-1, f)"],
             "unit": "ADC/sample"
         }

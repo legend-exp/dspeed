@@ -6,8 +6,8 @@ import numpy as np
 from numba import guvectorize
 from pywt import downcoef
 
-from pygama.dsp.errors import DSPFatal
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..errors import DSPFatal
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 def discrete_wavelet_transform(wave_type: str, level: int) -> Callable:
@@ -36,7 +36,7 @@ def discrete_wavelet_transform(wave_type: str, level: int) -> Callable:
 
         "dwt":{
             "function": "discrete_wavelet_transform",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_blsub", "dwt(250)"],
             "unit": "ADC",
             "prereqs": ["wf_blsub"],

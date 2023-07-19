@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from numba import guvectorize
 
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 @guvectorize(
@@ -30,7 +30,7 @@ def time_over_threshold(w_in: np.ndarray, a_threshold: float, n_samples: float) 
 
         "t_sat": {
             "function": "time_over_threshold",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_pz", "a_threshold", "t_sat"],
             "unit": "ns"
         }

@@ -45,8 +45,8 @@ class NumbaDefaults(MutableMapping):
     """
 
     def __init__(self) -> None:
-        self.cache: bool = getenv_bool("PYGAMA_CACHE")
-        self.boundscheck: bool = getenv_bool("PYGAMA_BOUNDSCHECK")
+        self.cache: bool = getenv_bool("DSPEED_CACHE")
+        self.boundscheck: bool = getenv_bool("DSPEED_BOUNDSCHECK")
 
     def __getitem__(self, item: str) -> Any:
         return self.__dict__[item]

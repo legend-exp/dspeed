@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import lgdo.lh5_store as lh5
 import numpy as np
 from numba import guvectorize
 
-import pygama.lgdo.lh5_store as lh5
-from pygama.dsp.errors import DSPFatal
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..errors import DSPFatal
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 def wiener_filter(file_name_array: list[str]) -> np.ndarray:
@@ -34,7 +34,7 @@ def wiener_filter(file_name_array: list[str]) -> np.ndarray:
 
         "wf_wiener": {
             "function": "wiener_filter",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_bl_fft", "wf_wiener(2000,f)"],
             "unit": "dB",
             "init_args": ["/path/to/file/wiener.lh5"]

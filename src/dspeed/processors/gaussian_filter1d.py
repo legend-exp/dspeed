@@ -38,7 +38,7 @@ from __future__ import annotations
 import numpy
 from numba import guvectorize
 
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from dspeed.utils import numba_defaults_kwargs as nb_kwargs
 
 
 def gaussian_filter1d(sigma: int, truncate: float = 4.0) -> numpy.ndarray:

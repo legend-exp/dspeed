@@ -8,7 +8,7 @@ and SIMD processing. Thanks to the :class:`~numpy.ufunc` interface, they can
 also be called to return a NumPy array, but if this is done, memory will be
 allocated for this array, slowing things down.
 
-The pygama processors use the :class:`~numpy.ufunc` framework, which is
+The dspeed processors use the :class:`~numpy.ufunc` framework, which is
 designed to encourage highly performant python practices. These functions have
 several advantages:
 
@@ -60,7 +60,7 @@ several advantages:
 """
 
 from .bl_subtract import bl_subtract
-from .convolutions import cusp_filter, t0_filter, zac_filter
+from .convolutions import cusp_filter, moving_slope, t0_filter, zac_filter
 from .dplms import dplms
 from .dwt import discrete_wavelet_transform
 from .fftw import dft, inv_dft, psd
@@ -143,4 +143,5 @@ __all__ = [
     "windower",
     "time_over_threshold",
     "dplms",
+    "moving_slope",
 ]

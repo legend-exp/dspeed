@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from numba import guvectorize
 
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 @guvectorize(
@@ -42,7 +42,7 @@ def linear_slope_fit(
 
         "bl_mean, bl_std, bl_slope, bl_intercept": {
             "function": "linear_slope_fit",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_blsub[0:1650]", "bl_mean", "bl_std", "bl_slope", "bl_intercept"],
             "unit": ["ADC", "ADC", "ADC", "ADC"],
         }
@@ -113,7 +113,7 @@ def linear_slope_diff(
 
         "bl_mean, bl_std, bl_slope, bl_intercept": {
             "function": "linear_slope_fit",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_blsub[0:1650]", "bl_mean", "bl_std", "bl_slope", "bl_intercept"],
             "unit": ["ADC", "ADC", "ADC", "ADC"],
         }

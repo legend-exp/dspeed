@@ -7,19 +7,15 @@ from __future__ import annotations
 import json
 import logging
 import os
-import sys
-import time
 
 import h5py
+import lgdo.lh5_store as lh5
 import numpy as np
+from lgdo.lgdo_utils import expand_path
 from tqdm.auto import tqdm
 
-import pygama
-import pygama.lgdo as lgdo
-import pygama.lgdo.lh5_store as lh5
-from pygama.dsp.errors import DSPFatal
-from pygama.dsp.processing_chain import build_processing_chain
-from pygama.lgdo.lgdo_utils import expand_path
+from .errors import DSPFatal
+from .processing_chain import build_processing_chain
 
 log = logging.getLogger(__name__)
 
@@ -151,15 +147,6 @@ def build_dsp(
         if os.path.isfile(f_dsp):
             os.remove(f_dsp)
 
-    # write processing metadata
-    dsp_info = lgdo.Struct()
-    dsp_info.add_field("timestamp", lgdo.Scalar(np.uint64(time.time())))
-    dsp_info.add_field("python_version", lgdo.Scalar(sys.version))
-    dsp_info.add_field("numpy_version", lgdo.Scalar(np.version.version))
-    dsp_info.add_field("h5py_version", lgdo.Scalar(h5py.version.version))
-    dsp_info.add_field("hdf5_version", lgdo.Scalar(h5py.version.hdf5_version))
-    dsp_info.add_field("pygama_version", lgdo.Scalar(pygama.__version__))
-
     # loop over tables to run DSP on
     for tb in lh5_tables:
         # load primary table and build processing chain and output table
@@ -218,5 +205,3 @@ def build_dsp(
 
         if log.getEffectiveLevel() >= logging.INFO:
             progress_bar.close()
-
-    raw_store.write_object(dsp_info, "dsp_info", f_dsp, wo_mode="o")

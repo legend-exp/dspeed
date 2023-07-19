@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 from numba import guvectorize
 
-from pygama.dsp.errors import DSPFatal
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..errors import DSPFatal
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 @guvectorize(
@@ -32,7 +32,7 @@ def pole_zero(w_in: np.ndarray, t_tau: float, w_out: np.ndarray) -> None:
 
         "wf_pz": {
             "function": "pole_zero",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_bl", "400*us", "wf_pz"],
             "unit": "ADC"
         }
@@ -83,7 +83,7 @@ def double_pole_zero(
 
         "wf_pz": {
             "function": "double_pole_zero",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_bl", "400*us", "20*us", "0.02", "wf_pz"],
             "unit": "ADC"
         }

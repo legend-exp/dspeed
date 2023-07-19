@@ -6,9 +6,8 @@ import numpy as np
 from iminuit import Minuit
 from numba import guvectorize
 
-from pygama.dsp.errors import DSPFatal
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
-
+from ..errors import DSPFatal
+from ..utils import numba_defaults_kwargs as nb_kwargs
 from .pole_zero import double_pole_zero, pole_zero
 
 
@@ -79,7 +78,7 @@ def optimize_1pz(
 
         "tau0": {
             "function": "optimize_1pz",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["waveform", "baseline", "0", "20*us", "500*us", "tau0"],
             "unit": "us"
         }
@@ -176,7 +175,7 @@ def optimize_2pz(
 
         "tau1, tau2, frac": {
             "function": "optimize_2pz",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": [
                 "waveform", "baseline", "0", "20*us", "500*us",
                 "20*us", "0.02", "tau1", "tau2", "frac"

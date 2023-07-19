@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 from numba import guvectorize
 
-from pygama.dsp.errors import DSPFatal
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..errors import DSPFatal
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 @guvectorize(
@@ -36,7 +36,7 @@ def histogram(
 
         "hist_weights, hist_borders": {
             "function": "histogram",
-            "module": "pygama.dsp.processors.histogram",
+            "module": "dspeed.processors.histogram",
             "args": ["waveform", "hist_weights(100)", "hist_borders(101)"],
             "unit": ["none", "ADC"]
         }
@@ -124,7 +124,7 @@ def histogram_stats(
 
         "fwhm, idx_out, max_out": {
             "function": "histogram_stats",
-            "module": "pygama.dsp.processors.histogram",
+            "module": "dspeed.processors.histogram",
             "args": ["hist_weights","hist_borders","idx_out","max_out","fwhm","np.nan"],
             "unit": ["ADC", "none", "ADC"]
         }

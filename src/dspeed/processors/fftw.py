@@ -6,8 +6,8 @@ import numpy as np
 from numba import guvectorize
 from pyfftw import FFTW
 
-from pygama.dsp.processing_chain import ProcChainVar
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from ..processing_chain import ProcChainVar
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 def dft(w_in: np.ndarray | ProcChainVar, w_out: np.ndarray | ProcChainVar) -> Callable:
@@ -27,7 +27,7 @@ def dft(w_in: np.ndarray | ProcChainVar, w_out: np.ndarray | ProcChainVar) -> Ca
 
         "wf_dft": {
             "function": "dft",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf", "wf_dft"],
             "init_args": ["wf", "wf_dft"]
         }
@@ -114,7 +114,7 @@ def inv_dft(w_in: np.ndarray, w_out: np.ndarray) -> Callable:
 
         "wf_invdft": {
             "function": "inv_dft",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_dft", "wf_invdft"],
             "init_args": ["wf_dft", "wf_invdft"]
         }
@@ -203,7 +203,7 @@ def psd(w_in: np.ndarray, w_out: np.ndarray) -> Callable:
 
         "wf_psd": {
             "function": "psd",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf", "wf_psd"],
             "init_args": ["wf", "wf_psd"]
         }
