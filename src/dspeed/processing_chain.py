@@ -212,7 +212,9 @@ class ProcChainVar:
             )
 
         # if variable has no convertable units, we're all set
-        if self.unit is None or not (isinstance(self.unit, (Unit, Quantity)) or self.unit in ureg):
+        if self.unit is None or not (
+            isinstance(self.unit, (Unit, Quantity)) or self.unit in ureg
+        ):
             return self._buffer
         elif not isinstance(self._buffer, list):
             self._buffer = [(self._buffer, self.unit)]
@@ -1291,7 +1293,9 @@ class UnitConversionManager(ProcessorManager):
         else:
             raise DSPFatal("Cannot convert to integer")
 
-    def __init__(self, var: ProcChainVar, unit: str | Unit | Quantity | CoordinateGrid) -> None:
+    def __init__(
+        self, var: ProcChainVar, unit: str | Unit | Quantity | CoordinateGrid
+    ) -> None:
         # reference back to our processing chain
         self.proc_chain = var.proc_chain
         # callable function used to process data
@@ -1307,7 +1311,7 @@ class UnitConversionManager(ProcessorManager):
         if isinstance(unit, CoordinateGrid):
             to_offset = unit.get_offset()
             unit = unit.period
-        
+
         from_buffer, from_unit = var._buffer[0]
         if isinstance(from_unit, CoordinateGrid):
             ratio = from_unit.get_period(unit)
@@ -1317,7 +1321,7 @@ class UnitConversionManager(ProcessorManager):
                 unit = ureg.Quantity(unit)
             ratio = float(from_unit / unit)
             from_offset = 0
-        
+
         self.out_buffer = np.zeros_like(from_buffer, dtype=var.dtype)
         self.args = [
             from_buffer,
@@ -1405,7 +1409,7 @@ class LGDOArrayIOManager(IOManager):
                 var_u = var.unit.u
             else:
                 var_u = var.unit
-            
+
             if unit is None:
                 unit = var_u
             elif ureg.is_compatible_with(var_u, unit):
