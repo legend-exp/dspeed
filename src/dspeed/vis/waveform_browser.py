@@ -171,9 +171,7 @@ class WaveformBrowser:
 
         self.aux_vals = aux_values
         # Apply entry selection to aux_vals if needed
-        if self.aux_vals is not None and len(self.aux_vals) > len(
-            self.lh5_it.get_global_entrylist()
-        ):
+        if self.aux_vals is not None and self.lh5_it.get_global_entrylist() is not None and len(self.aux_vals) > len(self.lh5_it.get_global_entrylist()):
             self.aux_vals = self.aux_vals.iloc[
                 self.lh5_it.get_global_entrylist()
             ].reset_index()
