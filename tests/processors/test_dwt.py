@@ -17,7 +17,7 @@ def test_discrete_wavelet_transform(compare_numba_vs_python):
 
     # ensure the DSPFatal is raised for a negative level
     with pytest.raises(DSPFatal):
-        discrete_wavelet_transform(wave_type, -1)
+        discrete_wavelet_transform(wave_type, -1, coeff)
 
     # ensure that a valid input gives the expected output
     w_in = np.ones(len_wf_in)
