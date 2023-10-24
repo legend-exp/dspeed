@@ -62,6 +62,9 @@ several advantages:
 from .bl_subtract import bl_subtract
 from .convolutions import cusp_filter, moving_slope, t0_filter, zac_filter
 from .dplms import dplms
+from .step import step
+from .get_wf_centroid import get_wf_centroid
+from .wf_alignment import wf_alignment
 from .dwt import discrete_wavelet_transform
 from .fftw import dft, inv_dft, psd
 from .fixed_time_pickoff import fixed_time_pickoff
@@ -144,4 +147,7 @@ __all__ = [
     "time_over_threshold",
     "dplms",
     "moving_slope",
+    "step",
+    "get_wf_centroid",
+    "wf_alignment"
 ]
