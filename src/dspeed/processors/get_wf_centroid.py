@@ -5,8 +5,8 @@ from typing import Callable
 import numpy as np
 from numba import guvectorize
 
-from pygama.dsp.errors import DSPFatal
-from pygama.dsp.utils import numba_defaults_kwargs as nb_kwargs
+from dspeed.errors import DSPFatal
+from dspeed.utils import numba_defaults_kwargs as nb_kwargs
 
 
 @guvectorize(
