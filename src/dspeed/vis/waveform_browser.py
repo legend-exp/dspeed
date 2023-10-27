@@ -502,7 +502,7 @@ class WaveformBrowser:
                 styles = self.styles[i]
             else:
                 styles = self.styles
-            
+
             if styles is None:
                 styles = default_style
             else:
