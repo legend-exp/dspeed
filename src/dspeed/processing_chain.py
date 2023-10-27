@@ -53,13 +53,19 @@ class CoordinateGrid:
     """
 
     period: Quantity | Unit | str
-    offset: Quantity | ProcChainVar | float | int
+    offset: Quantity | ProcChainVar | float | int = 0
 
     def __post_init__(self) -> None:
+        # Copy constructor
+        if isinstance(self.period, CoordinateGrid):
+            self.offset = self.period.offset
+            self.period = self.period.period
+        
         if isinstance(self.period, str):
             self.period = Quantity(1.0, self.period)
         elif isinstance(self.period, Unit):
             self.period *= 1  # make Quantity
+
         if isinstance(self.offset, (int, float)):
             self.offset = self.offset * self.period
         assert isinstance(self.period, Quantity) and isinstance(
@@ -93,7 +99,7 @@ class CoordinateGrid:
             unit = ureg.Quantity(unit)
 
         if isinstance(self.offset, ProcChainVar):
-            return self.offset.get_buffer(CoordinateGrid(unit, 0))
+            return self.offset.get_buffer(CoordinateGrid(unit))
         else:
             return float(self.offset / unit)
 
@@ -191,10 +197,8 @@ class ProcChainVar:
         elif name == "is_coord":
             value = bool(value)
             if value:
-                if self._buffer is None:
-                    self._buffer = []
-                elif isinstance(self._buffer, np.ndarray):
-                    self._buffer = [(self._buffer, CoordinateGrid(self.unit, 0))]
+                if isinstance(self._buffer, np.ndarray):
+                    self._buffer = [(self._buffer, CoordinateGrid(self.unit))]
 
         super().__setattr__(name, value)
 
@@ -212,32 +216,21 @@ class ProcChainVar:
             )
 
         # if variable has no convertable units, we're all set
-        if self.unit is None or not (
+        if isinstance(self._buffer, np.ndarray) and (self.unit is None or not (
             isinstance(self.unit, (Unit, Quantity)) or self.unit in ureg
-        ):
+        ) ):
             return self._buffer
-        elif not isinstance(self._buffer, list):
-            self._buffer = [(self._buffer, self.unit)]
+
+        # buffer can be converted, so make it a list of buffers
+        if not isinstance(self._buffer, list):
+            self._buffer = [(self._buffer, CoordinateGrid(self.unit))]
 
         # if no unit is given, use the native unit
         if unit is None:
             unit = self.unit
 
-        if self.is_coord and not isinstance(unit, CoordinateGrid):
-            unit = CoordinateGrid(unit, 0)
-
-        # if this is our first time accessing, no conversion is needed
-        if len(self._buffer) == 0:
-            if self.shape is auto:
-                raise ProcessingChainError(f"cannot deduce shape of {self.name}")
-            if self.dtype is auto:
-                raise ProcessingChainError(f"cannot deduce shape of {self.name}")
-
-            buff = np.zeros(
-                shape=(self.proc_chain._block_width,) + self.shape, dtype=self.dtype
-            )
-            self._buffer.append((buff, unit))
-            return buff
+        if not isinstance(unit, CoordinateGrid):
+            unit = CoordinateGrid(unit)
 
         # check if coordinate conversion has been done already
         for buff, buf_u in self._buffer:
@@ -246,7 +239,7 @@ class ProcChainVar:
 
         # If we get this far, add conversion processor to ProcChain and add new buffer to _buffer
         conversion_manager = UnitConversionManager(self, unit)
-        self._buffer.append([conversion_manager.out_buffer, unit])
+        self._buffer.append((conversion_manager.out_buffer, unit))
         self.proc_chain._proc_managers.append(conversion_manager)
         return conversion_manager.out_buffer
 
@@ -1243,7 +1236,7 @@ class ProcessorManager:
                         param = float(param)
                     elif not isinstance(
                         grid, CoordinateGrid
-                    ) or not ureg.is_compatible_with(grid.period, param):
+                    ) or not ureg.is_compatible_with(grid.period.u, param):
                         raise ProcessingChainError(
                             f"could not find valid conversion for {param}; "
                             f"CoordinateGrid is {grid}"
