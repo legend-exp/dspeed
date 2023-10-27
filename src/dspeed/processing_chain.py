@@ -215,7 +215,7 @@ class ProcChainVar:
                 shape=(self.proc_chain._block_width,) + self.shape, dtype=self.dtype
             )
 
-        # if variable has no convertable units, we're all set
+        # if variable has no convertible units, we're all set
         if isinstance(self._buffer, np.ndarray) and (self.unit is None or not (
             isinstance(self.unit, (Unit, Quantity)) or self.unit in ureg
         ) ):
