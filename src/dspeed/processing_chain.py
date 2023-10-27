@@ -60,7 +60,7 @@ class CoordinateGrid:
         if isinstance(self.period, CoordinateGrid):
             self.offset = self.period.offset
             self.period = self.period.period
-        
+
         if isinstance(self.period, str):
             self.period = Quantity(1.0, self.period)
         elif isinstance(self.period, Unit):
@@ -216,9 +216,10 @@ class ProcChainVar:
             )
 
         # if variable has no convertible units, we're all set
-        if isinstance(self._buffer, np.ndarray) and (self.unit is None or not (
-            isinstance(self.unit, (Unit, Quantity)) or self.unit in ureg
-        ) ):
+        if isinstance(self._buffer, np.ndarray) and (
+            self.unit is None
+            or not (isinstance(self.unit, (Unit, Quantity)) or self.unit in ureg)
+        ):
             return self._buffer
 
         # buffer can be converted, so make it a list of buffers
