@@ -10,7 +10,7 @@ from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
-def discrete_wavelet_transform(wave_type: str, level: int) -> Callable:
+def discrete_wavelet_transform(wave_type: str, level: int, coeff: str) -> Callable:
     """
     Apply a discrete wavelet transform to the waveform and return only
     the approximate coefficients.
@@ -28,6 +28,8 @@ def discrete_wavelet_transform(wave_type: str, level: int) -> Callable:
        The wavelet type for discrete convolution ``('haar', 'db1', ...)``
     level
        The level of decompositions to be performed ``(1, 2, ...)``
+    coeff
+       The coefficients to be saved ``('a', 'd')``
 
 
     JSON Configuration Example
@@ -40,7 +42,7 @@ def discrete_wavelet_transform(wave_type: str, level: int) -> Callable:
             "args": ["wf_blsub", "dwt(250)"],
             "unit": "ADC",
             "prereqs": ["wf_blsub"],
-            "init_args": ["'haar'", "3",]
+            "init_args": ["'haar'", "3", "a"]
         }
     """
 
@@ -69,6 +71,6 @@ def discrete_wavelet_transform(wave_type: str, level: int) -> Callable:
         if np.isnan(w_in).any():
             return
 
-        w_out[:] = downcoef("a", w_in, wave_type, level=level)
+        w_out[:] = downcoef(coeff, w_in, wave_type, level=level)
 
     return dwt_out

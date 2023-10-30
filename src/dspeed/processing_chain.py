@@ -53,13 +53,19 @@ class CoordinateGrid:
     """
 
     period: Quantity | Unit | str
-    offset: Quantity | ProcChainVar | float | int
+    offset: Quantity | ProcChainVar | float | int = 0
 
     def __post_init__(self) -> None:
+        # Copy constructor
+        if isinstance(self.period, CoordinateGrid):
+            self.offset = self.period.offset
+            self.period = self.period.period
+
         if isinstance(self.period, str):
             self.period = Quantity(1.0, self.period)
         elif isinstance(self.period, Unit):
             self.period *= 1  # make Quantity
+
         if isinstance(self.offset, (int, float)):
             self.offset = self.offset * self.period
         assert isinstance(self.period, Quantity) and isinstance(
@@ -93,7 +99,7 @@ class CoordinateGrid:
             unit = ureg.Quantity(unit)
 
         if isinstance(self.offset, ProcChainVar):
-            return self.offset.get_buffer(CoordinateGrid(unit, 0))
+            return self.offset.get_buffer(CoordinateGrid(unit))
         else:
             return float(self.offset / unit)
 
@@ -186,15 +192,13 @@ class ProcChainVar:
             value = CoordinateGrid(period, offset)
 
         elif name == "unit" and value is not None:
-            value = str(value)
+            value = value
 
         elif name == "is_coord":
             value = bool(value)
             if value:
-                if self._buffer is None:
-                    self._buffer = []
-                elif isinstance(self._buffer, np.ndarray):
-                    self._buffer = [(self._buffer, CoordinateGrid(self.unit, 0))]
+                if isinstance(self._buffer, np.ndarray):
+                    self._buffer = [(self._buffer, CoordinateGrid(self.unit))]
 
         super().__setattr__(name, value)
 
@@ -211,38 +215,32 @@ class ProcChainVar:
                 shape=(self.proc_chain._block_width,) + self.shape, dtype=self.dtype
             )
 
-        # if variable isn't a coordinate, we're all set
-        if self.is_coord is False or self.is_coord is auto:
+        # if variable has no convertible units, we're all set
+        if isinstance(self._buffer, np.ndarray) and (
+            self.unit is None
+            or not (isinstance(self.unit, (Unit, Quantity)) or self.unit in ureg)
+        ):
             return self._buffer
+
+        # buffer can be converted, so make it a list of buffers
+        if not isinstance(self._buffer, list):
+            self._buffer = [(self._buffer, CoordinateGrid(self.unit))]
 
         # if no unit is given, use the native unit
         if unit is None:
-            if isinstance(self.unit, str):
-                unit = CoordinateGrid(self.unit, 0.0)
-        elif not isinstance(unit, CoordinateGrid):
-            unit = CoordinateGrid(unit, 0.0)
+            unit = self.unit
 
-        # if this is our first time accessing, no conversion is needed
-        if len(self._buffer) == 0:
-            if self.shape is auto:
-                raise ProcessingChainError(f"cannot deduce shape of {self.name}")
-            if self.dtype is auto:
-                raise ProcessingChainError(f"cannot deduce shape of {self.name}")
-
-            buff = np.zeros(
-                shape=(self.proc_chain._block_width,) + self.shape, dtype=self.dtype
-            )
-            self._buffer.append((buff, unit))
-            return buff
+        if not isinstance(unit, CoordinateGrid):
+            unit = CoordinateGrid(unit)
 
         # check if coordinate conversion has been done already
-        for buff, grid in self._buffer:
-            if grid == unit:
+        for buff, buf_u in self._buffer:
+            if buf_u == unit:
                 return buff
 
         # If we get this far, add conversion processor to ProcChain and add new buffer to _buffer
         conversion_manager = UnitConversionManager(self, unit)
-        self._buffer.append([conversion_manager.out_buffer, unit])
+        self._buffer.append((conversion_manager.out_buffer, unit))
         self.proc_chain._proc_managers.append(conversion_manager)
         return conversion_manager.out_buffer
 
@@ -1239,7 +1237,7 @@ class ProcessorManager:
                         param = float(param)
                     elif not isinstance(
                         grid, CoordinateGrid
-                    ) or not ureg.is_compatible_with(grid.period, param):
+                    ) or not ureg.is_compatible_with(grid.period.u, param):
                         raise ProcessingChainError(
                             f"could not find valid conversion for {param}; "
                             f"CoordinateGrid is {grid}"
@@ -1289,7 +1287,9 @@ class UnitConversionManager(ProcessorManager):
         else:
             raise DSPFatal("Cannot convert to integer")
 
-    def __init__(self, var: ProcChainVar, unit: str | Unit) -> None:
+    def __init__(
+        self, var: ProcChainVar, unit: str | Unit | Quantity | CoordinateGrid
+    ) -> None:
         # reference back to our processing chain
         self.proc_chain = var.proc_chain
         # callable function used to process data
@@ -1301,14 +1301,27 @@ class UnitConversionManager(ProcessorManager):
         self.params = [var, unit]
         self.kw_params = {}
 
-        from_buffer, from_grid = var._buffer[0]
-        period_ratio = from_grid.get_period(unit.period)
+        to_offset = 0
+        if isinstance(unit, CoordinateGrid):
+            to_offset = unit.get_offset()
+            unit = unit.period
+
+        from_buffer, from_unit = var._buffer[0]
+        if isinstance(from_unit, CoordinateGrid):
+            ratio = from_unit.get_period(unit)
+            from_offset = from_unit.get_offset()
+        elif isinstance(from_unit, (str, Unit, Quantity)):
+            if isinstance(unit, str):
+                unit = ureg.Quantity(unit)
+            ratio = float(from_unit / unit)
+            from_offset = 0
+
         self.out_buffer = np.zeros_like(from_buffer, dtype=var.dtype)
         self.args = [
             from_buffer,
-            from_grid.get_offset(),
-            unit.get_offset(),
-            period_ratio,
+            from_offset,
+            to_offset,
+            ratio,
             self.out_buffer,
         ]
         self.kwargs = {}
@@ -1383,19 +1396,28 @@ class LGDOArrayIOManager(IOManager):
         unit = io_array.attrs.get("units", None)
         var.update_auto(dtype=io_array.dtype, shape=io_array.nda.shape[1:], unit=unit)
 
-        if isinstance(var.unit, CoordinateGrid):
+        if isinstance(var.unit, (CoordinateGrid, Quantity, Unit)):
+            if isinstance(var.unit, CoordinateGrid):
+                var_u = var.unit.period.u
+            elif isinstance(var.unit, Quantity):
+                var_u = var.unit.u
+            else:
+                var_u = var.unit
+
             if unit is None:
-                unit = var.unit.period.u
-            elif ureg.is_compatible_with(var.unit.period, unit):
+                unit = var_u
+            elif ureg.is_compatible_with(var_u, unit):
                 unit = ureg.Quantity(unit).u
             else:
                 raise ProcessingChainError(
                     f"LGDO array and variable {var} have incompatible units "
-                    f"({var.unit.period.u} and {unit})"
+                    f"({var_u} and {unit})"
                 )
+        elif isinstance(var.unit, str) and unit is None:
+            unit = var.unit
 
-        if unit is None and var.unit is not None:
-            io_array.attrs["units"] = str(var.unit)
+        if "units" not in io_array.attrs and unit is not None:
+            io_array.attrs["units"] = str(unit)
 
         self.io_array = io_array
         self.raw_buf = io_array.nda

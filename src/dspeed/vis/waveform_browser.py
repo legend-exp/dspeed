@@ -171,8 +171,10 @@ class WaveformBrowser:
 
         self.aux_vals = aux_values
         # Apply entry selection to aux_vals if needed
-        if self.aux_vals is not None and len(self.aux_vals) > len(
-            self.lh5_it.get_global_entrylist()
+        if (
+            self.aux_vals is not None
+            and self.lh5_it.get_global_entrylist() is not None
+            and len(self.aux_vals) > len(self.lh5_it.get_global_entrylist())
         ):
             self.aux_vals = self.aux_vals.iloc[
                 self.lh5_it.get_global_entrylist()
@@ -187,7 +189,6 @@ class WaveformBrowser:
             self.lines = {line: [] for line in lines}
 
         # styles
-        default_style = cycler(plt.rcParams["axes.prop_cycle"])
         if isinstance(styles, (list, tuple)):
             self.styles = [None for _ in self.lines]
             for i, sty in enumerate(styles):
@@ -195,21 +196,21 @@ class WaveformBrowser:
                     try:
                         self.styles[i] = plt.style.library[sty]["axes.prop_cycle"]
                     except KeyError:
-                        self.styles[i] = itertools.repeat(None)
+                        self.styles[i] = None
                 elif sty is None:
-                    self.styles[i] = default_style
+                    self.styles[i] = None
                 else:
-                    self.styles[i] = cycler(**sty)
+                    self.styles[i] = itertools.cycle(cycler(**sty))
         else:
             if isinstance(styles, str):
                 try:
                     self.styles = plt.style.library[styles]["axes.prop_cycle"]
                 except KeyError:
-                    self.styles = itertools.repeat(None)
+                    self.styles = None
             elif styles is None:
-                self.styles = default_style
+                self.styles = None
             else:
-                self.styles = cycler(**styles)
+                self.styles = itertools.cycle(cycler(**styles))
 
         self.legend_format = []  # list of formatter strings
         self.legend_vals = {}  # Set up dict from names to lists of values
@@ -495,14 +496,21 @@ class WaveformBrowser:
             styles = self.styles
 
         # draw lines
-        default_style = cycler(plt.rcParams["axes.prop_cycle"])
+        default_style = itertools.cycle(cycler(plt.rcParams["axes.prop_cycle"]))
         for i, lines in enumerate(self.lines.values()):
             if isinstance(self.styles, list):
                 styles = self.styles[i]
+            else:
+                styles = self.styles
+
             if styles is None:
                 styles = default_style
+            else:
+                styles = iter(styles)
 
-            for line, sty in zip(lines, itertools.cycle(styles)):
+            # for line, sty in zip(lines, styles):
+            for line in lines:
+                sty = next(styles)
                 if sty is not None:
                     line.update(sty)
                 if line.get_figure() is not None:
