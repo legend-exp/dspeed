@@ -1,4 +1,4 @@
-r"""
+"""
 Contains a list of DSP processors, implemented using Numba's
 :func:`numba.guvectorize` to implement NumPy's :class:`numpy.ufunc` interface.
 In other words, all of the functions are void functions whose outputs are given
@@ -60,9 +60,8 @@ several advantages:
 """
 
 from .bl_subtract import bl_subtract
-from .convolutions import cusp_filter, moving_slope, t0_filter, zac_filter
+from .convolutions import cusp_filter, moving_slope, t0_filter, zac_filter, step
 from .dplms import dplms
-from .step import step
 from .get_wf_centroid import get_wf_centroid
 from .wf_alignment import wf_alignment
 from .dwt import discrete_wavelet_transform
