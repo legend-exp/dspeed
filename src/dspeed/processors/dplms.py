@@ -18,6 +18,7 @@ def dplms(
     a3: float,
     ff: int,
     coefficients: list,
+    mode: str = "valid",
 ) -> Callable:
     """Calculate and apply an optimum DPLMS filter to the waveform.
 
@@ -165,6 +166,6 @@ def dplms(
         if len(x) > len(w_in):
             raise DSPFatal("The filter is longer than the input waveform")
 
-        w_out[:] = np.convolve(w_in, np.flip(x), "valid")
+        w_out[:] = np.convolve(w_in, np.flip(x), f'{mode}')
 
     return dplms_out

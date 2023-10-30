@@ -9,7 +9,7 @@ from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
-def cusp_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
+def cusp_filter(length: int, sigma: float, flat: int, decay: int, mode: str = "valid") -> Callable:
     """Apply a CUSP filter to the waveform.
 
     Note
@@ -50,7 +50,7 @@ def cusp_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
 
     if sigma < 0:
         raise DSPFatal("The curvature parameter must be positive")
-
+    
     if flat < 0:
         raise DSPFatal("The length of the flat section must be positive")
 
@@ -94,16 +94,16 @@ def cusp_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
 
         if np.isnan(w_in).any():
             return
-
+        
         if len(cuspd) > len(w_in):
             raise DSPFatal("The filter is longer than the input waveform")
-
-        w_out[:] = np.convolve(w_in, cuspd, "valid")
+        
+        w_out[:] = np.convolve(w_in, cuspd, f'{mode}')
 
     return cusp_out
 
 
-def zac_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
+def zac_filter(length: int, sigma: float, flat: int, decay: int, mode: str = "valid") -> Callable:
     """Apply a ZAC (Zero Area CUSP) filter to the waveform.
 
     Note
@@ -210,7 +210,7 @@ def zac_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
         if len(zacd) > len(w_in):
             raise DSPFatal("The filter is longer than the input waveform")
 
-        w_out[:] = np.convolve(w_in, zacd, "valid")
+        w_out[:] = np.convolve(w_in, zacd, f'{mode}')
 
     return zac_out
 
