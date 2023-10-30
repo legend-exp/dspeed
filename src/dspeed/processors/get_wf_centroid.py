@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from typing import Callable
-
 import numpy as np
 from numba import guvectorize
 
-from dspeed.errors import DSPFatal
 from dspeed.utils import numba_defaults_kwargs as nb_kwargs
 
 
@@ -17,11 +14,7 @@ from dspeed.utils import numba_defaults_kwargs as nb_kwargs
     "(n),()->()",
     **nb_kwargs,
 )
-def get_wf_centroid(
-    w_in: np.ndarray,
-    shift: int,
-    centroid: int
-) -> None:
+def get_wf_centroid(w_in: np.ndarray, shift: int, centroid: int) -> None:
     """Calculate waveform centroid.
     Parameters
     ----------
@@ -42,8 +35,12 @@ def get_wf_centroid(
         }
     """
     centroid[0] = np.nan
-    
-    c_a = np.where(w_in[w_in.argmin():w_in.argmax()] > 0)[0][0] + w_in.argmin() + shift
-    c_b = np.where(w_in[w_in.argmin():w_in.argmax()] < 0)[0][-1] + w_in.argmin() + shift
-    
-    centroid[0] = round((c_a+c_b)/2)
+
+    c_a = (
+        np.where(w_in[w_in.argmin() : w_in.argmax()] > 0)[0][0] + w_in.argmin() + shift
+    )
+    c_b = (
+        np.where(w_in[w_in.argmin() : w_in.argmax()] < 0)[0][-1] + w_in.argmin() + shift
+    )
+
+    centroid[0] = round((c_a + c_b) / 2)

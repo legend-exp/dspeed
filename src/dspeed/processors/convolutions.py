@@ -9,7 +9,9 @@ from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
-def cusp_filter(length: int, sigma: float, flat: int, decay: int, mode: str = "valid") -> Callable:
+def cusp_filter(
+    length: int, sigma: float, flat: int, decay: int, mode: str = "valid"
+) -> Callable:
     """Apply a CUSP filter to the waveform.
 
     Note
@@ -50,7 +52,7 @@ def cusp_filter(length: int, sigma: float, flat: int, decay: int, mode: str = "v
 
     if sigma < 0:
         raise DSPFatal("The curvature parameter must be positive")
-    
+
     if flat < 0:
         raise DSPFatal("The length of the flat section must be positive")
 
@@ -94,16 +96,18 @@ def cusp_filter(length: int, sigma: float, flat: int, decay: int, mode: str = "v
 
         if np.isnan(w_in).any():
             return
-        
+
         if len(cuspd) > len(w_in):
             raise DSPFatal("The filter is longer than the input waveform")
-        
-        w_out[:] = np.convolve(w_in, cuspd, f'{mode}')
+
+        w_out[:] = np.convolve(w_in, cuspd, f"{mode}")
 
     return cusp_out
 
 
-def zac_filter(length: int, sigma: float, flat: int, decay: int, mode: str = "valid") -> Callable:
+def zac_filter(
+    length: int, sigma: float, flat: int, decay: int, mode: str = "valid"
+) -> Callable:
     """Apply a ZAC (Zero Area CUSP) filter to the waveform.
 
     Note
@@ -210,7 +214,7 @@ def zac_filter(length: int, sigma: float, flat: int, decay: int, mode: str = "va
         if len(zacd) > len(w_in):
             raise DSPFatal("The filter is longer than the input waveform")
 
-        w_out[:] = np.convolve(w_in, zacd, f'{mode}')
+        w_out[:] = np.convolve(w_in, zacd, f"{mode}")
 
     return zac_out
 
@@ -351,9 +355,7 @@ def moving_slope(length):
     return moving_slope_out
 
 
-def step(
-    length: int
-) -> Callable:
+def step(length: int) -> Callable:
     """Process waveforms with a step function.
     Note
     ----
@@ -377,15 +379,18 @@ def step(
     """
 
     x = np.arange(length)
-    y = np.piecewise(x,
-                     [((x >= 0) & (x < length/4)),
-                      ((x >= length/4) & (x <= 3*length/4)),
-                      ((x > 3*length/4) & (x <= length))],
-                     [-1, 1, -1])
+    y = np.piecewise(
+        x,
+        [
+            ((x >= 0) & (x < length / 4)),
+            ((x >= length / 4) & (x <= 3 * length / 4)),
+            ((x > 3 * length / 4) & (x <= length)),
+        ],
+        [-1, 1, -1],
+    )
 
     @guvectorize(
-        ["void(float32[:], float32[:])",
-         "void(float64[:], float64[:])"],
+        ["void(float32[:], float32[:])", "void(float64[:], float64[:])"],
         "(n),(m)",
         **nb_kwargs(
             cache=False,
@@ -409,6 +414,6 @@ def step(
 
         if len(y) > len(w_in):
             raise DSPFatal("The filter is longer than the input waveform")
-        w_out[:] = np.convolve(w_in, y, mode = 'valid')
+        w_out[:] = np.convolve(w_in, y, mode="valid")
 
     return step_out
