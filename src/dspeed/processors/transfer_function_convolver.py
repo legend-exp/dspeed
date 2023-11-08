@@ -19,7 +19,9 @@ def transfer_function_convolver(w_in, a_in, b_in, w_out):
     r"""
     Compute the difference equation of the form
     $a_0*w_out[i] = a_1*w_out[i-1] + \ldots b_0*w_in[i] \ldots$
-    which is equivalent of convolving a signal with a transfer function
+    which is equivalent of convolving a signal with a transfer function.
+    a_in always needs at least one element
+    The numba signature specifies these arrays as contiguous, so that way the dot product is as fast as possible
 
     Parameters
     ----------
@@ -40,14 +42,9 @@ def transfer_function_convolver(w_in, a_in, b_in, w_out):
         "wf_pz": {
             "function": "transfer_function_convolver",
             "module": "dspeed.processors",
-            "args": ["wf_bl", np.array([1, 1]), np.array([1, -0.1]), "wf_pz"],
+            "args": ["waveform", "np.array([-1,1])", "np.array([1,2])", "wf_pz"],
             "unit": "ADC"
         }
-
-    Notes
-    -----
-    a_in always needs at least one element
-    The numba signature specifies these arrays as contiguous, so that way the dot product is as fast as possible
     """
     w_out[:] = np.nan
 
