@@ -133,7 +133,7 @@ def zac_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
             "module": "dspeed.processors",
             "args": ["wf_bl", "wf_zac(101,f)"],
             "unit": "ADC",
-            "init_args": ["len(wf_bl)-100", "40*us", "3*us", "45*us"],
+            "init_args": ["len(wf_bl)-100", "40*us", "3*us", "45*us"]
         }
     """
     if length <= 0:
@@ -370,7 +370,7 @@ def step(length: int) -> Callable:
         "wf_step": {
             "function": "step",
             "module": "dspeed.processors",
-            "args": ["waveform", "wf_step(len(waveform)-16+1, 'f')"],
+            "args": ["waveform", "wf_step(len(waveform)-15,f)"],
             "unit": "ADC",
             "init_args": ["16"]
         }
