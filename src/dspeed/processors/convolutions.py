@@ -353,11 +353,13 @@ def moving_slope(length):
 
 def step(length: int) -> Callable:
     """Process waveforms with a step function.
+
     Note
     ----
     This processor is composed of a factory function that is called using the
     `init_args` argument. The input and output waveforms are passed using
     `args`.
+
     Parameters
     ----------
     length
@@ -369,6 +371,7 @@ def step(length: int) -> Callable:
     --------------------------
 
     .. code-block :: json
+
         "wf_step": {
             "function": "step",
             "module": "dspeed.processors",

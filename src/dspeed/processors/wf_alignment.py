@@ -17,7 +17,12 @@ from dspeed.utils import numba_defaults_kwargs as nb_kwargs
 def wf_alignment(
     w_in: np.ndarray, centroid: int, shift: int, size: int, w_out: np.ndarray
 ) -> None:
-    """Calculate waveform centroid.
+    """Align waveform.
+
+    Note
+    ----
+    This processor align the input waveform by setting the centroid position at the center of the output waveform.
+
     Parameters
     ----------
     w_in
@@ -30,9 +35,12 @@ def wf_alignment(
         size of output waveform.
     w_out
         aligned waveform.
+
     JSON Configuration Example
     --------------------------
+
     .. code-block :: json
+
         "wf_align": {
           "function": "wf_alignment",
           "module": "dspeed.processors",
@@ -40,6 +48,7 @@ def wf_alignment(
           "unit": "ADC"
         }
     """
+
     w_out[:] = np.nan
 
     if (centroid >= size / 2) and (centroid < len(w_in) - size / 2):

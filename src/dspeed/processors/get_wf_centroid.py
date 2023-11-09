@@ -16,6 +16,11 @@ from dspeed.utils import numba_defaults_kwargs as nb_kwargs
 )
 def get_wf_centroid(w_in: np.ndarray, shift: int, centroid: int) -> None:
     """Calculate waveform centroid.
+
+    Note
+    ----
+    This processor calculate the centroid position when provided the convolution product with a step function.
+
     Parameters
     ----------
     w_in
@@ -23,10 +28,13 @@ def get_wf_centroid(w_in: np.ndarray, shift: int, centroid: int) -> None:
     shift
         shift.
     centroid
-        centroid.
+        centroid position.
+
     JSON Configuration Example
     --------------------------
+
     .. code-block :: json
+
         "centroid": {
           "function": "get_wf_centroid",
           "module": "dspeed.processors",
@@ -34,6 +42,7 @@ def get_wf_centroid(w_in: np.ndarray, shift: int, centroid: int) -> None:
           "unit": "ADC"
         }
     """
+
     centroid[0] = np.nan
 
     c_a = (
