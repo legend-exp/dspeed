@@ -364,8 +364,10 @@ def step(length: int) -> Callable:
         length of the step function.
     weight_pos
         relative weight of positive step side.
+
     JSON Configuration Example
     --------------------------
+
     .. code-block :: json
         "wf_step": {
             "function": "step",
