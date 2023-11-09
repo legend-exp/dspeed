@@ -9,9 +9,7 @@ from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
-def cusp_filter(
-    length: int, sigma: float, flat: int, decay: int, mode: str = "valid"
-) -> Callable:
+def cusp_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
     """Apply a CUSP filter to the waveform.
 
     Note
@@ -100,14 +98,12 @@ def cusp_filter(
         if len(cuspd) > len(w_in):
             raise DSPFatal("The filter is longer than the input waveform")
 
-        w_out[:] = np.convolve(w_in, cuspd, f"{mode}")
+        w_out[:] = np.convolve(w_in, cuspd, mode="valid")
 
     return cusp_out
 
 
-def zac_filter(
-    length: int, sigma: float, flat: int, decay: int, mode: str = "valid"
-) -> Callable:
+def zac_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
     """Apply a ZAC (Zero Area CUSP) filter to the waveform.
 
     Note
@@ -214,7 +210,7 @@ def zac_filter(
         if len(zacd) > len(w_in):
             raise DSPFatal("The filter is longer than the input waveform")
 
-        w_out[:] = np.convolve(w_in, zacd, f"{mode}")
+        w_out[:] = np.convolve(w_in, zacd, mode="valid")
 
     return zac_out
 
@@ -313,7 +309,7 @@ def moving_slope(length):
 
         "wf_slopes": {
             "function": "moving_slope",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_pz", "wf_slopes(len(wf_pz)-11,f)"],
             "unit": "ADC",
             "init_args": ["12"]
@@ -350,7 +346,7 @@ def moving_slope(length):
         if len(kernel) > len(w_in):
             raise DSPFatal("The filter is longer than the input waveform")
 
-        w_out[:] = np.convolve(w_in, kernel, "valid")
+        w_out[:] = np.convolve(w_in, kernel, mode="valid")
 
     return moving_slope_out
 
@@ -366,12 +362,14 @@ def step(length: int) -> Callable:
     ----------
     length
         length of the step function.
+    weight_pos
+        relative weight of positive step side.
     JSON Configuration Example
     --------------------------
     .. code-block :: json
         "wf_step": {
             "function": "step",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["waveform", "wf_step(len(waveform)-16+1, 'f')"],
             "unit": "ADC",
             "init_args": ["16"]
@@ -383,8 +381,8 @@ def step(length: int) -> Callable:
         x,
         [
             ((x >= 0) & (x < length / 4)),
-            ((x >= length / 4) & (x <= 3 * length / 4)),
-            ((x > 3 * length / 4) & (x <= length)),
+            ((x >= length / 4) & (x < 3 * length / 4)),
+            ((x >= 3 * length / 4) & (x < length)),
         ],
         [-1, 1, -1],
     )

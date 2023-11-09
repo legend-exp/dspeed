@@ -35,7 +35,7 @@ def wf_alignment(
     .. code-block :: json
         "wf_align": {
           "function": "wf_alignment",
-          "module": "pygama.dsp.processors",
+          "module": "dspeed.processors",
           "args": ["waveform", "centroid", "shift", "centroid", "size", "wf_align"],
           "unit": "ADC"
         }

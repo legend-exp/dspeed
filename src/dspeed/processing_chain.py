@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import lgdo
+import lgdo.lh5_store as lh5
 import numpy as np
 from lgdo import LGDO
 from lgdo.lgdo_utils import expand_path
@@ -26,6 +27,7 @@ from .errors import DSPFatal, ProcessingChainError
 from .units import unit_registry as ureg
 
 log = logging.getLogger(__name__)
+sto = lh5.LH5Store()
 
 # Filler value for variables to be automatically deduced later
 auto = "auto"
@@ -1870,7 +1872,14 @@ def build_processing_chain(
                     if isinstance(arg, str):
                         arg = proc_chain.get_variable(arg)
                     if isinstance(arg, dict):
-                        init_kwargs.update(arg)
+                        # check if dict contain path to lh5 file
+                        if ("path_to_file" in arg) and ("path_in_file" in arg):
+                            arg = sto.read_object(
+                                arg["path_in_file"], arg["path_to_file"]
+                            )[0]
+                            init_args.append(arg)
+                        else:
+                            init_kwargs.update(arg)
                     else:
                         init_args.append(arg)
 

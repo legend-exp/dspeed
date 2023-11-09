@@ -29,7 +29,7 @@ def get_wf_centroid(w_in: np.ndarray, shift: int, centroid: int) -> None:
     .. code-block :: json
         "centroid": {
           "function": "get_wf_centroid",
-          "module": "pygama.dsp.processors",
+          "module": "dspeed.processors",
           "args": ["waveform", "shift", "centroid"],
           "unit": "ADC"
         }
