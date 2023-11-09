@@ -36,7 +36,7 @@ def wf_alignment(
         "wf_align": {
           "function": "wf_alignment",
           "module": "dspeed.processors",
-          "args": ["waveform", "centroid", "shift", "centroid", "size", "wf_align"],
+          "args": ["waveform", "centroid", "shift", "size", "wf_align"],
           "unit": "ADC"
         }
     """
