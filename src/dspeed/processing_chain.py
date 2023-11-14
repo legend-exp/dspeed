@@ -796,7 +796,7 @@ class ProcessingChain:
                         pd *= sl.step
 
                     off = val.offset
-                    if sl.start is not None:
+                    if sl.start is not None and sl.start>0:
                         start = sl.start * val.period
                         if isinstance(off, ProcChainVar):
                             new_off = ProcChainVar(
