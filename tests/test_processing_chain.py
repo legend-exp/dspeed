@@ -165,11 +165,10 @@ def test_proc_chain_coordinate_grid(spms_raw_tbl):
                     "waveform[2625:4025]",
                     "51.2*us + waveform.offset",
                     "'i'",
-                    "a_window"
+                    "a_window",
                 ],
-                "unit": ["ADC"]
+                "unit": ["ADC"],
             },
-            
             "a_downsample": {
                 "function": "fixed_time_pickoff",
                 "module": "dspeed.processors",
@@ -177,11 +176,11 @@ def test_proc_chain_coordinate_grid(spms_raw_tbl):
                     "waveform[0:8000:8]",
                     "51.2*us + waveform.offset",
                     "'i'",
-                    "a_downsample"
+                    "a_downsample",
                 ],
-                "unit": ["ADC"]
-            }
-        }
+                "unit": ["ADC"],
+            },
+        },
     }
 
     proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
