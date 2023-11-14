@@ -196,9 +196,6 @@ class ProcChainVar:
 
         elif name == "is_coord":
             value = bool(value)
-            if value:
-                if isinstance(self._buffer, np.ndarray):
-                    self._buffer = [(self._buffer, CoordinateGrid(self.unit))]
 
         super().__setattr__(name, value)
 
@@ -215,22 +212,28 @@ class ProcChainVar:
                 shape=(self.proc_chain._block_width,) + self.shape, dtype=self.dtype
             )
 
-        # if variable has no convertible units, we're all set
-        if isinstance(self._buffer, np.ndarray) and (
-            self.unit is None
-            or not (isinstance(self.unit, (Unit, Quantity)) or self.unit in ureg)
-        ):
-            return self._buffer
-
-        # buffer can be converted, so make it a list of buffers
-        if not isinstance(self._buffer, list):
-            self._buffer = [(self._buffer, CoordinateGrid(self.unit))]
+        if isinstance(self._buffer, np.ndarray):
+            if self.is_coord is True:
+                if isinstance(self.grid, CoordinateGrid):
+                    pass
+                elif unit is not None:
+                    self.grid = CoordinateGrid(unit)
+                else:
+                    self.grid = CoordinateGrid(self.unit)
+                self._buffer = [(self._buffer, self.grid)]
+            elif self.unit is None or not (
+                isinstance(self.unit, (Unit, Quantity)) or self.unit in ureg
+            ):
+                # buffer cannot be converted so return
+                return self._buffer
+            else:
+                # buffer can be converted, so make it a list of buffers
+                self._buffer = [(self._buffer, CoordinateGrid(self.unit))]
 
         # if no unit is given, use the native unit
         if unit is None:
             unit = self.unit
-
-        if not isinstance(unit, CoordinateGrid):
+        if not isinstance(unit, CoordinateGrid) and unit in ureg:
             unit = CoordinateGrid(unit)
 
         # check if coordinate conversion has been done already
@@ -795,7 +798,7 @@ class ProcessingChain:
                         pd *= sl.step
 
                     off = val.offset
-                    if sl.start is not None:
+                    if sl.start is not None and sl.start > 0:
                         start = sl.start * val.period
                         if isinstance(off, ProcChainVar):
                             new_off = ProcChainVar(
@@ -1153,6 +1156,13 @@ class ProcessorManager:
         # Use the first types in the list that all our types can be cast to
         self.types = [np.dtype(t) for t in found_types[0]]
 
+        # If we haven't identified a coordinate grid from WFs, try from coords
+        if not grid:
+            for param in it.chain(self.params, self.kw_params.values()):
+                if isinstance(param, ProcChainVar) and param.is_coord is True:
+                    grid = param.grid
+                    break
+
         # Finish setting up of input parameters for function
         # Iterate through args and then kwargs
         # Reshape variable arrays to add broadcast dimensions
@@ -1206,8 +1216,6 @@ class ProcessorManager:
                     is_coord=is_coord,
                 )
 
-                if param.is_coord and not grid:
-                    grid = param._buffer[0][1]
                 param = param.get_buffer(grid)
 
                 # reshape just in case there are some missing dimensions
