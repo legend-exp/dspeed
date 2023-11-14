@@ -213,7 +213,7 @@ class ProcChainVar:
             )
 
         if isinstance(self._buffer, np.ndarray):
-            if self.is_coord == True:
+            if self.is_coord is True:
                 if isinstance(self.grid, CoordinateGrid):
                     pass
                 elif unit is not None:
@@ -1159,7 +1159,7 @@ class ProcessorManager:
         # If we haven't identified a coordinate grid from WFs, try from coords
         if not grid:
             for param in it.chain(self.params, self.kw_params.values()):
-                if isinstance(param, ProcChainVar) and param.is_coord == True:
+                if isinstance(param, ProcChainVar) and param.is_coord is True:
                     grid = param.grid
                     break
 
