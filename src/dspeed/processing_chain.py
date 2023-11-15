@@ -935,8 +935,8 @@ class ProcessingChain:
         return var.buffer.shape[1]
 
     # round value
-    def _round(  # noqa: N805
-        var: ProcChainVar | Quantity,
+    def _round(
+        var: ProcChainVar | Quantity,  # noqa: N805
         to_nearest: int | float | Unit | Quantity | CoordinateGrid = 1,
         dtype: str = None,
     ) -> float | Quantity | ProcChainVar:
