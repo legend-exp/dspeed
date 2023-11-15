@@ -935,29 +935,33 @@ class ProcessingChain:
         return var.buffer.shape[1]
 
     # round value
-    def _round(var: ProcChainVar | Quantity, to_nearest: int | float | Unit | Quantity | CoordinateGrid = 1, dtype: str = None) -> float | Quantity | ProcChainVar:  # noqa: N805
+    def _round(
+        var: ProcChainVar | Quantity,
+        to_nearest: int | float | Unit | Quantity | CoordinateGrid = 1,
+        dtype: str = None,
+    ) -> float | Quantity | ProcChainVar:  # noqa: N805
         """Round a variable or value to nearest multiple of `to_nearest`.
         If var is a ProcChainVar, and to_nearest is a Unit or Quantity, return
         a new ProcChainVar with a period of to_nearest, and the underlying
         values and offset rounded. If var is a ProcChainVar and to_nearest
         is an int or a float, keep the unit and just round the underlying
         value.
-        
+
         Example usage:
         round(tp_0, wf.grid) - convert tp_0 to nearest array index of wf
         round(5*us, wf.period) - 5 us in wf clock ticks
         """
-        
+
         if var is None:
             return None
         if not isinstance(var, ProcChainVar):
-            return round(float(var/to_nearest))*to_nearest
+            return round(float(var / to_nearest)) * to_nearest
         else:
             name = f"round({var.name}, {to_nearest})"
             dtype = np.dtype(dtype) if dtype is not None else var.dtype
             if var.is_coord:
                 if isinstance(to_nearest, (int, float)):
-                    grid = CoordinateGrid(var.grid.period*to_nearest, var.grid.offset)
+                    grid = CoordinateGrid(var.grid.period * to_nearest, var.grid.offset)
                 elif isinstance(to_nearest, (Unit, Quantity)):
                     grid = CoordinateGrid(to_nearest, var.grid.offset)
                 else:
@@ -966,7 +970,7 @@ class ProcessingChain:
             else:
                 grid = var.grid
                 if isinstance(to_nearest, (int, float)):
-                    to_nearest = to_nearest*var.unit
+                    to_nearest = to_nearest * var.unit
                 conversion_manager = UnitConversionManager(var, to_nearest, round=True)
 
             out = ProcChainVar(
@@ -1333,12 +1337,14 @@ class UnitConversionManager(ProcessorManager):
             raise DSPFatal("Cannot convert to integer")
 
     @vectorize(nopython=True, cache=True)
-    def convert_round(buf_in, offset_in, offset_out, period_ratio): # noqa: N805
+    def convert_round(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
         return round((buf_in + offset_in) * period_ratio - offset_out)
 
     def __init__(
-        self, var: ProcChainVar, unit: str | Unit | Quantity | CoordinateGrid,
-        round = False
+        self,
+        var: ProcChainVar,
+        unit: str | Unit | Quantity | CoordinateGrid,
+        round=False,
     ) -> None:
         # reference back to our processing chain
         self.proc_chain = var.proc_chain
