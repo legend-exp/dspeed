@@ -935,11 +935,11 @@ class ProcessingChain:
         return var.buffer.shape[1]
 
     # round value
-    def _round(
+    def _round(  # noqa: N805
         var: ProcChainVar | Quantity,
         to_nearest: int | float | Unit | Quantity | CoordinateGrid = 1,
         dtype: str = None,
-    ) -> float | Quantity | ProcChainVar:  # noqa: N805
+    ) -> float | Quantity | ProcChainVar:
         """Round a variable or value to nearest multiple of `to_nearest`.
         If var is a ProcChainVar, and to_nearest is a Unit or Quantity, return
         a new ProcChainVar with a period of to_nearest, and the underlying
