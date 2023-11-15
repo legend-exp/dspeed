@@ -137,7 +137,7 @@
       "module": "dspeed.processors",
       "args": [
         "wf_etrap",
-        "tp_0_est+db.etrap.rise+db.etrap.flat*db.etrap.sample",
+        "round(tp_0_est+db.etrap.rise+db.etrap.flat*db.etrap.sample, wf_etrap.grid)",
         "'l'",
         "trapEftp"
       ],
