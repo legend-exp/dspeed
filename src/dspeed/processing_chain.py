@@ -1338,7 +1338,7 @@ class UnitConversionManager(ProcessorManager):
 
     @vectorize(nopython=True, cache=True)
     def convert_round(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
-        return round((buf_in + offset_in) * period_ratio - offset_out)
+        return np.round((buf_in + offset_in) * period_ratio - offset_out)
 
     def __init__(
         self,
