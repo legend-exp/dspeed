@@ -744,7 +744,7 @@ class ProcessingChain:
                 )
                 self._proc_managers.append(ProcessorManager(self, op, [operand, out]))
             else:
-                out = op(out)
+                out = op(operand)
 
             return out
 
