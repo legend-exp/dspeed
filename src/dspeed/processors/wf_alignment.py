@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 from numba import guvectorize
 
+from dspeed.errors import DSPFatal
 from dspeed.utils import numba_defaults_kwargs as nb_kwargs
 
 
@@ -51,17 +52,29 @@ def wf_alignment(
 
     w_out[:] = np.nan
 
-    if np.isnan(w_in).any() or np.isnan(centroid) or np.isnan(shift) or np.isnan(size):
-        return
+    if np.isnan(w_in).any():
+        raise DSPFatal("Input waveform contains nan")
 
-    if shift < 0 or shift > len(w_in) - 1:
-        return
+    if np.isnan(centroid):
+        raise DSPFatal("centroid is nan")
+    if centroid < 0:
+        raise DSPFatal("centroid must be positive")
+    if centroid > len(w_in) - 1:
+        raise DSPFatal("centroid must be shorter than input waveform size")
 
-    if centroid < 0 or centroid > len(w_in) - 1:
-        return
+    if np.isnan(shift):
+        raise DSPFatal("shift is nan")
+    if shift < 0:
+        raise DSPFatal("shift must be positive")
+    if shift > len(w_in) - 1:
+        raise DSPFatal("shift must be shorter than input waveform size")
 
-    if size <= 0 or size > len(w_in) - 1:
-        return
+    if np.isnan(size):
+        raise DSPFatal("size is nan")
+    if size <= 0:
+        raise DSPFatal("size must be positive")
+    if size > len(w_in) - 1:
+        raise DSPFatal("size must be shorter than input waveform size")
 
     if (centroid >= size / 2) and (centroid < len(w_in) - size / 2):
         w_out[:] = w_in[int(centroid - size / 2) : int(centroid + size / 2)]

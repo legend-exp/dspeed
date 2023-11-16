@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 from numba import guvectorize
 
+from dspeed.errors import DSPFatal
 from dspeed.utils import numba_defaults_kwargs as nb_kwargs
 
 
@@ -45,11 +46,15 @@ def get_wf_centroid(w_in: np.ndarray, shift: int, centroid: int) -> None:
 
     centroid[0] = np.nan
 
-    if np.isnan(w_in).any() or np.isnan(shift):
-        return
+    if np.isnan(w_in).any():
+        raise DSPFatal("Input waveform contains nan")
 
-    if shift < 0 or shift > len(w_in) - 1:
-        return
+    if np.isnan(shift):
+        raise DSPFatal("shift is nan")
+    if shift < 0:
+        raise DSPFatal("shift must be positive")
+    if shift > len(w_in) - 1:
+        raise DSPFatal("shift must be shorter than input waveform size")
 
     c_a = (
         np.where(w_in[w_in.argmin() : w_in.argmax()] > 0)[0][0] + w_in.argmin() + shift
