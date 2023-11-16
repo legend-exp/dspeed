@@ -11,7 +11,7 @@ from dspeed.utils import numba_defaults_kwargs as nb_kwargs
         "void(float32[:], float32, float32, float32, float32[:])",
         "void(float64[:], float64, float64, float64, float64[:])",
     ],
-    "(n),(),(),()->(m)",
+    "(n),(),(),(),(m)",
     **nb_kwargs,
 )
 def wf_alignment(
