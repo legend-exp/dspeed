@@ -23,8 +23,8 @@ from numba import vectorize
 from pint import Quantity, Unit
 
 from .errors import DSPFatal, ProcessingChainError
-from .units import unit_registry as ureg
 from .processors.round_to_nearest import round_to_nearest
+from .units import unit_registry as ureg
 from .utils import ProcChainVarBase
 
 log = logging.getLogger(__name__)
@@ -1333,15 +1333,20 @@ class ProcessorManager:
 class UnitConversionManager(ProcessorManager):
     """A special processor manager for handling converting variables between unit systems."""
 
-    @vectorize([f"{t}({t}, f8, f8, f8)" for t in ["f4", "f8"]],
-               nopython=True, cache=True
-               )
+    @vectorize(
+        [f"{t}({t}, f8, f8, f8)" for t in ["f4", "f8"]], nopython=True, cache=True
+    )
     def convert(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
         return (buf_in + offset_in) * period_ratio - offset_out
 
-    @vectorize([f"{t}({t}, f8, f8, f8)" for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]],
-               nopython=True, cache=True
-               )
+    @vectorize(
+        [
+            f"{t}({t}, f8, f8, f8)"
+            for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
+        ],
+        nopython=True,
+        cache=True,
+    )
     def convert_int(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
         tmp = (buf_in + offset_in) * period_ratio - offset_out
         ret = np.rint(tmp)
@@ -1350,7 +1355,14 @@ class UnitConversionManager(ProcessorManager):
         else:
             raise DSPFatal("Cannot convert to integer. Use round or astype")
 
-    @vectorize([f"{t}({t}, f8, f8, f8)" for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8", "f4", "f8"]], nopython=True, cache=True)
+    @vectorize(
+        [
+            f"{t}({t}, f8, f8, f8)"
+            for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8", "f4", "f8"]
+        ],
+        nopython=True,
+        cache=True,
+    )
     def convert_round(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
         return np.rint((buf_in + offset_in) * period_ratio - offset_out)
 
@@ -1396,7 +1408,7 @@ class UnitConversionManager(ProcessorManager):
             ratio = float(from_unit / unit)
             from_offset = 0
         else:
-            ratio = 1/unit
+            ratio = 1 / unit
             from_offset = 0
 
         self.out_buffer = np.zeros_like(from_buffer, dtype=var.dtype)
@@ -1786,7 +1798,7 @@ def build_processing_chain(
 
         # find DB lookups in args and replace the values
         if isinstance(node, str):
-            node = { "function": node }
+            node = {"function": node}
             processors[key] = node
         if "args" in node:
             args = node["args"]
@@ -1925,12 +1937,12 @@ def build_processing_chain(
                         f"Could not find function {recipe['function']}"
                     )
                 new_var = proc_chain.add_variable(
-                    name     = proc_par,
-                    dtype    = fun_var.dtype,
-                    shape    = fun_var.shape,
-                    grid     = fun_var.grid,
-                    unit     = fun_var.unit,
-                    is_coord = fun_var.is_coord,
+                    name=proc_par,
+                    dtype=fun_var.dtype,
+                    shape=fun_var.shape,
+                    grid=fun_var.grid,
+                    unit=fun_var.unit,
+                    is_coord=fun_var.is_coord,
                 )
                 new_var._buffer = fun_var._buffer
                 log.debug(f"setting {new_var} = {fun_var}")

@@ -6,11 +6,13 @@ import numpy as np
 from numba import guvectorize
 from pyfftw import FFTW
 
-from ..utils import numba_defaults_kwargs as nb_kwargs
 from ..utils import ProcChainVarBase
+from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
-def dft(w_in: np.ndarray | ProcChainVarBase, w_out: np.ndarray | ProcChainVarBase) -> Callable:
+def dft(
+    w_in: np.ndarray | ProcChainVarBase, w_out: np.ndarray | ProcChainVarBase
+) -> Callable:
     """Perform discrete Fourier transforms using the FFTW library.
 
     Parameters
