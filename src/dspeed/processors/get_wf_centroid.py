@@ -45,6 +45,12 @@ def get_wf_centroid(w_in: np.ndarray, shift: int, centroid: int) -> None:
 
     centroid[0] = np.nan
 
+    if np.isnan(w_in).any() or np.isnan(shift):
+        return
+
+    if shift < 0 or shift > len(w_in) - 1:
+        return
+
     c_a = (
         np.where(w_in[w_in.argmin() : w_in.argmax()] > 0)[0][0] + w_in.argmin() + shift
     )

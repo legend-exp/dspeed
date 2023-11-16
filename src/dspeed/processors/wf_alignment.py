@@ -11,7 +11,7 @@ from dspeed.utils import numba_defaults_kwargs as nb_kwargs
         "void(float32[:], float32, float32, float32, float32[:])",
         "void(float64[:], float64, float64, float64, float64[:])",
     ],
-    "(n), (), (), (), (m)",
+    "(n),(),(),()->(m)",
     **nb_kwargs,
 )
 def wf_alignment(
@@ -50,6 +50,18 @@ def wf_alignment(
     """
 
     w_out[:] = np.nan
+
+    if np.isnan(w_in).any() or np.isnan(centroid) or np.isnan(shift) or np.isnan(size):
+        return
+
+    if shift < 0 or shift > len(w_in) - 1:
+        return
+
+    if centroid < 0 or centroid > len(w_in) - 1:
+        return
+
+    if size <= 0 or size > len(w_in) - 1:
+        return
 
     if (centroid >= size / 2) and (centroid < len(w_in) - size / 2):
         w_out[:] = w_in[int(centroid - size / 2) : int(centroid + size / 2)]
