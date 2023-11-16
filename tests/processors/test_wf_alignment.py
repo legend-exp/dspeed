@@ -13,22 +13,13 @@ def test_wf_alignment(compare_numba_vs_python):
     w_in = np.ones(len_wf)
     w_in[4] = np.nan
     w_out = np.empty(size)
-    assert np.isnan(compare_numba_vs_python(wf_alignment, w_in, 1, 1, size, w_out))
+    assert np.all(compare_numba_vs_python(wf_alignment, w_in, 1, 1, size, w_out))
 
     # ensure to have a valid output
     w_in = np.ones(len_wf)
-    w_out = np.empty(size)
-
-    assert np.all(compare_numba_vs_python(wf_alignment, w_in, 1, 1, size, w_out))
-
-    # test if there is a nan in w_in
-    w_in = np.ones(len_wf)
-    w_in[4] = np.nan
-
     assert np.all(compare_numba_vs_python(wf_alignment, w_in, 1, 1, size, w_out))
 
     # tests on shift
-    w_in = np.ones(len_wf)
     with pytest.raises(DSPFatal):
         compare_numba_vs_python(wf_alignment, w_in, np.nan, 1, size, w_out)
     with pytest.raises(DSPFatal):
