@@ -85,6 +85,7 @@ from .peak_snr_threshold import peak_snr_threshold
 from .pole_zero import double_pole_zero, pole_zero
 from .presum import presum
 from .pulse_injector import inject_exp_pulse, inject_sig_pulse
+from .round_to_nearest import round_to_nearest
 from .saturation import saturation
 from .soft_pileup_corr import soft_pileup_corr, soft_pileup_corr_bl
 from .time_over_threshold import time_over_threshold
@@ -144,4 +145,5 @@ __all__ = [
     "time_over_threshold",
     "dplms",
     "moving_slope",
+    "round_to_nearest",
 ]
