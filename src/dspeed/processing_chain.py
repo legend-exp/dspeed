@@ -1018,8 +1018,32 @@ class ProcessingChain:
             )
             return out
 
+    def _loadlh5(path_to_file, path_in_file: str) -> np.array:  # noqa: N805
+        """
+        Load data from an LH5 file.
+
+        Args:
+            path_to_file (str): The path to the LH5 file.
+            path_in_file (str): The path to the data within the LH5 file.
+
+        Returns:
+            list: The loaded data.
+        """
+
+        try:
+            loaded_data = sto.read_object(path_in_file, path_to_file)[0].nda
+        except ValueError:
+            raise ProcessingChainError(f"LH5 file not found: {path_to_file}")
+
+        return loaded_data
+
     # dict of functions that can be parsed by get_variable
-    func_list = {"len": _length, "round": _round, "astype": _astype}
+    func_list = {
+        "len": _length,
+        "round": _round,
+        "astype": _astype,
+        "loadlh5": _loadlh5,
+    }
     module_list = {"np": np, "numpy": np}
 
 
@@ -1930,14 +1954,7 @@ def build_processing_chain(
                     if isinstance(arg, str):
                         arg = proc_chain.get_variable(arg)
                     if isinstance(arg, dict):
-                        # check if dict contain path to lh5 file
-                        if ("path_to_file" in arg) and ("path_in_file" in arg):
-                            arg = sto.read_object(
-                                arg["path_in_file"], arg["path_to_file"]
-                            )[0]
-                            init_args.append(arg)
-                        else:
-                            init_kwargs.update(arg)
+                        init_kwargs.update(arg)
                     else:
                         init_args.append(arg)
 
