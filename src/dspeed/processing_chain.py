@@ -24,6 +24,7 @@ from pint import Quantity, Unit
 
 from .errors import DSPFatal, ProcessingChainError
 from .units import unit_registry as ureg
+from .utils import ProcChainVarBase
 
 log = logging.getLogger(__name__)
 
@@ -112,7 +113,7 @@ class CoordinateGrid:
         return f"({str(self.period)},{offset})"
 
 
-class ProcChainVar:
+class ProcChainVar(ProcChainVarBase):
     """Helper data class with buffer and information for internal variables in
     :class:`ProcessingChain`.
 

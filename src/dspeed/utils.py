@@ -1,6 +1,7 @@
 import os
 from collections.abc import MutableMapping
 from typing import Any, Iterator
+from abc import ABCMeta
 
 
 def getenv_bool(name: str, default: bool = False) -> bool:
@@ -77,3 +78,12 @@ class NumbaDefaults(MutableMapping):
 
 numba_defaults = NumbaDefaults()
 numba_defaults_kwargs = numba_defaults
+
+
+class ProcChainVarBase(metaclass=ABCMeta):
+    r"""Base class.
+    
+    :class:`ProcChainVar` implements this class. This base class is used
+    by processors that use ProcChainVar in their contructors.
+    """
+    pass
