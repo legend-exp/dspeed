@@ -1760,7 +1760,14 @@ def build_processing_chain(
                 multi_out_procs[k] = key
 
         # find DB lookups in args and replace the values
-        args = node["args"]
+        if isinstance(node, str):
+            node = { "function": node }
+            processors[key] = node
+        if "args" in node:
+            args = node["args"]
+        else:
+            args = [node["function"]]
+
         for i, arg in enumerate(args):
             if not isinstance(arg, str):
                 continue
@@ -1790,7 +1797,12 @@ def build_processing_chain(
         # parse the arguments list for prereqs, if not included explicitly
         if "prereqs" not in node:
             prereqs = []
-            for arg in node["args"]:
+            if "args" in node:
+                args = node["args"]
+            else:
+                args = [node["function"]]
+
+            for arg in args:
                 if not isinstance(arg, str):
                     continue
                 for prereq in proc_chain.get_variable(arg, True):
@@ -1877,6 +1889,28 @@ def build_processing_chain(
     for proc_par in proc_par_list:
         recipe = processors[proc_par]
         try:
+            # if we are invoking a built in expression, have the parser
+            # add it to the processing chain, and then add a new variable
+            # that shares its buffer
+            if "args" not in recipe:
+                fun_str = recipe if isinstance(recipe, str) else recipe["function"]
+                fun_var = proc_chain.get_variable(fun_str)
+                if not isinstance(fun_var, ProcChainVar):
+                    raise ProcessingChainError(
+                        f"Could not find function {recipe['function']}"
+                    )
+                new_var = proc_chain.add_variable(
+                    name     = proc_par,
+                    dtype    = fun_var.dtype,
+                    shape    = fun_var.shape,
+                    grid     = fun_var.grid,
+                    unit     = fun_var.unit,
+                    is_coord = fun_var.is_coord,
+                )
+                new_var._buffer = fun_var._buffer
+                log.debug(f"setting {new_var} = {fun_var}")
+                continue
+
             module = importlib.import_module(recipe["module"])
             func = getattr(module, recipe["function"])
             args = recipe["args"]
