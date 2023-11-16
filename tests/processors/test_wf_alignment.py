@@ -19,21 +19,17 @@ def test_wf_alignment(compare_numba_vs_python):
     w_in = np.ones(len_wf)
     assert np.all(compare_numba_vs_python(wf_alignment, w_in, 1, 1, size, w_out))
 
-    # tests on shift
+    # tests on centroid
     with pytest.raises(DSPFatal):
         compare_numba_vs_python(wf_alignment, w_in, np.nan, 1, size, w_out)
-    with pytest.raises(DSPFatal):
-        compare_numba_vs_python(wf_alignment, w_in, -1, 1, size, w_out)
-    with pytest.raises(DSPFatal):
-        compare_numba_vs_python(wf_alignment, w_in, len_wf, 1, size, w_out)
 
-    # tests on centroid
+    # tests on shift
     with pytest.raises(DSPFatal):
         compare_numba_vs_python(wf_alignment, w_in, 1, np.nan, size, w_out)
     with pytest.raises(DSPFatal):
         compare_numba_vs_python(wf_alignment, w_in, 1, -1, size, w_out)
     with pytest.raises(DSPFatal):
-        compare_numba_vs_python(wf_alignment, w_in, 1, len_wf, size, w_out)
+        compare_numba_vs_python(wf_alignment, w_in, 1, len_wf + 1, size, w_out)
 
     # tests on size
     with pytest.raises(DSPFatal):
@@ -43,4 +39,4 @@ def test_wf_alignment(compare_numba_vs_python):
     with pytest.raises(DSPFatal):
         compare_numba_vs_python(wf_alignment, w_in, 1, 1, 0, w_out)
     with pytest.raises(DSPFatal):
-        compare_numba_vs_python(wf_alignment, w_in, 1, 1, len_wf, w_out)
+        compare_numba_vs_python(wf_alignment, w_in, 1, 1, len_wf + 1, w_out)
