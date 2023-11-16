@@ -47,7 +47,7 @@ def get_wf_centroid(w_in: np.ndarray, shift: int, centroid: int) -> None:
     centroid[0] = np.nan
 
     if np.isnan(w_in).any():
-        raise DSPFatal("Input waveform contains nan")
+        return
 
     if np.isnan(shift):
         raise DSPFatal("shift is nan")

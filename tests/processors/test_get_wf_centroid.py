@@ -1,5 +1,7 @@
 import numpy as np
+import pytest
 
+from dspeed.errors import DSPFatal
 from dspeed.processors import get_wf_centroid
 
 
@@ -13,12 +15,15 @@ def test_get_wf_centroid(compare_numba_vs_python):
 
     # test for nan if nan is passed to shift
     w_in = np.ones(len_wf)
-    assert np.isnan(compare_numba_vs_python(get_wf_centroid, w_in, np.nan))
+    with pytest.raises(DSPFatal):
+        compare_numba_vs_python(get_wf_centroid, w_in, np.nan)
 
     # test for nan if shift is negative
     w_in = np.ones(len_wf)
-    assert np.isnan(compare_numba_vs_python(get_wf_centroid, w_in, -1))
+    with pytest.raises(DSPFatal):
+        compare_numba_vs_python(get_wf_centroid, w_in, -1)
 
     # test for nan if shift is too large
     w_in = np.ones(len_wf)
-    assert np.isnan(compare_numba_vs_python(get_wf_centroid, w_in, len_wf))
+    with pytest.raises(DSPFatal):
+        compare_numba_vs_python(get_wf_centroid, w_in, len_wf)

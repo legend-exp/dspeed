@@ -53,7 +53,7 @@ def wf_alignment(
     w_out[:] = np.nan
 
     if np.isnan(w_in).any():
-        raise DSPFatal("Input waveform contains nan")
+        return
 
     if np.isnan(centroid):
         raise DSPFatal("centroid is nan")
