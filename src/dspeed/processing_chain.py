@@ -746,7 +746,7 @@ class ProcessingChain:
                 )
                 self._proc_managers.append(ProcessorManager(self, op, [operand, out]))
             else:
-                out = op(out)
+                out = op(operand)
 
             return out
 
@@ -937,15 +937,56 @@ class ProcessingChain:
         return var.buffer.shape[1]
 
     # round value
-    def _round(var: ProcChainVar) -> float:  # noqa: N805
+    def _round(
+        var: ProcChainVar | Quantity,  # noqa: N805
+        to_nearest: int | float | Unit | Quantity | CoordinateGrid = 1,
+        dtype: str = None,
+    ) -> float | Quantity | ProcChainVar:
+        """Round a variable or value to nearest multiple of `to_nearest`.
+        If var is a ProcChainVar, and to_nearest is a Unit or Quantity, return
+        a new ProcChainVar with a period of to_nearest, and the underlying
+        values and offset rounded. If var is a ProcChainVar and to_nearest
+        is an int or a float, keep the unit and just round the underlying
+        value.
+
+        Example usage:
+        round(tp_0, wf.grid) - convert tp_0 to nearest array index of wf
+        round(5*us, wf.period) - 5 us in wf clock ticks
+        """
+
         if var is None:
             return None
         if not isinstance(var, ProcChainVar):
-            return round(float(var))
+            return round(float(var / to_nearest)) * to_nearest
         else:
-            raise ProcessingChainError(
-                "round() is not implemented for variables, only constants."
+            name = f"round({var.name}, {to_nearest})"
+            dtype = np.dtype(dtype) if dtype is not None else var.dtype
+            if var.is_coord:
+                if isinstance(to_nearest, (int, float)):
+                    grid = CoordinateGrid(var.grid.period * to_nearest, var.grid.offset)
+                elif isinstance(to_nearest, (Unit, Quantity)):
+                    grid = CoordinateGrid(to_nearest, var.grid.offset)
+                else:
+                    grid = to_nearest
+                conversion_manager = UnitConversionManager(var, grid, round=True)
+            else:
+                grid = var.grid
+                if isinstance(to_nearest, (int, float)):
+                    to_nearest = to_nearest * var.unit
+                conversion_manager = UnitConversionManager(var, to_nearest, round=True)
+
+            out = ProcChainVar(
+                var.proc_chain,
+                name,
+                var.shape,
+                dtype,
+                grid,
+                var.unit,
+                var.is_coord,
             )
+            out._buffer = conversion_manager.out_buffer
+            var.proc_chain._proc_managers.append(conversion_manager)
+            return out
 
     # type cast variable
     def _astype(var: ProcChainVar, dtype: str) -> ProcChainVar:  # noqa: N805
@@ -1297,13 +1338,22 @@ class UnitConversionManager(ProcessorManager):
         else:
             raise DSPFatal("Cannot convert to integer")
 
+    @vectorize(nopython=True, cache=True)
+    def convert_round(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
+        return np.round((buf_in + offset_in) * period_ratio - offset_out)
+
     def __init__(
-        self, var: ProcChainVar, unit: str | Unit | Quantity | CoordinateGrid
+        self,
+        var: ProcChainVar,
+        unit: str | Unit | Quantity | CoordinateGrid,
+        round=False,
     ) -> None:
         # reference back to our processing chain
         self.proc_chain = var.proc_chain
         # callable function used to process data
-        if np.issubdtype(var.dtype, np.integer):
+        if round:
+            self.processor = UnitConversionManager.convert_round
+        elif np.issubdtype(var.dtype, np.integer):
             self.processor = UnitConversionManager.convert_int
         else:
             self.processor = UnitConversionManager.convert
