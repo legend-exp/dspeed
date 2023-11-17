@@ -60,13 +60,14 @@ several advantages:
 """
 
 from .bl_subtract import bl_subtract
-from .convolutions import cusp_filter, moving_slope, t0_filter, zac_filter
+from .convolutions import cusp_filter, moving_slope, step, t0_filter, zac_filter
 from .dplms import dplms
 from .dwt import discrete_wavelet_transform
 from .fftw import dft, inv_dft, psd
 from .fixed_time_pickoff import fixed_time_pickoff
 from .gaussian_filter1d import gaussian_filter1d
 from .get_multi_local_extrema import get_multi_local_extrema
+from .get_wf_centroid import get_wf_centroid
 from .histogram import histogram, histogram_stats
 from .linear_slope_fit import linear_slope_diff, linear_slope_fit
 from .log_check import log_check
@@ -93,6 +94,7 @@ from .time_point_thresh import interpolated_time_point_thresh, time_point_thresh
 from .transfer_function_convolver import transfer_function_convolver
 from .trap_filters import asym_trap_filter, trap_filter, trap_norm, trap_pickoff
 from .upsampler import interpolating_upsampler, upsampler
+from .wf_alignment import wf_alignment
 from .wiener_filter import wiener_filter
 from .windower import windower
 
@@ -146,6 +148,9 @@ __all__ = [
     "time_over_threshold",
     "dplms",
     "moving_slope",
+    "step",
+    "get_wf_centroid",
+    "wf_alignment",
     "round_to_nearest",
     "transfer_function_convolver",
 ]

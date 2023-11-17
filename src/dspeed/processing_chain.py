@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import lgdo
+import lgdo.lh5_store as lh5
 import numpy as np
 from lgdo import LGDO
 from lgdo.lgdo_utils import expand_path
@@ -28,6 +29,7 @@ from .units import unit_registry as ureg
 from .utils import ProcChainVarBase
 
 log = logging.getLogger(__name__)
+sto = lh5.LH5Store()
 
 # Filler value for variables to be automatically deduced later
 auto = "auto"
@@ -1026,8 +1028,32 @@ class ProcessingChain:
             )
             return out
 
+    def _loadlh5(path_to_file, path_in_file: str) -> np.array:  # noqa: N805
+        """
+        Load data from an LH5 file.
+
+        Args:
+            path_to_file (str): The path to the LH5 file.
+            path_in_file (str): The path to the data within the LH5 file.
+
+        Returns:
+            list: The loaded data.
+        """
+
+        try:
+            loaded_data = sto.read_object(path_in_file, path_to_file)[0].nda
+        except ValueError:
+            raise ProcessingChainError(f"LH5 file not found: {path_to_file}")
+
+        return loaded_data
+
     # dict of functions that can be parsed by get_variable
-    func_list = {"len": _length, "round": _round, "astype": _astype}
+    func_list = {
+        "len": _length,
+        "round": _round,
+        "astype": _astype,
+        "loadlh5": _loadlh5,
+    }
     module_list = {"np": np, "numpy": np}
 
 

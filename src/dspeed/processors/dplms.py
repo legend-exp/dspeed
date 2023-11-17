@@ -165,6 +165,6 @@ def dplms(
         if len(x) > len(w_in):
             raise DSPFatal("The filter is longer than the input waveform")
 
-        w_out[:] = np.convolve(w_in, np.flip(x), "valid")
+        w_out[:] = np.convolve(w_in, np.flip(x), mode="valid")
 
     return dplms_out

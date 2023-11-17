@@ -98,7 +98,7 @@ def cusp_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
         if len(cuspd) > len(w_in):
             raise DSPFatal("The filter is longer than the input waveform")
 
-        w_out[:] = np.convolve(w_in, cuspd, "valid")
+        w_out[:] = np.convolve(w_in, cuspd, mode="valid")
 
     return cusp_out
 
@@ -133,7 +133,7 @@ def zac_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
             "module": "dspeed.processors",
             "args": ["wf_bl", "wf_zac(101,f)"],
             "unit": "ADC",
-            "init_args": ["len(wf_bl)-100", "40*us", "3*us", "45*us"],
+            "init_args": ["len(wf_bl)-100", "40*us", "3*us", "45*us"]
         }
     """
     if length <= 0:
@@ -210,7 +210,7 @@ def zac_filter(length: int, sigma: float, flat: int, decay: int) -> Callable:
         if len(zacd) > len(w_in):
             raise DSPFatal("The filter is longer than the input waveform")
 
-        w_out[:] = np.convolve(w_in, zacd, "valid")
+        w_out[:] = np.convolve(w_in, zacd, mode="valid")
 
     return zac_out
 
@@ -309,7 +309,7 @@ def moving_slope(length):
 
         "wf_slopes": {
             "function": "moving_slope",
-            "module": "pygama.dsp.processors",
+            "module": "dspeed.processors",
             "args": ["wf_pz", "wf_slopes(len(wf_pz)-11,f)"],
             "unit": "ADC",
             "init_args": ["12"]
@@ -346,6 +346,77 @@ def moving_slope(length):
         if len(kernel) > len(w_in):
             raise DSPFatal("The filter is longer than the input waveform")
 
-        w_out[:] = np.convolve(w_in, kernel, "valid")
+        w_out[:] = np.convolve(w_in, kernel, mode="valid")
 
     return moving_slope_out
+
+
+def step(length: int) -> Callable:
+    """Process waveforms with a step function.
+
+    Note
+    ----
+    This processor is composed of a factory function that is called using the
+    `init_args` argument. The input and output waveforms are passed using
+    `args`.
+
+    Parameters
+    ----------
+    length
+        length of the step function.
+    weight_pos
+        relative weight of positive step side.
+
+    JSON Configuration Example
+    --------------------------
+
+    .. code-block :: json
+
+        "wf_step": {
+            "function": "step",
+            "module": "dspeed.processors",
+            "args": ["waveform", "wf_step(len(waveform)-15,f)"],
+            "unit": "ADC",
+            "init_args": ["16"]
+        }
+    """
+
+    x = np.arange(length)
+    y = np.piecewise(
+        x,
+        [
+            ((x >= 0) & (x < length / 4)),
+            ((x >= length / 4) & (x < 3 * length / 4)),
+            ((x >= 3 * length / 4) & (x < length)),
+        ],
+        [-1, 1, -1],
+    )
+
+    @guvectorize(
+        ["void(float32[:], float32[:])", "void(float64[:], float64[:])"],
+        "(n),(m)",
+        **nb_kwargs(
+            cache=False,
+            forceobj=True,
+        ),
+    )
+    def step_out(w_in: np.ndarray, w_out: np.ndarray) -> None:
+        """
+        Parameters
+        ----------
+        w_in
+            the input waveform.
+        w_out
+            the filtered waveform.
+        """
+
+        w_out[:] = np.nan
+
+        if np.isnan(w_in).any():
+            return
+
+        if len(y) > len(w_in):
+            raise DSPFatal("The filter is longer than the input waveform")
+        w_out[:] = np.convolve(w_in, y, mode="valid")
+
+    return step_out
