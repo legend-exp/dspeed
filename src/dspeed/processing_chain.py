@@ -24,7 +24,9 @@ from numba import vectorize
 from pint import Quantity, Unit
 
 from .errors import DSPFatal, ProcessingChainError
+from .processors.round_to_nearest import round_to_nearest
 from .units import unit_registry as ureg
+from .utils import ProcChainVarBase
 
 log = logging.getLogger(__name__)
 sto = lh5.LH5Store()
@@ -114,7 +116,7 @@ class CoordinateGrid:
         return f"({str(self.period)},{offset})"
 
 
-class ProcChainVar:
+class ProcChainVar(ProcChainVarBase):
     """Helper data class with buffer and information for internal variables in
     :class:`ProcessingChain`.
 
@@ -968,24 +970,32 @@ class ProcessingChain:
                     grid = CoordinateGrid(to_nearest, var.grid.offset)
                 else:
                     grid = to_nearest
-                conversion_manager = UnitConversionManager(var, grid, round=True)
-            else:
-                grid = var.grid
-                if isinstance(to_nearest, (int, float)):
-                    to_nearest = to_nearest * var.unit
-                conversion_manager = UnitConversionManager(var, to_nearest, round=True)
 
-            out = ProcChainVar(
-                var.proc_chain,
-                name,
-                var.shape,
-                dtype,
-                grid,
-                var.unit,
-                var.is_coord,
-            )
-            out._buffer = conversion_manager.out_buffer
-            var.proc_chain._proc_managers.append(conversion_manager)
+                out = ProcChainVar(
+                    var.proc_chain,
+                    name,
+                    var.shape,
+                    dtype,
+                    grid,
+                    var.unit,
+                    var.is_coord,
+                )
+                conversion_manager = UnitConversionManager(var, grid, round=True)
+                out._buffer = conversion_manager.out_buffer
+                var.proc_chain._proc_managers.append(conversion_manager)
+            else:
+                out = ProcChainVar(
+                    var.proc_chain,
+                    name,
+                    var.shape,
+                    dtype,
+                    var.grid,
+                    var.unit,
+                    var.is_coord,
+                )
+
+                var.proc_chain.add_processor(round_to_nearest, var, to_nearest, out)
+
             return out
 
     # type cast variable
@@ -1349,22 +1359,38 @@ class ProcessorManager:
 class UnitConversionManager(ProcessorManager):
     """A special processor manager for handling converting variables between unit systems."""
 
-    @vectorize(nopython=True, cache=True)
+    @vectorize(
+        [f"{t}({t}, f8, f8, f8)" for t in ["f4", "f8"]], nopython=True, cache=True
+    )
     def convert(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
         return (buf_in + offset_in) * period_ratio - offset_out
 
-    @vectorize(nopython=True, cache=True)
+    @vectorize(
+        [
+            f"{t}({t}, f8, f8, f8)"
+            for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
+        ],
+        nopython=True,
+        cache=True,
+    )
     def convert_int(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
         tmp = (buf_in + offset_in) * period_ratio - offset_out
-        ret = round(tmp)
+        ret = np.rint(tmp)
         if np.abs(tmp - ret) < 1.0e-5:
             return ret
         else:
-            raise DSPFatal("Cannot convert to integer")
+            raise DSPFatal("Cannot convert to integer. Use round or astype")
 
-    @vectorize(nopython=True, cache=True)
+    @vectorize(
+        [
+            f"{t}({t}, f8, f8, f8)"
+            for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8", "f4", "f8"]
+        ],
+        nopython=True,
+        cache=True,
+    )
     def convert_round(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
-        return np.round((buf_in + offset_in) * period_ratio - offset_out)
+        return np.rint((buf_in + offset_in) * period_ratio - offset_out)
 
     def __init__(
         self,
@@ -1377,10 +1403,11 @@ class UnitConversionManager(ProcessorManager):
         # callable function used to process data
         if round:
             self.processor = UnitConversionManager.convert_round
-        elif np.issubdtype(var.dtype, np.integer):
-            self.processor = UnitConversionManager.convert_int
-        else:
+        elif issubclass(var.dtype.type, np.floating):
             self.processor = UnitConversionManager.convert
+        else:
+            self.processor = UnitConversionManager.convert_int
+
         # list of parameters prior to converting to internal representation
         self.params = [var, unit]
         self.kw_params = {}
@@ -1390,14 +1417,24 @@ class UnitConversionManager(ProcessorManager):
             to_offset = unit.get_offset()
             unit = unit.period
 
-        from_buffer, from_unit = var._buffer[0]
+        if isinstance(var._buffer, list):
+            from_buffer, from_unit = var._buffer[0]
+        else:
+            from_buffer = var._buffer
+            from_unit = var.unit
+            if isinstance(from_unit, str) and from_unit in ureg:
+                from_unit = ureg.Quantity(from_unit)
+
         if isinstance(from_unit, CoordinateGrid):
             ratio = from_unit.get_period(unit)
             from_offset = from_unit.get_offset()
-        elif isinstance(from_unit, (str, Unit, Quantity)):
+        elif isinstance(from_unit, (Unit, Quantity)):
             if isinstance(unit, str):
                 unit = ureg.Quantity(unit)
             ratio = float(from_unit / unit)
+            from_offset = 0
+        else:
+            ratio = 1 / unit
             from_offset = 0
 
         self.out_buffer = np.zeros_like(from_buffer, dtype=var.dtype)
@@ -1786,7 +1823,14 @@ def build_processing_chain(
                 multi_out_procs[k] = key
 
         # find DB lookups in args and replace the values
-        args = node["args"]
+        if isinstance(node, str):
+            node = {"function": node}
+            processors[key] = node
+        if "args" in node:
+            args = node["args"]
+        else:
+            args = [node["function"]]
+
         for i, arg in enumerate(args):
             if not isinstance(arg, str):
                 continue
@@ -1816,7 +1860,12 @@ def build_processing_chain(
         # parse the arguments list for prereqs, if not included explicitly
         if "prereqs" not in node:
             prereqs = []
-            for arg in node["args"]:
+            if "args" in node:
+                args = node["args"]
+            else:
+                args = [node["function"]]
+
+            for arg in args:
                 if not isinstance(arg, str):
                     continue
                 for prereq in proc_chain.get_variable(arg, True):
@@ -1903,6 +1952,28 @@ def build_processing_chain(
     for proc_par in proc_par_list:
         recipe = processors[proc_par]
         try:
+            # if we are invoking a built in expression, have the parser
+            # add it to the processing chain, and then add a new variable
+            # that shares its buffer
+            if "args" not in recipe:
+                fun_str = recipe if isinstance(recipe, str) else recipe["function"]
+                fun_var = proc_chain.get_variable(fun_str)
+                if not isinstance(fun_var, ProcChainVar):
+                    raise ProcessingChainError(
+                        f"Could not find function {recipe['function']}"
+                    )
+                new_var = proc_chain.add_variable(
+                    name=proc_par,
+                    dtype=fun_var.dtype,
+                    shape=fun_var.shape,
+                    grid=fun_var.grid,
+                    unit=fun_var.unit,
+                    is_coord=fun_var.is_coord,
+                )
+                new_var._buffer = fun_var._buffer
+                log.debug(f"setting {new_var} = {fun_var}")
+                continue
+
             module = importlib.import_module(recipe["module"])
             func = getattr(module, recipe["function"])
             args = recipe["args"]
