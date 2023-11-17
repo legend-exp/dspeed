@@ -16,7 +16,8 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
     **nb_kwargs,
 )
 def round_to_nearest(val: np.ndarray, to_nearest: int | float, out: np.ndarray) -> None:
-    """Round value to nearest multiple of to_nearest.
+    """
+    Round value to nearest multiple of to_nearest.
 
     Parameters
     ----------
@@ -32,6 +33,7 @@ def round_to_nearest(val: np.ndarray, to_nearest: int | float, out: np.ndarray) 
 
     Note: this processor is aliased using `round` in ProcessingChain.
     The following two examples are equivalent.
+
     .. code-block :: json
 
         "t_rounded": {
