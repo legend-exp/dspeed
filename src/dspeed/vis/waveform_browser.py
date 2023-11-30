@@ -233,7 +233,7 @@ class WaveformBrowser:
                 self.legend_vals[name] = []
 
                 if form is None or form == "":
-                    form = "~0.3P"
+                    form = "0.3gP~"
                 cv = "" if cv is None or cv == "" else "!" + cv
                 legend_format += f"{st}{{{name}:{form}{cv}}}"
             self.legend_format.append(legend_format)
@@ -460,13 +460,13 @@ class WaveformBrowser:
             data = self.lh5_out.get(name, None)
 
             if not data:
-                data = self.aux_vals[name][entry]
+                data = ureg.Quantity(self.aux_vals[name][entry])
             elif isinstance(data, lh5.Array):
                 unit = data.attrs.get("units", None)
                 if unit and unit in ureg:
                     data = data.nda[i_tb] * ureg(unit)
                 else:
-                    data = data.nda[i_tb]
+                    data = ureg.Quantity(data.nda[i_tb])
             else:
                 raise TypeError(
                     "WaveformBrowser does not adding legend entries for data "
