@@ -9,8 +9,8 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
 
 @guvectorize(
     [
-        "void(float32[:], float32, float32, float32, float32, float32, float32[:], float32[:], float32[:], float32[:])",
-        "void(float64[:], float64, float64, float64, float64, float64, float64[:], float64[:], float64[:], float64[:])",
+        "void(float32[:], float32, float32, float32, float32, float32, float32[:], float32[:], uint32[:], uint32[:])",
+        "void(float64[:], float64, float64, float64, float64, float64, float64[:], float64[:], uint32[:], uint32[:])",
     ],
     "(n),(),(),(),(),(),(m),(m),(),()",
     **nb_kwargs,
@@ -92,8 +92,8 @@ def get_multi_local_extrema(
     # prepare output
     vt_max_out[:] = np.nan
     vt_min_out[:] = np.nan
-    n_max_out[0] = np.nan
-    n_min_out[0] = np.nan
+    n_max_out[0] = 0
+    n_min_out[0] = 0
 
     # initialize internal counters
     n_max_left_counter = 0
