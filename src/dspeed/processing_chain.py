@@ -16,11 +16,10 @@ from dataclasses import dataclass
 from typing import Any
 
 import lgdo
-import lgdo.lh5_store as lh5
 import numpy as np
-from lgdo import LGDO
+from lgdo import LH5Store, LGDO
 from lgdo.lgdo_utils import expand_path
-from numba import vectorize
+from numba import vectorize, guvectorize
 from pint import Quantity, Unit
 
 from .errors import DSPFatal, ProcessingChainError
@@ -29,7 +28,7 @@ from .units import unit_registry as ureg
 from .utils import ProcChainVarBase
 
 log = logging.getLogger(__name__)
-sto = lh5.LH5Store()
+sto = LH5Store()
 
 # Filler value for variables to be automatically deduced later
 auto = "auto"
@@ -133,6 +132,7 @@ class ProcChainVar(ProcChainVarBase):
         grid: CoordinateGrid = auto,
         unit: str | Unit = auto,
         is_coord: bool = auto,
+        vector_len: str | ProcChainVar = None,
     ) -> None:
         """
         Parameters
@@ -154,6 +154,9 @@ class ProcChainVar(ProcChainVarBase):
         is_coord
             If ``True``, variable represents an array index and can be converted
             into a unitted number using grid.
+        vector_len
+            For VectorOfVector variables, this points to the variable used
+            to represent the length of each vector
         """
         assert isinstance(proc_chain, ProcessingChain) and isinstance(name, str)
         self.proc_chain = proc_chain
@@ -168,6 +171,7 @@ class ProcChainVar(ProcChainVarBase):
         self.grid = grid
         self.unit = unit
         self.is_coord = is_coord
+        self.vector_len = vector_len
 
         log.debug(f"added variable: {self.description()}")
 
@@ -201,6 +205,17 @@ class ProcChainVar(ProcChainVarBase):
         elif name == "is_coord":
             value = bool(value)
 
+        elif name == "vector_len" and value is not None:
+            if not isinstance(value, ProcChainVar):
+                value = self.proc_chain.get_variable(value)
+            value.update_auto(
+                dtype = "u4",
+                shape = (),
+                grid = None,
+                unit = None,
+                is_coord = False,
+            )
+            
         super().__setattr__(name, value)
 
     def get_buffer(self, unit: str | Unit = None) -> np.ndarray:
@@ -279,6 +294,7 @@ class ProcChainVar(ProcChainVarBase):
         is_coord: bool = auto,
         period: period = None,
         offset: offset = 0,
+        vector_len: str | ProcChainVar = None
     ) -> None:
         """Update any variables set to ``auto``; leave the others alone. Emit a
         message only if anything was updated.
@@ -306,6 +322,8 @@ class ProcChainVar(ProcChainVarBase):
         if self.is_coord is auto and is_coord is not auto:
             self.is_coord = is_coord
             updated = True
+        if self.vector_len is None and vector_len is not None:
+            self.vector_len = vector_len
         if updated:
             log.debug(f"updated variable: {self.description()}")
 
@@ -370,6 +388,7 @@ class ProcessingChain:
         is_coord: bool = auto,
         period: CoordinateGrid.period = None,
         offset: CoordinateGrid.offset = 0,
+        vector_len: str | ProcChainVar = None,
     ) -> ProcChainVar:
         """Add a named variable containing a block of values or arrays.
 
@@ -414,6 +433,7 @@ class ProcessingChain:
             grid=grid,
             unit=unit,
             is_coord=is_coord,
+            vector_len = vector_len,
         )
         self._vars_dict[name] = var
         return var
@@ -462,6 +482,10 @@ class ProcessingChain:
                 )
             elif len(var.shape) == 0:
                 buff = lgdo.Array(shape=(self._buffer_len), dtype=dtype)
+            elif var.vector_len is not None:
+                buff = lgdo.VectorOfVectors(
+                    shape_guess=(self._buffer_len, *var.shape), dtype=dtype
+                )
             elif len(var.shape) > 0:
                 buff = lgdo.ArrayOfEqualSizedArrays(
                     shape=(self._buffer_len, *var.shape), dtype=dtype
@@ -474,6 +498,8 @@ class ProcessingChain:
             out_man = NumpyIOManager(buff, var)
         elif isinstance(buff, lgdo.ArrayOfEqualSizedArrays):
             out_man = LGDOArrayOfEqualSizedArraysIOManager(buff, var)
+        elif isinstance(buff, lgdo.VectorOfVectors):
+            out_man = LGDOVectorOfVectorsIOManager(buff, var)
         elif isinstance(buff, lgdo.Array):
             out_man = LGDOArrayIOManager(buff, var)
         elif isinstance(buff, lgdo.WaveformTable):
@@ -532,6 +558,10 @@ class ProcessingChain:
                 )
             elif len(var.shape) == 0:
                 buff = lgdo.Array(shape=(self._buffer_len), dtype=dtype)
+            elif var.vector_len is not None:
+                buff = lgdo.VectorOfVectors(
+                    shape_guess=(self._buffer_len, *var.shape), dtype=dtype
+                )
             elif len(var.shape) > 0:
                 buff = lgdo.ArrayOfEqualSizedArrays(
                     shape=(self._buffer_len, *var.shape), dtype=dtype
@@ -544,6 +574,8 @@ class ProcessingChain:
             out_man = NumpyIOManager(buff, var)
         elif isinstance(buff, lgdo.ArrayOfEqualSizedArrays):
             out_man = LGDOArrayOfEqualSizedArraysIOManager(buff, var)
+        elif isinstance(buff, lgdo.VectorOfVectors):
+            out_man = LGDOVectorOfVectorsIOManager(buff, var)
         elif isinstance(buff, lgdo.Array):
             out_man = LGDOArrayIOManager(buff, var)
         elif isinstance(buff, lgdo.WaveformTable):
@@ -936,7 +968,10 @@ class ProcessingChain:
             raise ProcessingChainError(f"cannot call len() on {var}")
         if not len(var.buffer.shape) == 2:
             raise ProcessingChainError(f"{var} has wrong number of dims")
-        return var.buffer.shape[1]
+        if var.vector_len is None:
+            return var.buffer.shape[1]
+        else:
+            return var.vector_len
 
     # round value
     def _round(
@@ -1621,6 +1656,74 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
 
     def __str__(self) -> str:
         return f"{self.var} linked to lgdo.ArrayOfEqualSizedArrays(shape={self.io_array.nda.shape}, dtype={self.io_array.nda.dtype}, attrs={self.io_array.attrs})"
+
+
+class LGDOVectorOfVectorsIOManager(IOManager):
+    r""":class:`IOManager` for buffers that are :class:`lgdo.VectorOfVectors`\ s."""
+
+    def __init__(self, io_vov: lgdo.VectorOfVectors, var: ProcChainVar) -> None:
+        assert isinstance(io_vov, lgdo.VectorOfVectors) and isinstance(
+            var, ProcChainVar
+        ) and var.vector_len is not None
+
+        unit = io_vov.attrs.get("units", None)
+        var.update_auto(dtype=io_vov.dtype, shape=10, unit=unit)
+        if var.vector_len is None:
+            var.vector_len = f"{var.name}_len",
+
+        if isinstance(var.unit, CoordinateGrid):
+            if unit is None:
+                unit = var.unit.period.u
+            elif ureg.is_compatible_with(var.unit.period, unit):
+                unit = ureg.Quantity(unit).u
+            else:
+                raise ProcessingChainError(
+                    f"LGDO array and variable {var} have incompatible units "
+                    f"({var.unit.period.u} and {unit})"
+                )
+
+        if unit is None and var.unit is not None:
+            io_vov.attrs["units"] = str(var.unit)
+
+        self.io_vov = io_vov
+        self.raw_buf = io_vov.nda
+        self.cumlen_buf = io_vov.cumulative_length
+        self.var = var
+        self.raw_var = var.get_buffer(unit)
+        self.len_var = var.vector_len.get_buffer()
+
+        if (
+            self.var.shape != self.io_vov.nda.shape[1:]
+            or self.raw_var.dtype != self.io_vov.dtype
+        ):
+            raise ProcessingChainError(
+                f"LGDO object "
+                f"{self.io_buf.form_datatype()} is "
+                f"incompatible with {str(self.var)}"
+            )
+
+    @guvectorize(
+        [ f"{t}[:],u4[:],u4,u4[:],{t}[:,:]" for t in ["b1", "i1", "i2", "i4", "i8", "u1", "u2", "u4", "u8", "f4", "f8", "c8", "c16",] ],
+        "(n),(l),(),(l),(l,m)", cache=True, nopython=True
+    )
+    def _vov2nda(flat_arr_in, cl_in, start_idx_in, l_out, aoa_out):
+        prev_cl = start_idx_in
+        for i, cl in enumerate(cl_in):
+            l_out[i] = cl-prev_cl
+            if l_out[i] > aoa_out.shape[1]:
+                raise DSPFatal("VectorOfVectors entry has length larger than array variable length")
+            aoa_out[i, :l_out[i]] = flat_arr_in[prev_cl:cl]
+            prev_cl = cl
+
+    def read(self, start: int, end: int) -> None:
+        self.raw_var = 0 if np.issubdtype(self.raw_var.dtype, np.integer) else np.nan
+        _vov2nda(self.raw_buf, self.cumlen_buf, self.cumlen_buf[start-1] if start>0 else 0, self.len_var, self.raw_var)
+
+    def write(self, start: int, end: int) -> None:
+        self.io_vov._set_vector_unsafe(start, self.raw_var, self.len_var)
+
+    def __str__(self) -> str:
+        return f"{self.var} linked to lgdo.VectorOfVectors(vector_len={self.DDDDDDD}, dtype={self.io_vov.nda.dtype}, attrs={self.io_vov.attrs})"
 
 
 class LGDOWaveformIOManager(IOManager):
