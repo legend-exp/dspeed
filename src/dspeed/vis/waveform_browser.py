@@ -422,18 +422,24 @@ class WaveformBrowser:
                 lines.append(Line2D(x, y))
                 self._update_auto_limit(x, y)
 
-            elif isinstance(data, lh5.Array):
-                val = data.nda[i_tb]
+            elif isinstance(data, (lh5.Array, lh5.VectorOfVectors)):
+                if isinstance(data, lh5.Array):
+                    vals = [data.nda[i_tb]]
+                elif isinstance(data, lh5.VectorOfVectors):
+                    vals = data[i_tb]
+
                 unit = data.attrs.get("units", None)
                 if unit and unit in ureg and ureg.is_compatible_with(unit, self.x_unit):
                     # Vertical line
-                    val = np.array([val * float(ureg(unit) / self.x_unit) - ref_time])
-                    lines.append(Line2D(np.tile(val, 2), [-lim, lim]))
-                    self._update_auto_limit(val, None)
+                    for val in vals:
+                        val = np.array([val * float(ureg(unit) / self.x_unit) - ref_time])
+                        lines.append(Line2D(np.tile(val, 2), [-lim, lim]))
+                        self._update_auto_limit(val, None)
                 else:
                     # Horizontal line
-                    lines.append(Line2D([-lim, lim], np.tile(val / norm, 2)))
-                    self._update_auto_limit(None, val)
+                    for val in vals:
+                        lines.append(Line2D([-lim, lim], np.tile(val / norm, 2)))
+                        self._update_auto_limit(None, val)
 
             elif data is None:
                 # Check for data in auxiliary table. It's unitless so I guess just do an hline...
