@@ -209,7 +209,6 @@ class ProcChainVar(ProcChainVarBase):
             if not isinstance(value, ProcChainVar):
                 value = self.proc_chain.get_variable(value)
             value.update_auto(
-                dtype = "u4",
                 shape = (),
                 grid = None,
                 unit = None,
@@ -476,7 +475,7 @@ class ProcessingChain:
                 raise ProcessingChainError(
                     f"{varname} does not exist and no buffer was provided"
                 )
-            elif isinstance(var.grid, CoordinateGrid) and len(var.shape) == 1:
+            elif isinstance(var.grid, CoordinateGrid) and len(var.shape) == 1 and not var.is_coord:
                 buff = lgdo.WaveformTable(
                     size=self._buffer_len, wf_len=var.shape[0], dtype=dtype
                 )
@@ -552,7 +551,7 @@ class ProcessingChain:
                 raise ProcessingChainError(
                     varname + " does not exist and no buffer was provided"
                 )
-            elif isinstance(var.grid, CoordinateGrid) and len(var.shape) == 1:
+            elif isinstance(var.grid, CoordinateGrid) and len(var.shape) == 1 and not var.is_coord:
                 buff = lgdo.WaveformTable(
                     size=self._buffer_len, wf_len=var.shape[0], dtype=dtype
                 )
@@ -1472,6 +1471,12 @@ class UnitConversionManager(ProcessorManager):
             ratio = 1 / unit
             from_offset = 0
 
+        # Make sure broadcasting will work correctly
+        if isinstance(from_offset, np.ndarray):
+            from_offset = from_offset.reshape(from_offset.shape[0], *[1]*(len(from_buffer.shape)-len(from_offset.shape)))
+        if isinstance(to_offset, np.ndarray):
+            to_offset = to_offset.reshape(to_offset.shape[0], *[1]*(len(from_buffer.shape)-len(to_offset.shape)))
+
         self.out_buffer = np.zeros_like(from_buffer, dtype=var.dtype)
         self.args = [
             from_buffer,
@@ -1666,6 +1671,11 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             var, ProcChainVar
         ) and var.vector_len is not None
 
+        if not np.issubdtype(var.vector_len.dtype, np.integer):
+            raise ProcessingChainError(
+                f"{var.vector_len} must be an integer to act as a vector len"
+            )
+        
         unit = io_vov.attrs.get("units", None)
         var.update_auto(dtype=io_vov.dtype, shape=10, unit=unit)
         if var.vector_len is None:
@@ -1686,16 +1696,13 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             io_vov.attrs["units"] = str(var.unit)
 
         self.io_vov = io_vov
-        self.raw_buf = io_vov.nda
+        self.raw_buf = io_vov.flattened_data
         self.cumlen_buf = io_vov.cumulative_length
         self.var = var
         self.raw_var = var.get_buffer(unit)
         self.len_var = var.vector_len.get_buffer()
 
-        if (
-            self.var.shape != self.io_vov.nda.shape[1:]
-            or self.raw_var.dtype != self.io_vov.dtype
-        ):
+        if self.raw_var.dtype != self.io_vov.dtype:
             raise ProcessingChainError(
                 f"LGDO object "
                 f"{self.io_buf.form_datatype()} is "
@@ -1723,7 +1730,7 @@ class LGDOVectorOfVectorsIOManager(IOManager):
         self.io_vov._set_vector_unsafe(start, self.raw_var, self.len_var)
 
     def __str__(self) -> str:
-        return f"{self.var} linked to lgdo.VectorOfVectors(vector_len={self.DDDDDDD}, dtype={self.io_vov.nda.dtype}, attrs={self.io_vov.attrs})"
+        return f"{self.var} linked to lgdo.VectorOfVectors(vector_len={self.var.vector_len}, dtype={self.io_vov.flattened_data.dtype}, attrs={self.io_vov.attrs})"
 
 
 class LGDOWaveformIOManager(IOManager):
