@@ -43,8 +43,8 @@
         1,
         "3*fwhm",
         0,
-        "vt_max_candidate_out(20)",
-        "vt_min_out(20)",
+        "vt_max_candidate_out(20, vector_len=n_max_out)",
+        "vt_min_out(20, vector_len=n_min_out)",
         "n_max_out",
         "n_min_out"
       ],
