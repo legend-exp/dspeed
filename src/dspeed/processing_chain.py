@@ -1748,7 +1748,7 @@ class LGDOVectorOfVectorsIOManager(IOManager):
         cache=True,
         nopython=True,
     )
-    def _vov2nda(flat_arr_in, cl_in, start_idx_in, l_out, aoa_out):
+    def _vov2nda(flat_arr_in, cl_in, start_idx_in, l_out, aoa_out):  # noqa: N805
         prev_cl = start_idx_in
         for i, cl in enumerate(cl_in):
             l_out[i] = cl - prev_cl
@@ -1761,7 +1761,7 @@ class LGDOVectorOfVectorsIOManager(IOManager):
 
     def read(self, start: int, end: int) -> None:
         self.raw_var = 0 if np.issubdtype(self.raw_var.dtype, np.integer) else np.nan
-        _vov2nda(
+        LGDOVectorOfVectorsIOManager._vov2nda(
             self.raw_buf,
             self.cumlen_buf,
             self.cumlen_buf[start - 1] if start > 0 else 0,
