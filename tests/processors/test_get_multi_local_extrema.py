@@ -32,8 +32,8 @@ def test_get_multi_local_extrema_ltor(compare_numba_vs_python):
     max_out[:] = np.nan
     min_out = np.zeros(3)
     min_out[:] = np.nan
-    n_min_out = np.zeros(1, dtype='uint32')
-    n_max_out = np.zeros(1, dtype='uint32')
+    n_min_out = np.zeros(1, dtype="uint32")
+    n_max_out = np.zeros(1, dtype="uint32")
 
     compare_numba_vs_python(
         get_multi_local_extrema,
@@ -61,8 +61,8 @@ def test_get_multi_local_extrema_rtol(compare_numba_vs_python):
     max_out[:] = np.nan
     min_out = np.zeros(3)
     min_out[:] = np.nan
-    n_min_out = np.zeros(1, dtype='uint32')
-    n_max_out = np.zeros(1, dtype='uint32')
+    n_min_out = np.zeros(1, dtype="uint32")
+    n_max_out = np.zeros(1, dtype="uint32")
 
     compare_numba_vs_python(
         get_multi_local_extrema,
@@ -90,8 +90,8 @@ def test_get_multi_local_extrema_both_cons(compare_numba_vs_python):
     max_out[:] = np.nan
     min_out = np.zeros(3)
     min_out[:] = np.nan
-    n_min_out = np.zeros(1, dtype='uint32')
-    n_max_out = np.zeros(1, dtype='uint32')
+    n_min_out = np.zeros(1, dtype="uint32")
+    n_max_out = np.zeros(1, dtype="uint32")
 
     compare_numba_vs_python(
         get_multi_local_extrema,
@@ -118,8 +118,8 @@ def test_get_multi_local_extrema_both_agro(compare_numba_vs_python):
     max_out[:] = np.nan
     min_out = np.zeros(3)
     min_out[:] = np.nan
-    n_min_out = np.zeros(1, dtype='uint32')
-    n_max_out = np.zeros(1, dtype='uint32')
+    n_min_out = np.zeros(1, dtype="uint32")
+    n_max_out = np.zeros(1, dtype="uint32")
 
     compare_numba_vs_python(
         get_multi_local_extrema,
@@ -149,8 +149,8 @@ def test_get_multi_local_extrema_ltor_asym(compare_numba_vs_python):
     max_out[:] = np.nan
     min_out = np.zeros(3)
     min_out[:] = np.nan
-    n_min_out = np.zeros(1, dtype='uint32')
-    n_max_out = np.zeros(1, dtype='uint32')
+    n_min_out = np.zeros(1, dtype="uint32")
+    n_max_out = np.zeros(1, dtype="uint32")
 
     compare_numba_vs_python(
         get_multi_local_extrema,
@@ -178,8 +178,8 @@ def test_get_multi_local_extrema_rtol_asym(compare_numba_vs_python):
     max_out[:] = np.nan
     min_out = np.zeros(3)
     min_out[:] = np.nan
-    n_min_out = np.zeros(1, dtype='uint32')
-    n_max_out = np.zeros(1, dtype='uint32')
+    n_min_out = np.zeros(1, dtype="uint32")
+    n_max_out = np.zeros(1, dtype="uint32")
 
     compare_numba_vs_python(
         get_multi_local_extrema,
@@ -207,8 +207,8 @@ def test_get_multi_local_extrema_both_cons_asym(compare_numba_vs_python):
     max_out[:] = np.nan
     min_out = np.zeros(3)
     min_out[:] = np.nan
-    n_min_out = np.zeros(1, dtype='uint32')
-    n_max_out = np.zeros(1, dtype='uint32')
+    n_min_out = np.zeros(1, dtype="uint32")
+    n_max_out = np.zeros(1, dtype="uint32")
 
     compare_numba_vs_python(
         get_multi_local_extrema,
@@ -236,8 +236,8 @@ def test_get_multi_local_extrema_both_agro_asym(compare_numba_vs_python):
     max_out[:] = np.nan
     min_out = np.zeros(3)
     min_out[:] = np.nan
-    n_min_out = np.zeros(1, dtype='uint32')
-    n_max_out = np.zeros(1, dtype='uint32')
+    n_min_out = np.zeros(1, dtype="uint32")
+    n_max_out = np.zeros(1, dtype="uint32")
 
     compare_numba_vs_python(
         get_multi_local_extrema,
@@ -265,8 +265,8 @@ def test_get_multi_local_extrema_both_agro_asym_abs(compare_numba_vs_python):
     max_out[:] = np.nan
     min_out = np.zeros(3)
     min_out[:] = np.nan
-    n_min_out = np.zeros(1, dtype='uint32')
-    n_max_out = np.zeros(1, dtype='uint32')
+    n_min_out = np.zeros(1, dtype="uint32")
+    n_max_out = np.zeros(1, dtype="uint32")
 
     compare_numba_vs_python(
         get_multi_local_extrema,
@@ -298,64 +298,76 @@ def test_get_multi_local_extrema_return_on_nan(compare_numba_vs_python):
     max_out[:] = np.nan
     min_out = np.zeros(3)
     min_out[:] = np.nan
-    n_min_out = np.zeros(1, dtype='uint32')
-    n_max_out = np.zeros(1, dtype='uint32')
+    n_min_out = np.zeros(1, dtype="uint32")
+    n_max_out = np.zeros(1, dtype="uint32")
 
     wf[4] = np.nan
-    assert compare_numba_vs_python(
-        get_multi_local_extrema,
-        wf,
-        3,
-        1,
-        3,
-        8,
-        20,
-        max_out,
-        min_out,
-        n_max_out,
-        n_min_out,
-    ) == 0
+    assert (
+        compare_numba_vs_python(
+            get_multi_local_extrema,
+            wf,
+            3,
+            1,
+            3,
+            8,
+            20,
+            max_out,
+            min_out,
+            n_max_out,
+            n_min_out,
+        )
+        == 0
+    )
 
     wf[4] = 3
-    assert compare_numba_vs_python(
-        get_multi_local_extrema,
-        wf,
-        np.nan,
-        3,
-        3,
-        8,
-        20,
-        max_out,
-        min_out,
-        n_max_out,
-        n_min_out,
-    ) == 0
-    assert compare_numba_vs_python(
-        get_multi_local_extrema,
-        wf,
-        np.nan,
-        3,
-        np.nan,
-        8,
-        20,
-        max_out,
-        min_out,
-        n_max_out,
-        n_min_out,
-    ) == 0
-    assert compare_numba_vs_python(
-        get_multi_local_extrema,
-        wf,
-        np.nan,
-        np.nan,
-        3,
-        8,
-        20,
-        max_out,
-        min_out,
-        n_max_out,
-        n_min_out,
-    ) == 0
+    assert (
+        compare_numba_vs_python(
+            get_multi_local_extrema,
+            wf,
+            np.nan,
+            3,
+            3,
+            8,
+            20,
+            max_out,
+            min_out,
+            n_max_out,
+            n_min_out,
+        )
+        == 0
+    )
+    assert (
+        compare_numba_vs_python(
+            get_multi_local_extrema,
+            wf,
+            np.nan,
+            3,
+            np.nan,
+            8,
+            20,
+            max_out,
+            min_out,
+            n_max_out,
+            n_min_out,
+        )
+        == 0
+    )
+    assert (
+        compare_numba_vs_python(
+            get_multi_local_extrema,
+            wf,
+            np.nan,
+            np.nan,
+            3,
+            8,
+            20,
+            max_out,
+            min_out,
+            n_max_out,
+            n_min_out,
+        )
+        == 0
+    )
 
 
 # DSP Fatal test
@@ -365,8 +377,8 @@ def test_get_multi_local_extrema_dsp_fatal():
     max_out[:] = np.nan
     min_out = np.zeros(len(wf) + 1)
     min_out[:] = np.nan
-    n_min_out = np.zeros(1, dtype='uint32')
-    n_max_out = np.zeros(1, dtype='uint32')
+    n_min_out = np.zeros(1, dtype="uint32")
+    n_max_out = np.zeros(1, dtype="uint32")
 
     with pytest.raises(DSPFatal):
         get_multi_local_extrema(

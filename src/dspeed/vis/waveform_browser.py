@@ -432,7 +432,9 @@ class WaveformBrowser:
                 if unit and unit in ureg and ureg.is_compatible_with(unit, self.x_unit):
                     # Vertical line
                     for val in vals:
-                        val = np.array([val * float(ureg(unit) / self.x_unit) - ref_time])
+                        val = np.array(
+                            [val * float(ureg(unit) / self.x_unit) - ref_time]
+                        )
                         lines.append(Line2D(np.tile(val, 2), [-lim, lim]))
                         self._update_auto_limit(val, None)
                 else:

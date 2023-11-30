@@ -17,9 +17,9 @@ from typing import Any
 
 import lgdo
 import numpy as np
-from lgdo import LH5Store, LGDO
+from lgdo import LGDO, LH5Store
 from lgdo.lgdo_utils import expand_path
-from numba import vectorize, guvectorize
+from numba import guvectorize, vectorize
 from pint import Quantity, Unit
 
 from .errors import DSPFatal, ProcessingChainError
@@ -209,12 +209,12 @@ class ProcChainVar(ProcChainVarBase):
             if not isinstance(value, ProcChainVar):
                 value = self.proc_chain.get_variable(value)
             value.update_auto(
-                shape = (),
-                grid = None,
-                unit = None,
-                is_coord = False,
+                shape=(),
+                grid=None,
+                unit=None,
+                is_coord=False,
             )
-            
+
         super().__setattr__(name, value)
 
     def get_buffer(self, unit: str | Unit = None) -> np.ndarray:
@@ -293,7 +293,7 @@ class ProcChainVar(ProcChainVarBase):
         is_coord: bool = auto,
         period: period = None,
         offset: offset = 0,
-        vector_len: str | ProcChainVar = None
+        vector_len: str | ProcChainVar = None,
     ) -> None:
         """Update any variables set to ``auto``; leave the others alone. Emit a
         message only if anything was updated.
@@ -432,7 +432,7 @@ class ProcessingChain:
             grid=grid,
             unit=unit,
             is_coord=is_coord,
-            vector_len = vector_len,
+            vector_len=vector_len,
         )
         self._vars_dict[name] = var
         return var
@@ -475,7 +475,11 @@ class ProcessingChain:
                 raise ProcessingChainError(
                     f"{varname} does not exist and no buffer was provided"
                 )
-            elif isinstance(var.grid, CoordinateGrid) and len(var.shape) == 1 and not var.is_coord:
+            elif (
+                isinstance(var.grid, CoordinateGrid)
+                and len(var.shape) == 1
+                and not var.is_coord
+            ):
                 buff = lgdo.WaveformTable(
                     size=self._buffer_len, wf_len=var.shape[0], dtype=dtype
                 )
@@ -551,7 +555,11 @@ class ProcessingChain:
                 raise ProcessingChainError(
                     varname + " does not exist and no buffer was provided"
                 )
-            elif isinstance(var.grid, CoordinateGrid) and len(var.shape) == 1 and not var.is_coord:
+            elif (
+                isinstance(var.grid, CoordinateGrid)
+                and len(var.shape) == 1
+                and not var.is_coord
+            ):
                 buff = lgdo.WaveformTable(
                     size=self._buffer_len, wf_len=var.shape[0], dtype=dtype
                 )
@@ -1473,9 +1481,15 @@ class UnitConversionManager(ProcessorManager):
 
         # Make sure broadcasting will work correctly
         if isinstance(from_offset, np.ndarray):
-            from_offset = from_offset.reshape(from_offset.shape[0], *[1]*(len(from_buffer.shape)-len(from_offset.shape)))
+            from_offset = from_offset.reshape(
+                from_offset.shape[0],
+                *[1] * (len(from_buffer.shape) - len(from_offset.shape)),
+            )
         if isinstance(to_offset, np.ndarray):
-            to_offset = to_offset.reshape(to_offset.shape[0], *[1]*(len(from_buffer.shape)-len(to_offset.shape)))
+            to_offset = to_offset.reshape(
+                to_offset.shape[0],
+                *[1] * (len(from_buffer.shape) - len(to_offset.shape)),
+            )
 
         self.out_buffer = np.zeros_like(from_buffer, dtype=var.dtype)
         self.args = [
@@ -1667,19 +1681,21 @@ class LGDOVectorOfVectorsIOManager(IOManager):
     r""":class:`IOManager` for buffers that are :class:`lgdo.VectorOfVectors`\ s."""
 
     def __init__(self, io_vov: lgdo.VectorOfVectors, var: ProcChainVar) -> None:
-        assert isinstance(io_vov, lgdo.VectorOfVectors) and isinstance(
-            var, ProcChainVar
-        ) and var.vector_len is not None
+        assert (
+            isinstance(io_vov, lgdo.VectorOfVectors)
+            and isinstance(var, ProcChainVar)
+            and var.vector_len is not None
+        )
 
         if not np.issubdtype(var.vector_len.dtype, np.integer):
             raise ProcessingChainError(
                 f"{var.vector_len} must be an integer to act as a vector len"
             )
-        
+
         unit = io_vov.attrs.get("units", None)
         var.update_auto(dtype=io_vov.dtype, shape=10, unit=unit)
         if var.vector_len is None:
-            var.vector_len = f"{var.name}_len",
+            var.vector_len = (f"{var.name}_len",)
 
         if isinstance(var.unit, CoordinateGrid):
             if unit is None:
@@ -1710,21 +1726,48 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             )
 
     @guvectorize(
-        [ f"{t}[:],u4[:],u4,u4[:],{t}[:,:]" for t in ["b1", "i1", "i2", "i4", "i8", "u1", "u2", "u4", "u8", "f4", "f8", "c8", "c16",] ],
-        "(n),(l),(),(l),(l,m)", cache=True, nopython=True
+        [
+            f"{t}[:],u4[:],u4,u4[:],{t}[:,:]"
+            for t in [
+                "b1",
+                "i1",
+                "i2",
+                "i4",
+                "i8",
+                "u1",
+                "u2",
+                "u4",
+                "u8",
+                "f4",
+                "f8",
+                "c8",
+                "c16",
+            ]
+        ],
+        "(n),(l),(),(l),(l,m)",
+        cache=True,
+        nopython=True,
     )
     def _vov2nda(flat_arr_in, cl_in, start_idx_in, l_out, aoa_out):
         prev_cl = start_idx_in
         for i, cl in enumerate(cl_in):
-            l_out[i] = cl-prev_cl
+            l_out[i] = cl - prev_cl
             if l_out[i] > aoa_out.shape[1]:
-                raise DSPFatal("VectorOfVectors entry has length larger than array variable length")
-            aoa_out[i, :l_out[i]] = flat_arr_in[prev_cl:cl]
+                raise DSPFatal(
+                    "VectorOfVectors entry has length larger than array variable length"
+                )
+            aoa_out[i, : l_out[i]] = flat_arr_in[prev_cl:cl]
             prev_cl = cl
 
     def read(self, start: int, end: int) -> None:
         self.raw_var = 0 if np.issubdtype(self.raw_var.dtype, np.integer) else np.nan
-        _vov2nda(self.raw_buf, self.cumlen_buf, self.cumlen_buf[start-1] if start>0 else 0, self.len_var, self.raw_var)
+        _vov2nda(
+            self.raw_buf,
+            self.cumlen_buf,
+            self.cumlen_buf[start - 1] if start > 0 else 0,
+            self.len_var,
+            self.raw_var,
+        )
 
     def write(self, start: int, end: int) -> None:
         self.io_vov._set_vector_unsafe(start, self.raw_var, self.len_var)
