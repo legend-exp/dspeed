@@ -416,16 +416,10 @@ class WaveformBrowser:
                 lines.append(Line2D(x, y))
                 self._update_auto_limit(x, y)
 
-            elif isinstance(data, lh5.ArrayOfEqualSizedArrays):
-                y = data.nda[i_tb, :] / norm
-                x = np.arange(len(y), dtype="float")
-                lines.append(Line2D(x, y))
-                self._update_auto_limit(x, y)
-
-            elif isinstance(data, (lh5.Array, lh5.VectorOfVectors)):
+            elif isinstance(data, (lh5.Array, lh5.ArrayOfEqualSizedArrays, lh5.VectorOfVectors)):
                 if isinstance(data, lh5.Array):
                     vals = [data.nda[i_tb]]
-                elif isinstance(data, lh5.VectorOfVectors):
+                else:
                     vals = data[i_tb]
 
                 unit = data.attrs.get("units", None)
