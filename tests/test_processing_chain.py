@@ -215,9 +215,10 @@ def test_proc_chain_as_type(spms_raw_tbl):
         spms_raw_tbl["waveform"].values[0] == lh5_out["waveform_32"].values[0]
     )
 
+
 def test_output_types(spms_raw_tbl):
     dsp_config = {
-        "outputs": [ "wf_out", "vov_max_out", "n_max_out", "aoa_out"],
+        "outputs": ["wf_out", "vov_max_out", "n_max_out", "aoa_out"],
         "processors": {
             "wf_out": "-waveform",
             "aoa_out": "n_max_out + [1, 3, 5, 7, 9]",
@@ -234,11 +235,11 @@ def test_output_types(spms_raw_tbl):
                     "vov_max_out(20, vector_len=n_max_out)",
                     "vov_min_out(20, vector_len=n_min_out)",
                     "n_max_out",
-                    "n_min_out"
+                    "n_min_out",
                 ],
                 "unit": ["ns", "ns", "none", "none"],
-            }
-        }
+            },
+        },
     }
 
     proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)

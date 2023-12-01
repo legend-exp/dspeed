@@ -416,7 +416,9 @@ class WaveformBrowser:
                 lines.append(Line2D(x, y))
                 self._update_auto_limit(x, y)
 
-            elif isinstance(data, (lh5.Array, lh5.ArrayOfEqualSizedArrays, lh5.VectorOfVectors)):
+            elif isinstance(
+                data, (lh5.Array, lh5.ArrayOfEqualSizedArrays, lh5.VectorOfVectors)
+            ):
                 if isinstance(data, lh5.Array):
                     vals = [data.nda[i_tb]]
                 else:

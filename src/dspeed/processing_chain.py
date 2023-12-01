@@ -698,7 +698,9 @@ class ProcessingChain:
             return None
 
         elif isinstance(node, ast.List):
-            npparr = np.array(ast.literal_eval(expr[node.col_offset:node.end_col_offset]))
+            npparr = np.array(
+                ast.literal_eval(expr[node.col_offset : node.end_col_offset])
+            )
             if len(npparr.shape) == 1:
                 return npparr
             else:
@@ -748,14 +750,14 @@ class ProcessingChain:
                 out = ProcChainVar(
                     self,
                     name,
-                    unit = lhs.unit,
+                    unit=lhs.unit,
                     is_coord=lhs.is_coord,
                 )
             else:
                 out = ProcChainVar(
                     self,
                     name,
-                    unit = rhs.unit,
+                    unit=rhs.unit,
                     is_coord=rhs.is_coord,
                 )
 
@@ -1190,7 +1192,11 @@ class ProcessorManager:
                 d.strip() for d in dims.split(",") if d
             ]
             arr_dims = list(param.shape)
-            arr_grid = param.grid if isinstance(param, ProcChainVar) and param.grid is not auto else None
+            arr_grid = (
+                param.grid
+                if isinstance(param, ProcChainVar) and param.grid is not auto
+                else None
+            )
             if not grid:
                 grid = arr_grid
 
@@ -1335,7 +1341,10 @@ class ProcessorManager:
 
                 # reshape just in case there are some missing dimensions
                 for idim in range(-1, -1 - len(shape), -1):
-                    if len(arshape)<len(shape)+1+idim or arshape[idim] != shape[idim]:
+                    if (
+                        len(arshape) < len(shape) + 1 + idim
+                        or arshape[idim] != shape[idim]
+                    ):
                         arshape.insert(len(arshape) + idim + 1, 1)
                         print(arshape)
                 param = param.reshape(tuple([self.proc_chain._block_width] + arshape))
@@ -1398,7 +1407,8 @@ class UnitConversionManager(ProcessorManager):
     """A special processor manager for handling converting variables between unit systems."""
 
     @vectorize(
-        [f"{t}({t}, f8, f8, f8)" for t in ["f4", "f8"]], **nb_kwargs,
+        [f"{t}({t}, f8, f8, f8)" for t in ["f4", "f8"]],
+        **nb_kwargs,
     )
     def convert(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
         return (buf_in + offset_in) * period_ratio - offset_out
@@ -1763,7 +1773,9 @@ class LGDOVectorOfVectorsIOManager(IOManager):
         )
 
     def write(self, start: int, end: int) -> None:
-        self.io_vov._set_vector_unsafe(start, self.raw_var[:end-start], self.len_var[:end-start])
+        self.io_vov._set_vector_unsafe(
+            start, self.raw_var[: end - start], self.len_var[: end - start]
+        )
 
     def __str__(self) -> str:
         return f"{self.var} linked to lgdo.VectorOfVectors(vector_len={self.var.vector_len}, dtype={self.io_vov.flattened_data.dtype}, attrs={self.io_vov.attrs})"
