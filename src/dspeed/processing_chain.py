@@ -26,6 +26,7 @@ from .errors import DSPFatal, ProcessingChainError
 from .processors.round_to_nearest import round_to_nearest
 from .units import unit_registry as ureg
 from .utils import ProcChainVarBase
+from .utils import numba_defaults_kwargs as nb_kwargs
 
 log = logging.getLogger(__name__)
 sto = LH5Store()
@@ -1402,7 +1403,7 @@ class UnitConversionManager(ProcessorManager):
     """A special processor manager for handling converting variables between unit systems."""
 
     @vectorize(
-        [f"{t}({t}, f8, f8, f8)" for t in ["f4", "f8"]], nopython=True, cache=True
+        [f"{t}({t}, f8, f8, f8)" for t in ["f4", "f8"]], **nb_kwargs,
     )
     def convert(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
         return (buf_in + offset_in) * period_ratio - offset_out
@@ -1412,8 +1413,7 @@ class UnitConversionManager(ProcessorManager):
             f"{t}({t}, f8, f8, f8)"
             for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
         ],
-        nopython=True,
-        cache=True,
+        **nb_kwargs,
     )
     def convert_int(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
         tmp = (buf_in + offset_in) * period_ratio - offset_out
@@ -1428,8 +1428,7 @@ class UnitConversionManager(ProcessorManager):
             f"{t}({t}, f8, f8, f8)"
             for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8", "f4", "f8"]
         ],
-        nopython=True,
-        cache=True,
+        **nb_kwargs,
     )
     def convert_round(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
         return np.rint((buf_in + offset_in) * period_ratio - offset_out)
@@ -1745,8 +1744,7 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             ]
         ],
         "(n),(l),(),(l),(l,m)",
-        cache=True,
-        nopython=True,
+        **nb_kwargs,
     )
     def _vov2nda(flat_arr_in, cl_in, start_idx_in, l_out, aoa_out):  # noqa: N805
         prev_cl = start_idx_in
