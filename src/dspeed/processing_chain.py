@@ -698,7 +698,7 @@ class ProcessingChain:
             return None
 
         elif isinstance(node, ast.List):
-            npparr = np.array(ast.literal_eval(expr))
+            npparr = np.array(ast.literal_eval(expr[node.col_offset:node.end_col_offset]))
             if len(npparr.shape) == 1:
                 return npparr
             else:
@@ -748,20 +748,14 @@ class ProcessingChain:
                 out = ProcChainVar(
                     self,
                     name,
-                    lhs.shape,
-                    lhs.dtype,
-                    lhs.grid,
-                    lhs.unit,
+                    unit = lhs.unit,
                     is_coord=lhs.is_coord,
                 )
             else:
                 out = ProcChainVar(
                     self,
                     name,
-                    rhs.shape,
-                    rhs.dtype,
-                    rhs.grid,
-                    rhs.unit,
+                    unit = rhs.unit,
                     is_coord=rhs.is_coord,
                 )
 
@@ -1177,7 +1171,7 @@ class ProcessorManager:
         for ipar, (dims, param) in enumerate(
             zip(dims_list, it.chain(self.params, self.kw_params.values()))
         ):
-            if not isinstance(param, ProcChainVar):
+            if not isinstance(param, (ProcChainVar, np.ndarray)):
                 continue
 
             # find type signatures that match type of array
@@ -1196,7 +1190,7 @@ class ProcessorManager:
                 d.strip() for d in dims.split(",") if d
             ]
             arr_dims = list(param.shape)
-            arr_grid = param.grid if param.grid is not auto else None
+            arr_grid = param.grid if isinstance(param, ProcChainVar) and param.grid is not auto else None
             if not grid:
                 grid = arr_grid
 
@@ -1254,7 +1248,7 @@ class ProcessorManager:
                             f"found {tuple(arr_dims)} for {param}"
                         )
                 elif not fd.grid:
-                    outerdims[len(fun_dims) - i].grid = arr_grid
+                    outerdims[len(fun_dims) - 1 - i].grid = arr_grid
 
                 elif arr_grid and fd.grid != arr_grid:
                     log.debug(
@@ -1336,14 +1330,15 @@ class ProcessorManager:
                     is_coord=is_coord,
                 )
 
+                arshape = list(param.shape)
                 param = param.get_buffer(grid)
 
                 # reshape just in case there are some missing dimensions
-                arshape = list(param.shape)
                 for idim in range(-1, -1 - len(shape), -1):
-                    if arshape[idim] != shape[idim]:
+                    if len(arshape)<len(shape)+1+idim or arshape[idim] != shape[idim]:
                         arshape.insert(len(arshape) + idim + 1, 1)
-                param = param.reshape(tuple(arshape))
+                        print(arshape)
+                param = param.reshape(tuple([self.proc_chain._block_width] + arshape))
 
             elif isinstance(param, str):
                 # Convert string into integer buffer if appropriate
@@ -1362,7 +1357,7 @@ class ProcessorManager:
                 # Convert scalar to right type, including units
                 if isinstance(param, (Quantity, Unit)):
                     if ureg.is_compatible_with(ureg.dimensionless, param):
-                        param = float(param)
+                        param = param.magnitude
                     elif not isinstance(
                         grid, CoordinateGrid
                     ) or not ureg.is_compatible_with(grid.period.u, param):
@@ -1371,9 +1366,9 @@ class ProcessorManager:
                             f"CoordinateGrid is {grid}"
                         )
                     else:
-                        param = float(param / grid.period)
+                        param = (param / grid.period).magnitude
                 if np.issubdtype(dtype, np.integer):
-                    param = dtype.type(round(param))
+                    param = dtype.type(np.round(param))
                 else:
                     param = dtype.type(param)
 
@@ -1768,7 +1763,7 @@ class LGDOVectorOfVectorsIOManager(IOManager):
         )
 
     def write(self, start: int, end: int) -> None:
-        self.io_vov._set_vector_unsafe(start, self.raw_var, self.len_var)
+        self.io_vov._set_vector_unsafe(start, self.raw_var[:end-start], self.len_var[:end-start])
 
     def __str__(self) -> str:
         return f"{self.var} linked to lgdo.VectorOfVectors(vector_len={self.var.vector_len}, dtype={self.io_vov.flattened_data.dtype}, attrs={self.io_vov.attrs})"
