@@ -58,7 +58,7 @@
         "vt_max_candidate_out",
         0.8,
         10,
-        "trigger_pos",
+        "trigger_pos(vector_len=no_out)",
         "no_out"
       ],
       "unit": ["ns", "none"]
@@ -66,7 +66,7 @@
     "energies": {
       "function": "multi_a_filter",
       "module": "dspeed.processors.multi_a_filter",
-      "args": ["curr", "trigger_pos", "energies"],
+      "args": ["curr", "trigger_pos", "energies(vector_len=len(trigger_pos))"],
       "unit": ["ADC"]
     }
   }

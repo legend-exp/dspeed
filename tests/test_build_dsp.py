@@ -73,6 +73,5 @@ def test_build_dsp_spms_channelwise(dsp_test_file_spm):
 
     store = LH5Store()
     lh5_obj, n_rows = store.read_object("/ch0/dsp/energies", dsp_test_file_spm)
-    assert isinstance(lh5_obj, lgdo.ArrayOfEqualSizedArrays)
+    assert isinstance(lh5_obj, lgdo.VectorOfVectors)
     assert len(lh5_obj) == 5
-    assert len(lh5_obj.nda[0]) == 20
