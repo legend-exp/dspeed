@@ -60,15 +60,16 @@ several advantages:
 """
 
 from .bl_subtract import bl_subtract
-from .convolutions import cusp_filter, moving_slope, step, t0_filter, zac_filter
-from .dplms import dplms
+from .convolutions import convolve_wf, fft_convolve_wf
 from .dwt import discrete_wavelet_transform
+from .energy_kernels import cusp_filter, zac_filter, dplms
 from .fftw import dft, inv_dft, psd
 from .fixed_time_pickoff import fixed_time_pickoff
 from .gaussian_filter1d import gaussian_filter1d
 from .get_multi_local_extrema import get_multi_local_extrema
 from .get_wf_centroid import get_wf_centroid
 from .histogram import histogram, histogram_stats
+from .kernels import t0_filter, moving_slope, step
 from .linear_slope_fit import linear_slope_diff, linear_slope_fit
 from .log_check import log_check
 from .min_max import min_max
@@ -100,6 +101,8 @@ from .windower import windower
 
 __all__ = [
     "bl_subtract",
+    "convolve_wf", 
+    "fft_convolve_wf",
     "cusp_filter",
     "t0_filter",
     "zac_filter",
