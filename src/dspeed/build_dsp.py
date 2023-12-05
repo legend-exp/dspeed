@@ -107,7 +107,9 @@ def build_dsp(
     if lh5_tables is None:
         lh5_tables = lh5.ls(f_raw)
     elif isinstance(lh5_tables, str):
-        lh5_tables = [lh5_tables]
+        lh5_tables = lh5.ls(f_raw, lh5_tables)
+    elif isinstance(lh5_tables, list):
+        lh5_tables = [tab for tab_wc in lh5_tables for tab in lh5.ls(f_raw, tab_wc)]
     elif not (
         hasattr(lh5_tables, "__iter__")
         and all(isinstance(el, str) for el in lh5_tables)
