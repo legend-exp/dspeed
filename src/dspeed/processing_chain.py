@@ -693,7 +693,10 @@ class ProcessingChain:
             op, op_form = ast_ops_dict[type(node.op)]
 
             if not (isinstance(lhs, ProcChainVar) or isinstance(rhs, ProcChainVar)):
-                return op(lhs, rhs)
+                ret = op(lhs, rhs)
+                if isinstance(ret, Quantity) and ureg.is_compatible_with(ret.u, ureg.dimensionless):
+                    ret = ret.to(ureg.dimensionless).magnitude
+                return ret
 
             name = "(" + op_form.format(str(lhs), str(rhs)) + ")"
             if isinstance(lhs, ProcChainVar) and isinstance(rhs, ProcChainVar):
@@ -1236,7 +1239,7 @@ class ProcessorManager:
                 # Convert scalar to right type, including units
                 if isinstance(param, (Quantity, Unit)):
                     if ureg.is_compatible_with(ureg.dimensionless, param):
-                        param = float(param)
+                        param = param.to(ureg.dimensionless).magnitude
                     elif not isinstance(
                         grid, CoordinateGrid
                     ) or not ureg.is_compatible_with(grid.period, param):
@@ -1245,7 +1248,7 @@ class ProcessorManager:
                             f"CoordinateGrid is {grid}"
                         )
                     else:
-                        param = float(param / grid.period)
+                        param = (param / grid.period).to(ureg.dimensionless).magnitude
                 if np.issubdtype(dtype, np.integer):
                     param = dtype.type(round(param))
                 else:
