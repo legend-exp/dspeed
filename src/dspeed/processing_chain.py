@@ -437,7 +437,7 @@ class ProcessingChain:
         self,
         varname: str,
         val: np.ndarray | int | float | Quantity,
-        dtype: DType = None,
+        dtype: str | np.dtype = None,
         unit: str | Unit | Quantity = None,
     ) -> ProcChainVar:
         """Make a variable act as a constant and set it to val.
@@ -455,7 +455,7 @@ class ProcessingChain:
             unit of constant
         """
 
-        param = get_variable(varname)
+        param = self.get_variable(varname)
         assert param.is_constant or param._buffer is None
         param.is_constant = True
 
@@ -470,7 +470,7 @@ class ProcessingChain:
             dtype=val.dtype,
             unit=unit,
         )
-        np.copyto(var.get_buffer(), val, casting="unsafe")
+        np.copyto(param.get_buffer(), val, casting="unsafe")
         log.debug(f"set constant: {self.description()} = {val}")
         return param
 
