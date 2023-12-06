@@ -133,7 +133,7 @@ class ProcChainVar(ProcChainVarBase):
         grid: CoordinateGrid = auto,
         unit: str | Unit = auto,
         is_coord: bool = auto,
-        is_const: bool = False
+        is_const: bool = False,
     ) -> None:
         """
         Parameters
@@ -210,13 +210,17 @@ class ProcChainVar(ProcChainVarBase):
         super().__setattr__(name, value)
 
     def _make_buffer(self) -> np.ndarray:
-        shape = self.shape if self.is_const else (self.proc_chain._block_width,) + self.shape
+        shape = (
+            self.shape
+            if self.is_const
+            else (self.proc_chain._block_width,) + self.shape
+        )
         len = np.product(shape)
         # Flattened array, with padding to allow memory alignment
-        buf = np.zeros(len + 64//self.dtype.itemsize, dtype=self.dtype)
+        buf = np.zeros(len + 64 // self.dtype.itemsize, dtype=self.dtype)
         # offset to ensure memory alignment
-        offset = (64 - buf.ctypes.data)%64//self.dtype.itemsize
-        return buf[offset:offset+len].reshape(shape)
+        offset = (64 - buf.ctypes.data) % 64 // self.dtype.itemsize
+        return buf[offset : offset + len].reshape(shape)
 
     def get_buffer(self, unit: str | Unit = None) -> np.ndarray:
         # If buffer needs to be created, do so now
@@ -437,7 +441,7 @@ class ProcessingChain:
         unit: str | Unit | Quantity = None,
     ) -> ProcChainVar:
         """Make a variable act as a constant and set it to val.
-        
+
         Parameters
         ----------
         varname
@@ -452,7 +456,7 @@ class ProcessingChain:
         """
 
         param = get_variable(varname)
-        assert(param.is_constant or param._buffer is None)
+        assert param.is_constant or param._buffer is None
         param.is_constant = True
 
         if isinstance(val, Quantity):
@@ -462,11 +466,11 @@ class ProcessingChain:
         val = np.array(val, dtype=dtype)
 
         param.update_auto(
-                    shape=val.shape,
-                    dtype=val.dtype,
-                    unit=unit,
+            shape=val.shape,
+            dtype=val.dtype,
+            unit=unit,
         )
-        np.copyto(var.get_buffer(), val, casting='unsafe')
+        np.copyto(var.get_buffer(), val, casting="unsafe")
         log.debug(f"set constant: {self.description()} = {val}")
         return param
 
@@ -751,7 +755,9 @@ class ProcessingChain:
 
             if not (isinstance(lhs, ProcChainVar) or isinstance(rhs, ProcChainVar)):
                 ret = op(lhs, rhs)
-                if isinstance(ret, Quantity) and ureg.is_compatible_with(ret.u, ureg.dimensionless):
+                if isinstance(ret, Quantity) and ureg.is_compatible_with(
+                    ret.u, ureg.dimensionless
+                ):
                     ret = ret.to(ureg.dimensionless).magnitude
                 return ret
 
@@ -2112,14 +2118,22 @@ def build_processing_chain(
                     if isinstance(arg, ProcChainVar) and arg.name in new_vars:
                         out_is_arg = True
                         arg.is_const = True
-                        #arg = arg.get_buffer()
+                        # arg = arg.get_buffer()
 
                 if out_is_arg:
-                    proc_man = ProcessorManager(proc_chain, func, arg_params, kwarg_params, kwargs.get('signature', None), kwargs.get('types', None))
+                    proc_man = ProcessorManager(
+                        proc_chain,
+                        func,
+                        arg_params,
+                        kwarg_params,
+                        kwargs.get("signature", None),
+                        kwargs.get("types", None),
+                    )
                     proc_man.execute()
                 else:
                     const_val = func(*arg_params, **kwarg_params)
-                    if len(new_vars)==1: const_val = (const_val)
+                    if len(new_vars) == 1:
+                        const_val = const_val
                     for var, val in zip(new_vars, const_val):
                         proc_chain.set_constant(var, val)
             else:
