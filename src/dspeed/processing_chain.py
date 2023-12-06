@@ -133,6 +133,7 @@ class ProcChainVar(ProcChainVarBase):
         grid: CoordinateGrid = auto,
         unit: str | Unit = auto,
         is_coord: bool = auto,
+        is_const: bool = False
     ) -> None:
         """
         Parameters
@@ -154,6 +155,10 @@ class ProcChainVar(ProcChainVarBase):
         is_coord
             If ``True``, variable represents an array index and can be converted
             into a unitted number using grid.
+        is_const
+            If ``True``, variable is a constant. Variable will be set before
+            executing, and will not be recomputed. Does not have outer
+            dimension of size _block_width
         """
         assert isinstance(proc_chain, ProcessingChain) and isinstance(name, str)
         self.proc_chain = proc_chain
@@ -168,6 +173,7 @@ class ProcChainVar(ProcChainVarBase):
         self.grid = grid
         self.unit = unit
         self.is_coord = is_coord
+        self.is_const = is_const
 
         log.debug(f"added variable: {self.description()}")
 
@@ -203,18 +209,23 @@ class ProcChainVar(ProcChainVarBase):
 
         super().__setattr__(name, value)
 
+    def _make_buffer(self) -> np.ndarray:
+        shape = self.shape if self.is_const else (self.proc_chain._block_width,) + self.shape
+        len = np.product(shape)
+        # Flattened array, with padding to allow memory alignment
+        buf = np.zeros(len + 64//self.dtype.itemsize, dtype=self.dtype)
+        # offset to ensure memory alignment
+        offset = (64 - buf.ctypes.data)%64//self.dtype.itemsize
+        return buf[offset:offset+len].reshape(shape)
+
     def get_buffer(self, unit: str | Unit = None) -> np.ndarray:
         # If buffer needs to be created, do so now
         if self._buffer is None:
             if self.shape is auto:
                 raise ProcessingChainError(f"cannot deduce shape of {self.name}")
             if self.dtype is auto:
-                raise ProcessingChainError(f"cannot deduce shape of {self.name}")
-
-            # create the buffer so that the array start is aligned in memory on a multiple of 64 bytes
-            self._buffer = np.zeros(
-                shape=(self.proc_chain._block_width,) + self.shape, dtype=self.dtype
-            )
+                raise ProcessingChainError(f"cannot deduce dtype of {self.name}")
+            self._buffer = self._make_buffer()
 
         if isinstance(self._buffer, np.ndarray):
             if self.is_coord is True:
@@ -417,6 +428,47 @@ class ProcessingChain:
         )
         self._vars_dict[name] = var
         return var
+
+    def set_constant(
+        self,
+        varname: str,
+        val: np.ndarray | int | float | Quantity,
+        dtype: DType = None,
+        unit: str | Unit | Quantity = None,
+    ) -> ProcChainVar:
+        """Make a variable act as a constant and set it to val.
+        
+        Parameters
+        ----------
+        varname
+            name of internal variable to set. If it does not exist, create
+            it; otherwise, set existing variable to be constant
+        val
+            value of constant
+        dtype
+            dtype of constant
+        unit
+            unit of constant
+        """
+
+        param = get_variable(varname)
+        assert(param.is_constant or param._buffer is None)
+        param.is_constant = True
+
+        if isinstance(val, Quantity):
+            unit = val.unit
+            val = val.magnitude
+
+        val = np.array(val, dtype=dtype)
+
+        param.update_auto(
+                    shape=val.shape,
+                    dtype=val.dtype,
+                    unit=unit,
+        )
+        np.copyto(var.get_buffer(), val, casting='unsafe')
+        log.debug(f"set constant: {self.description()} = {val}")
+        return param
 
     def link_input_buffer(
         self, varname: str, buff: np.ndarray | LGDO = None
