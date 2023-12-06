@@ -62,7 +62,7 @@ def t0_filter(rise: int, fall: int, kernel:np.array) -> None:
         forceobj=True,
     ),
 )
-def moving_slope(length, kernel):
+def moving_slope(kernel):
     """Calculates the linear slope of kernel
 
     Parameters
