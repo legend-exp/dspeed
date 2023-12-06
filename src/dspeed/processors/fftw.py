@@ -6,11 +6,13 @@ import numpy as np
 from numba import guvectorize
 from pyfftw import FFTW
 
-from ..processing_chain import ProcChainVar
+from ..utils import ProcChainVarBase
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
-def dft(w_in: np.ndarray | ProcChainVar, w_out: np.ndarray | ProcChainVar) -> Callable:
+def dft(
+    w_in: np.ndarray | ProcChainVarBase, w_out: np.ndarray | ProcChainVarBase
+) -> Callable:
     """Perform discrete Fourier transforms using the FFTW library.
 
     Parameters
@@ -55,7 +57,7 @@ def dft(w_in: np.ndarray | ProcChainVar, w_out: np.ndarray | ProcChainVar) -> Ca
     =============================== ========= =============================== =============
     """
     # if we have a ProcChainVar, set up the output and get numpy arrays
-    if isinstance(w_in, ProcChainVar) and isinstance(w_out, ProcChainVar):
+    if isinstance(w_in, ProcChainVarBase) and isinstance(w_out, ProcChainVarBase):
         c = w_in.dtype.kind
         s = w_in.dtype.itemsize
         if c == "f":
@@ -143,7 +145,7 @@ def inv_dft(w_in: np.ndarray, w_out: np.ndarray) -> Callable:
     =============================== ============= =============================== =========
     """
     # if we have a ProcChainVar, set up the output and get numpy arrays
-    if isinstance(w_in, ProcChainVar) and isinstance(w_out, ProcChainVar):
+    if isinstance(w_in, ProcChainVarBase) and isinstance(w_out, ProcChainVarBase):
         s = w_in.dtype.itemsize
         if w_out.dtype == "auto":
             w_out.update_auto(
@@ -231,7 +233,7 @@ def psd(w_in: np.ndarray, w_out: np.ndarray) -> Callable:
     =============================== ========= ============================ =============
     """
     # if we have a ProcChainVar, set up the output and get numpy arrays
-    if isinstance(w_in, ProcChainVar) and isinstance(w_out, ProcChainVar):
+    if isinstance(w_in, ProcChainVarBase) and isinstance(w_out, ProcChainVarBase):
         c = w_in.dtype.kind
         s = w_in.dtype.itemsize
         if c == "f":

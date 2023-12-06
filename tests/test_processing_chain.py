@@ -1,4 +1,5 @@
 import lgdo
+import numpy as np
 import pytest
 
 from dspeed.processing_chain import build_processing_chain
@@ -149,3 +150,67 @@ def test_processor_variable_array_output(spms_raw_tbl):
 
     proc_chain, _, _ = build_processing_chain(spms_raw_tbl, dsp_config)
     proc_chain.execute(0, 1)
+
+
+# Test that timing variables can be converted between multiple coordinate
+# grids correctly. Also tests slicing with a stride. Pickoff a time from
+# a windowed wf and a down-sampled waveform; they should be the same
+def test_proc_chain_coordinate_grid(spms_raw_tbl):
+    dsp_config = {
+        "outputs": ["a_window", "a_downsample"],
+        "processors": {
+            "a_window": {
+                "function": "fixed_time_pickoff",
+                "module": "dspeed.processors",
+                "args": [
+                    "waveform[2625:4025]",
+                    "51.2*us + waveform.offset",
+                    "'i'",
+                    "a_window",
+                ],
+                "unit": ["ADC"],
+            },
+            "a_downsample": {
+                "function": "fixed_time_pickoff",
+                "module": "dspeed.processors",
+                "args": [
+                    "waveform[0:8000:8]",
+                    "51.2*us + waveform.offset",
+                    "'i'",
+                    "a_downsample",
+                ],
+                "unit": ["ADC"],
+            },
+        },
+    }
+
+    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
+    proc_chain.execute(0, 1)
+    assert lh5_out["a_window"][0] == lh5_out["a_downsample"][0]
+
+
+def test_proc_chain_round(spms_raw_tbl):
+    dsp_config = {
+        "outputs": ["waveform_round"],
+        "processors": {"waveform_round": "round(waveform, 4)"},
+    }
+
+    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
+    proc_chain.execute(0, 1)
+    assert np.all(
+        np.rint(spms_raw_tbl["waveform"].values[0] / 4) * 4
+        == lh5_out["waveform_round"].values[0]
+    )
+
+
+def test_proc_chain_as_type(spms_raw_tbl):
+    dsp_config = {
+        "outputs": ["waveform_32"],
+        "processors": {"waveform_32": "astype(waveform, 'float32')"},
+    }
+
+    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
+    proc_chain.execute(0, 1)
+    assert np.all(
+        spms_raw_tbl["waveform"].values[0] == lh5_out["waveform_32"].values[0]
+    )

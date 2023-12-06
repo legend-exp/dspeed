@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import lgdo
+import lgdo.lh5_store as lh5
 import numpy as np
 from lgdo import LGDO
 from lgdo.lgdo_utils import expand_path
@@ -23,9 +24,12 @@ from numba import vectorize
 from pint import Quantity, Unit
 
 from .errors import DSPFatal, ProcessingChainError
+from .processors.round_to_nearest import round_to_nearest
 from .units import unit_registry as ureg
+from .utils import ProcChainVarBase
 
 log = logging.getLogger(__name__)
+sto = lh5.LH5Store()
 
 # Filler value for variables to be automatically deduced later
 auto = "auto"
@@ -53,13 +57,19 @@ class CoordinateGrid:
     """
 
     period: Quantity | Unit | str
-    offset: Quantity | ProcChainVar | float | int
+    offset: Quantity | ProcChainVar | float | int = 0
 
     def __post_init__(self) -> None:
+        # Copy constructor
+        if isinstance(self.period, CoordinateGrid):
+            self.offset = self.period.offset
+            self.period = self.period.period
+
         if isinstance(self.period, str):
             self.period = Quantity(1.0, self.period)
         elif isinstance(self.period, Unit):
             self.period *= 1  # make Quantity
+
         if isinstance(self.offset, (int, float)):
             self.offset = self.offset * self.period
         assert isinstance(self.period, Quantity) and isinstance(
@@ -93,7 +103,7 @@ class CoordinateGrid:
             unit = ureg.Quantity(unit)
 
         if isinstance(self.offset, ProcChainVar):
-            return self.offset.get_buffer(CoordinateGrid(unit, 0))
+            return self.offset.get_buffer(CoordinateGrid(unit))
         else:
             return float(self.offset / unit)
 
@@ -106,7 +116,7 @@ class CoordinateGrid:
         return f"({str(self.period)},{offset})"
 
 
-class ProcChainVar:
+class ProcChainVar(ProcChainVarBase):
     """Helper data class with buffer and information for internal variables in
     :class:`ProcessingChain`.
 
@@ -186,15 +196,10 @@ class ProcChainVar:
             value = CoordinateGrid(period, offset)
 
         elif name == "unit" and value is not None:
-            value = str(value)
+            value = value
 
         elif name == "is_coord":
             value = bool(value)
-            if value:
-                if self._buffer is None:
-                    self._buffer = []
-                elif isinstance(self._buffer, np.ndarray):
-                    self._buffer = [(self._buffer, CoordinateGrid(self.unit, 0))]
 
         super().__setattr__(name, value)
 
@@ -211,38 +216,38 @@ class ProcChainVar:
                 shape=(self.proc_chain._block_width,) + self.shape, dtype=self.dtype
             )
 
-        # if variable isn't a coordinate, we're all set
-        if self.is_coord is False or self.is_coord is auto:
-            return self._buffer
+        if isinstance(self._buffer, np.ndarray):
+            if self.is_coord is True:
+                if isinstance(self.grid, CoordinateGrid):
+                    pass
+                elif unit is not None:
+                    self.grid = CoordinateGrid(unit)
+                else:
+                    self.grid = CoordinateGrid(self.unit)
+                self._buffer = [(self._buffer, self.grid)]
+            elif self.unit is None or not (
+                isinstance(self.unit, (Unit, Quantity)) or self.unit in ureg
+            ):
+                # buffer cannot be converted so return
+                return self._buffer
+            else:
+                # buffer can be converted, so make it a list of buffers
+                self._buffer = [(self._buffer, CoordinateGrid(self.unit))]
 
         # if no unit is given, use the native unit
         if unit is None:
-            if isinstance(self.unit, str):
-                unit = CoordinateGrid(self.unit, 0.0)
-        elif not isinstance(unit, CoordinateGrid):
-            unit = CoordinateGrid(unit, 0.0)
-
-        # if this is our first time accessing, no conversion is needed
-        if len(self._buffer) == 0:
-            if self.shape is auto:
-                raise ProcessingChainError(f"cannot deduce shape of {self.name}")
-            if self.dtype is auto:
-                raise ProcessingChainError(f"cannot deduce shape of {self.name}")
-
-            buff = np.zeros(
-                shape=(self.proc_chain._block_width,) + self.shape, dtype=self.dtype
-            )
-            self._buffer.append((buff, unit))
-            return buff
+            unit = self.unit
+        if not isinstance(unit, CoordinateGrid) and unit in ureg:
+            unit = CoordinateGrid(unit)
 
         # check if coordinate conversion has been done already
-        for buff, grid in self._buffer:
-            if grid == unit:
+        for buff, buf_u in self._buffer:
+            if buf_u == unit:
                 return buff
 
         # If we get this far, add conversion processor to ProcChain and add new buffer to _buffer
         conversion_manager = UnitConversionManager(self, unit)
-        self._buffer.append([conversion_manager.out_buffer, unit])
+        self._buffer.append((conversion_manager.out_buffer, unit))
         self.proc_chain._proc_managers.append(conversion_manager)
         return conversion_manager.out_buffer
 
@@ -746,7 +751,7 @@ class ProcessingChain:
                 )
                 self._proc_managers.append(ProcessorManager(self, op, [operand, out]))
             else:
-                out = op(out)
+                out = op(operand)
 
             return out
 
@@ -800,7 +805,7 @@ class ProcessingChain:
                         pd *= sl.step
 
                     off = val.offset
-                    if sl.start is not None:
+                    if sl.start is not None and sl.start > 0:
                         start = sl.start * val.period
                         if isinstance(off, ProcChainVar):
                             new_off = ProcChainVar(
@@ -937,15 +942,64 @@ class ProcessingChain:
         return var.buffer.shape[1]
 
     # round value
-    def _round(var: ProcChainVar) -> float:  # noqa: N805
+    def _round(
+        var: ProcChainVar | Quantity,  # noqa: N805
+        to_nearest: int | float | Unit | Quantity | CoordinateGrid = 1,
+        dtype: str = None,
+    ) -> float | Quantity | ProcChainVar:
+        """Round a variable or value to nearest multiple of `to_nearest`.
+        If var is a ProcChainVar, and to_nearest is a Unit or Quantity, return
+        a new ProcChainVar with a period of to_nearest, and the underlying
+        values and offset rounded. If var is a ProcChainVar and to_nearest
+        is an int or a float, keep the unit and just round the underlying
+        value.
+
+        Example usage:
+        round(tp_0, wf.grid) - convert tp_0 to nearest array index of wf
+        round(5*us, wf.period) - 5 us in wf clock ticks
+        """
+
         if var is None:
             return None
         if not isinstance(var, ProcChainVar):
-            return round(float(var))
+            return round(float(var / to_nearest)) * to_nearest
         else:
-            raise ProcessingChainError(
-                "round() is not implemented for variables, only constants."
-            )
+            name = f"round({var.name}, {to_nearest})"
+            dtype = np.dtype(dtype) if dtype is not None else var.dtype
+            if var.is_coord:
+                if isinstance(to_nearest, (int, float)):
+                    grid = CoordinateGrid(var.grid.period * to_nearest, var.grid.offset)
+                elif isinstance(to_nearest, (Unit, Quantity)):
+                    grid = CoordinateGrid(to_nearest, var.grid.offset)
+                else:
+                    grid = to_nearest
+
+                out = ProcChainVar(
+                    var.proc_chain,
+                    name,
+                    var.shape,
+                    dtype,
+                    grid,
+                    var.unit,
+                    var.is_coord,
+                )
+                conversion_manager = UnitConversionManager(var, grid, round=True)
+                out._buffer = conversion_manager.out_buffer
+                var.proc_chain._proc_managers.append(conversion_manager)
+            else:
+                out = ProcChainVar(
+                    var.proc_chain,
+                    name,
+                    var.shape,
+                    dtype,
+                    var.grid,
+                    var.unit,
+                    var.is_coord,
+                )
+
+                var.proc_chain.add_processor(round_to_nearest, var, to_nearest, out)
+
+            return out
 
     # type cast variable
     def _astype(var: ProcChainVar, dtype: str) -> ProcChainVar:  # noqa: N805
@@ -977,8 +1031,32 @@ class ProcessingChain:
             )
             return out
 
+    def _loadlh5(path_to_file, path_in_file: str) -> np.array:  # noqa: N805
+        """
+        Load data from an LH5 file.
+
+        Args:
+            path_to_file (str): The path to the LH5 file.
+            path_in_file (str): The path to the data within the LH5 file.
+
+        Returns:
+            list: The loaded data.
+        """
+
+        try:
+            loaded_data = sto.read_object(path_in_file, path_to_file)[0].nda
+        except ValueError:
+            raise ProcessingChainError(f"LH5 file not found: {path_to_file}")
+
+        return loaded_data
+
     # dict of functions that can be parsed by get_variable
-    func_list = {"len": _length, "round": _round, "astype": _astype}
+    func_list = {
+        "len": _length,
+        "round": _round,
+        "astype": _astype,
+        "loadlh5": _loadlh5,
+    }
     module_list = {"np": np, "numpy": np}
 
 
@@ -1158,6 +1236,13 @@ class ProcessorManager:
         # Use the first types in the list that all our types can be cast to
         self.types = [np.dtype(t) for t in found_types[0]]
 
+        # If we haven't identified a coordinate grid from WFs, try from coords
+        if not grid:
+            for param in it.chain(self.params, self.kw_params.values()):
+                if isinstance(param, ProcChainVar) and param.is_coord is True:
+                    grid = param.grid
+                    break
+
         # Finish setting up of input parameters for function
         # Iterate through args and then kwargs
         # Reshape variable arrays to add broadcast dimensions
@@ -1211,8 +1296,6 @@ class ProcessorManager:
                     is_coord=is_coord,
                 )
 
-                if param.is_coord and not grid:
-                    grid = param._buffer[0][1]
                 param = param.get_buffer(grid)
 
                 # reshape just in case there are some missing dimensions
@@ -1242,7 +1325,7 @@ class ProcessorManager:
                         param = param.to(ureg.dimensionless).magnitude
                     elif not isinstance(
                         grid, CoordinateGrid
-                    ) or not ureg.is_compatible_with(grid.period, param):
+                    ) or not ureg.is_compatible_with(grid.period.u, param):
                         raise ProcessingChainError(
                             f"could not find valid conversion for {param}; "
                             f"CoordinateGrid is {grid}"
@@ -1279,39 +1362,90 @@ class ProcessorManager:
 class UnitConversionManager(ProcessorManager):
     """A special processor manager for handling converting variables between unit systems."""
 
-    @vectorize(nopython=True, cache=True)
+    @vectorize(
+        [f"{t}({t}, f8, f8, f8)" for t in ["f4", "f8"]], nopython=True, cache=True
+    )
     def convert(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
         return (buf_in + offset_in) * period_ratio - offset_out
 
-    @vectorize(nopython=True, cache=True)
+    @vectorize(
+        [
+            f"{t}({t}, f8, f8, f8)"
+            for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
+        ],
+        nopython=True,
+        cache=True,
+    )
     def convert_int(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
         tmp = (buf_in + offset_in) * period_ratio - offset_out
-        ret = round(tmp)
+        ret = np.rint(tmp)
         if np.abs(tmp - ret) < 1.0e-5:
             return ret
         else:
-            raise DSPFatal("Cannot convert to integer")
+            raise DSPFatal("Cannot convert to integer. Use round or astype")
 
-    def __init__(self, var: ProcChainVar, unit: str | Unit) -> None:
+    @vectorize(
+        [
+            f"{t}({t}, f8, f8, f8)"
+            for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8", "f4", "f8"]
+        ],
+        nopython=True,
+        cache=True,
+    )
+    def convert_round(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
+        return np.rint((buf_in + offset_in) * period_ratio - offset_out)
+
+    def __init__(
+        self,
+        var: ProcChainVar,
+        unit: str | Unit | Quantity | CoordinateGrid,
+        round=False,
+    ) -> None:
         # reference back to our processing chain
         self.proc_chain = var.proc_chain
         # callable function used to process data
-        if np.issubdtype(var.dtype, np.integer):
-            self.processor = UnitConversionManager.convert_int
-        else:
+        if round:
+            self.processor = UnitConversionManager.convert_round
+        elif issubclass(var.dtype.type, np.floating):
             self.processor = UnitConversionManager.convert
+        else:
+            self.processor = UnitConversionManager.convert_int
+
         # list of parameters prior to converting to internal representation
         self.params = [var, unit]
         self.kw_params = {}
 
-        from_buffer, from_grid = var._buffer[0]
-        period_ratio = from_grid.get_period(unit.period)
+        to_offset = 0
+        if isinstance(unit, CoordinateGrid):
+            to_offset = unit.get_offset()
+            unit = unit.period
+
+        if isinstance(var._buffer, list):
+            from_buffer, from_unit = var._buffer[0]
+        else:
+            from_buffer = var._buffer
+            from_unit = var.unit
+            if isinstance(from_unit, str) and from_unit in ureg:
+                from_unit = ureg.Quantity(from_unit)
+
+        if isinstance(from_unit, CoordinateGrid):
+            ratio = from_unit.get_period(unit)
+            from_offset = from_unit.get_offset()
+        elif isinstance(from_unit, (Unit, Quantity)):
+            if isinstance(unit, str):
+                unit = ureg.Quantity(unit)
+            ratio = float(from_unit / unit)
+            from_offset = 0
+        else:
+            ratio = 1 / unit
+            from_offset = 0
+
         self.out_buffer = np.zeros_like(from_buffer, dtype=var.dtype)
         self.args = [
             from_buffer,
-            from_grid.get_offset(),
-            unit.get_offset(),
-            period_ratio,
+            from_offset,
+            to_offset,
+            ratio,
             self.out_buffer,
         ]
         self.kwargs = {}
@@ -1386,19 +1520,28 @@ class LGDOArrayIOManager(IOManager):
         unit = io_array.attrs.get("units", None)
         var.update_auto(dtype=io_array.dtype, shape=io_array.nda.shape[1:], unit=unit)
 
-        if isinstance(var.unit, CoordinateGrid):
+        if isinstance(var.unit, (CoordinateGrid, Quantity, Unit)):
+            if isinstance(var.unit, CoordinateGrid):
+                var_u = var.unit.period.u
+            elif isinstance(var.unit, Quantity):
+                var_u = var.unit.u
+            else:
+                var_u = var.unit
+
             if unit is None:
-                unit = var.unit.period.u
-            elif ureg.is_compatible_with(var.unit.period, unit):
+                unit = var_u
+            elif ureg.is_compatible_with(var_u, unit):
                 unit = ureg.Quantity(unit).u
             else:
                 raise ProcessingChainError(
                     f"LGDO array and variable {var} have incompatible units "
-                    f"({var.unit.period.u} and {unit})"
+                    f"({var_u} and {unit})"
                 )
+        elif isinstance(var.unit, str) and unit is None:
+            unit = var.unit
 
-        if unit is None and var.unit is not None:
-            io_array.attrs["units"] = str(var.unit)
+        if "units" not in io_array.attrs and unit is not None:
+            io_array.attrs["units"] = str(unit)
 
         self.io_array = io_array
         self.raw_buf = io_array.nda
@@ -1683,7 +1826,14 @@ def build_processing_chain(
                 multi_out_procs[k] = key
 
         # find DB lookups in args and replace the values
-        args = node["args"]
+        if isinstance(node, str):
+            node = {"function": node}
+            processors[key] = node
+        if "args" in node:
+            args = node["args"]
+        else:
+            args = [node["function"]]
+
         for i, arg in enumerate(args):
             if not isinstance(arg, str):
                 continue
@@ -1713,7 +1863,12 @@ def build_processing_chain(
         # parse the arguments list for prereqs, if not included explicitly
         if "prereqs" not in node:
             prereqs = []
-            for arg in node["args"]:
+            if "args" in node:
+                args = node["args"]
+            else:
+                args = [node["function"]]
+
+            for arg in args:
                 if not isinstance(arg, str):
                     continue
                 for prereq in proc_chain.get_variable(arg, True):
@@ -1800,6 +1955,28 @@ def build_processing_chain(
     for proc_par in proc_par_list:
         recipe = processors[proc_par]
         try:
+            # if we are invoking a built in expression, have the parser
+            # add it to the processing chain, and then add a new variable
+            # that shares its buffer
+            if "args" not in recipe:
+                fun_str = recipe if isinstance(recipe, str) else recipe["function"]
+                fun_var = proc_chain.get_variable(fun_str)
+                if not isinstance(fun_var, ProcChainVar):
+                    raise ProcessingChainError(
+                        f"Could not find function {recipe['function']}"
+                    )
+                new_var = proc_chain.add_variable(
+                    name=proc_par,
+                    dtype=fun_var.dtype,
+                    shape=fun_var.shape,
+                    grid=fun_var.grid,
+                    unit=fun_var.unit,
+                    is_coord=fun_var.is_coord,
+                )
+                new_var._buffer = fun_var._buffer
+                log.debug(f"setting {new_var} = {fun_var}")
+                continue
+
             module = importlib.import_module(recipe["module"])
             func = getattr(module, recipe["function"])
             args = recipe["args"]
