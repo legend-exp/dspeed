@@ -73,12 +73,13 @@
       "args": ["wf_pz[1500:]", "pz_mean", "pz_std", "pz_slope", "pz_intercept"],
       "unit": ["ADC", "ADC", "ADC", "ADC"]
     },
-    "t0_kernel":{
+    "t0_kernel": {
       "function": "t0_filter",
       "module": "dspeed.processors",
       "args": [
-        "128*ns/wf_pz.period", "2*us/wf_pz.period", 
-          "t0_kernel(round((128*ns+2*us)/wf_pz.period), 'f')"
+        "128*ns/wf_pz.period",
+        "2*us/wf_pz.period",
+        "t0_kernel(round((128*ns+2*us)/wf_pz.period), 'f')"
       ],
       "unit": "ADC"
     },
@@ -87,8 +88,8 @@
       "module": "dspeed.processors",
       "args": [
         "wf_pz",
-          "t0_kernel",
-          "'s'",
+        "t0_kernel",
+        "'s'",
         "wf_t0_filter(len(wf_pz), 'f', grid=wf_pz.grid)"
       ],
       "unit": "ADC"
@@ -161,33 +162,33 @@
         "db.etrap.sample": "0.8"
       }
     },
-    "cusp_kernel":{
+    "cusp_kernel": {
       "function": "cusp_filter",
       "module": "dspeed.processors",
-      "args":[
-          "db.cusp.sigma/wf_blsub.period",
-          "round(db.cusp.flat/wf_blsub.period)",
-          "db.pz.tau/wf_blsub.period",
-          "cusp_kernel(round(len(wf_blsub)-(33.6*us/wf_blsub.period)-(4.8*us/wf_blsub.period)), 'f')"
+      "args": [
+        "db.cusp.sigma/wf_blsub.period",
+        "round(db.cusp.flat/wf_blsub.period)",
+        "db.pz.tau/wf_blsub.period",
+        "cusp_kernel(round(len(wf_blsub)-(33.6*us/wf_blsub.period)-(4.8*us/wf_blsub.period)), 'f')"
       ],
       "defaults": {
-          "db.cusp.sigma": "20*us",
-          "db.cusp.flat": "3*us",
-          "db.pz.tau": "450*us"
-        },
-        "unit": "ADC"
-  },
-      "wf_cusp": {
-    "function": "fft_convolve_wf",
-    "module": "dspeed.processors",
-    "args": [
-      "wf_blsub[:round(len(wf_blsub)-(33.6*us/wf_blsub.period))]",
+        "db.cusp.sigma": "20*us",
+        "db.cusp.flat": "3*us",
+        "db.pz.tau": "450*us"
+      },
+      "unit": "ADC"
+    },
+    "wf_cusp": {
+      "function": "fft_convolve_wf",
+      "module": "dspeed.processors",
+      "args": [
+        "wf_blsub[:round(len(wf_blsub)-(33.6*us/wf_blsub.period))]",
         "cusp_kernel",
         "'v'",
-      "wf_cusp(round((4.8*us/wf_blsub.period)+1), 'f')"
-    ],
-    "unit": "ADC"
-  },
+        "wf_cusp(round((4.8*us/wf_blsub.period)+1), 'f')"
+      ],
+      "unit": "ADC"
+    },
     "cuspEmax": {
       "function": "amax",
       "module": "numpy",
@@ -202,33 +203,33 @@
       "unit": "ADC",
       "defaults": { "db.cusp.sample": "50" }
     },
-    "zac_kernel":{
+    "zac_kernel": {
       "function": "zac_filter",
       "module": "dspeed.processors",
-      "args":[
-          "db.zac.sigma/wf_blsub.period",
-          "round(db.zac.flat/wf_blsub.period)",
-          "db.pz.tau/wf_blsub.period",
-          "zac_kernel(round(len(wf_blsub)-(33.6*us/wf_blsub.period)-(4.8*us/wf_blsub.period)), 'f')"
+      "args": [
+        "db.zac.sigma/wf_blsub.period",
+        "round(db.zac.flat/wf_blsub.period)",
+        "db.pz.tau/wf_blsub.period",
+        "zac_kernel(round(len(wf_blsub)-(33.6*us/wf_blsub.period)-(4.8*us/wf_blsub.period)), 'f')"
       ],
       "defaults": {
-          "db.zac.sigma": "20*us",
-          "db.zac.flat": "3*us",
-          "db.pz.tau": "450*us"
-        },
-        "unit": "ADC"
-  },
-      "wf_zac": {
-    "function": "fft_convolve_wf",
-    "module": "dspeed.processors",
-    "args": [
-      "wf_blsub[:round(len(wf_blsub)-(33.6*us/wf_blsub.period))]",
+        "db.zac.sigma": "20*us",
+        "db.zac.flat": "3*us",
+        "db.pz.tau": "450*us"
+      },
+      "unit": "ADC"
+    },
+    "wf_zac": {
+      "function": "fft_convolve_wf",
+      "module": "dspeed.processors",
+      "args": [
+        "wf_blsub[:round(len(wf_blsub)-(33.6*us/wf_blsub.period))]",
         "zac_kernel",
         "'v'",
-      "wf_zac(round((4.8*us/wf_blsub.period)+1), 'f')"
-    ],
-    "unit": "ADC"
-  },
+        "wf_zac(round((4.8*us/wf_blsub.period)+1), 'f')"
+      ],
+      "unit": "ADC"
+    },
     "zacEmax": {
       "function": "amax",
       "module": "numpy",

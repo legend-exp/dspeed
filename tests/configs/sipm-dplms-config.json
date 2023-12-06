@@ -97,13 +97,15 @@
     "dplms_kernel": {
       "function": "dplms_filter",
       "module": "dspeed.processors",
-      "args": ["db.dplms.noise_matrix",
-      "db.dplms.reference",
-      "0.01",
-      "1",
-      "0",
-      "0",
-       "dplms_kernel(50, 'f')"],
+      "args": [
+        "db.dplms.noise_matrix",
+        "db.dplms.reference",
+        "0.01",
+        "1",
+        "0",
+        "0",
+        "dplms_kernel(50, 'f')"
+      ],
       "unit": "ADC"
     },
     "wf_dplms": {
@@ -112,9 +114,9 @@
       "module": "dspeed.processors",
       "args": [
         "wf_diff",
-          "dplms_kernel",
-          "'s'",
-          "wf_dplms(len(wf_diff)-49, 'f')"
+        "dplms_kernel",
+        "'s'",
+        "wf_dplms(len(wf_diff)-49, 'f')"
       ],
       "unit": "ADC"
     },
