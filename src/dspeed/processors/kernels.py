@@ -55,8 +55,8 @@ def t0_filter(rise: int, fall: int, kernel: np.array) -> None:
 
 
 @guvectorize(
-    ["void(float32, float32[:])", "void(float64, float64[:])"],
-    "(),(n)",
+    ["void(float32[:])", "void(float64[:])"],
+    "(n)",
     **nb_kwargs(
         cache=False,
         forceobj=True,
