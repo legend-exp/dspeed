@@ -94,20 +94,31 @@
       "args": ["waveform", 1, "wf_diff(len(waveform)-1)"],
       "unit": "ADC"
     },
-    "wf_dplms": {
+    "dplms_kernel": {
       "function": "dplms_filter",
       "module": "dspeed.processors",
-      "args": ["wf_diff", "wf_dplms(len(wf_diff)-49, 'f')"],
-      "unit": "ADC",
-      "init_args": [
+      "args": [
         "db.dplms.noise_matrix",
         "db.dplms.reference",
-        "50",
         "0.01",
         "1",
         "0",
-        "0"
-      ]
+        "0",
+        "dplms_kernel(50, 'f')"
+      ],
+      "unit": "ADC"
+    },
+    "wf_dplms": {
+      "description": "convolve optimised cusp filter",
+      "function": "convolve_wf",
+      "module": "dspeed.processors",
+      "args": [
+        "wf_diff",
+        "dplms_kernel",
+        "'s'",
+        "wf_dplms(len(wf_diff)-49, 'f')"
+      ],
+      "unit": "ADC"
     },
     "h_weights , h_borders": {
       "function": "histogram",
