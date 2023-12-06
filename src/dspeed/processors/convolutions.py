@@ -45,6 +45,7 @@ def convolve_wf(
 
     if len(kernel) > len(w_in):
         raise DSPFatal("The filter is longer than the input waveform")
+<<<<<<< HEAD
     
     if chr(mode_in) == "f":
         mode = "full"
@@ -56,6 +57,13 @@ def convolve_wf(
         raise DSPFatal("Invalid mode")
     
     w_out[:] = np.convolve(w_in, kernel, mode=mode)
+=======
+
+    if chr(mode_in) not in ["f", "v", "s"]:
+        raise DSPFatal("Invalid mode")
+
+    w_out[:] = np.convolve(w_in, kernel, mode=chr(mode_in))
+>>>>>>> b6d818862166d4cd46e4e546faa5a5664bce6026
 
 
 @guvectorize(
