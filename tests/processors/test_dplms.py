@@ -11,42 +11,25 @@ def test_dplms(compare_numba_vs_python):
     with open(Path(__file__).parent / "dplms_noise_mat.dat") as f:
         nmat = [[float(num) for num in line.split(" ")] for line in f]
 
-    length = 50
+    kernel = np.zeros(50)
     len_wf = 100
     ref = np.zeros(len_wf)
     ref[int(len_wf / 2 - 1) : int(len_wf / 2)] = 1
 
     # ensure the DSPFatal is raised for a negative length
     with pytest.raises(DSPFatal):
-        dplms(-1, nmat, ref, 1, 1, 1, 1, [])
-
-    # ensure the DSPFatal is raised for length not equal to noise matrix shape
-    with pytest.raises(DSPFatal):
-        dplms(10, nmat, ref, 1, 1, 1, 1, [])
+        dplms(nmat, [], 1, 1, 1, 1, kernel)
 
     # ensure the DSPFatal is raised for negative coefficients
     with pytest.raises(DSPFatal):
-        dplms(length, nmat, ref, -1, 1, 1, 1, [])
+        dplms(nmat, ref, -1, 1, 1, 1, kernel)
     with pytest.raises(DSPFatal):
-        dplms(length, nmat, ref, 1, -1, 1, 1, [])
+        dplms(nmat, ref, 1, -1, 1, 1, kernel)
     with pytest.raises(DSPFatal):
-        dplms(length, nmat, ref, 1, 1, -1, 1, [])
+        dplms(nmat, ref, 1, 1, -1, 1, kernel)
     with pytest.raises(DSPFatal):
-        dplms(length, nmat, ref, 1, 1, 1, -1, [])
+        dplms(nmat, ref, 1, 1, 1, -1, kernel)
     with pytest.raises(DSPFatal):
-        dplms(length, nmat, ref, 1, 1, 1, 2, [])
+        dplms(nmat, ref, 1, 1, 1, 2, kernel)
 
-    dplms_func = dplms(length, nmat, ref, 1, 1, 1, 1, [])
-
-    # ensure to have a valid output
-    w_in = np.ones(len_wf)
-    w_out = np.empty(len_wf - length + 1)
-
-    assert np.all(compare_numba_vs_python(dplms_func, w_in, w_out))
-
-    # test if there is a nan in w_in
-    w_in = np.ones(len_wf)
-    w_in[4] = np.nan
-    w_out = np.empty(len_wf - length + 1)
-
-    assert np.all(compare_numba_vs_python(dplms_func, w_in, w_out))
+    assert np.all(compare_numba_vs_python(dplms, nmat, ref, 1, 1, 1, 1, kernel))

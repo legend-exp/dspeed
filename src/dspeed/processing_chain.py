@@ -133,6 +133,7 @@ class ProcChainVar(ProcChainVarBase):
         grid: CoordinateGrid = auto,
         unit: str | Unit = auto,
         is_coord: bool = auto,
+        is_const: bool = False,
     ) -> None:
         """
         Parameters
@@ -154,6 +155,10 @@ class ProcChainVar(ProcChainVarBase):
         is_coord
             If ``True``, variable represents an array index and can be converted
             into a unitted number using grid.
+        is_const
+            If ``True``, variable is a constant. Variable will be set before
+            executing, and will not be recomputed. Does not have outer
+            dimension of size _block_width
         """
         assert isinstance(proc_chain, ProcessingChain) and isinstance(name, str)
         self.proc_chain = proc_chain
@@ -168,6 +173,7 @@ class ProcChainVar(ProcChainVarBase):
         self.grid = grid
         self.unit = unit
         self.is_coord = is_coord
+        self.is_const = is_const
 
         log.debug(f"added variable: {self.description()}")
 
@@ -203,18 +209,27 @@ class ProcChainVar(ProcChainVarBase):
 
         super().__setattr__(name, value)
 
+    def _make_buffer(self) -> np.ndarray:
+        shape = (
+            self.shape
+            if self.is_const
+            else (self.proc_chain._block_width,) + self.shape
+        )
+        len = np.product(shape)
+        # Flattened array, with padding to allow memory alignment
+        buf = np.zeros(len + 64 // self.dtype.itemsize, dtype=self.dtype)
+        # offset to ensure memory alignment
+        offset = (64 - buf.ctypes.data) % 64 // self.dtype.itemsize
+        return buf[offset : offset + len].reshape(shape)
+
     def get_buffer(self, unit: str | Unit = None) -> np.ndarray:
         # If buffer needs to be created, do so now
         if self._buffer is None:
             if self.shape is auto:
                 raise ProcessingChainError(f"cannot deduce shape of {self.name}")
             if self.dtype is auto:
-                raise ProcessingChainError(f"cannot deduce shape of {self.name}")
-
-            # create the buffer so that the array start is aligned in memory on a multiple of 64 bytes
-            self._buffer = np.zeros(
-                shape=(self.proc_chain._block_width,) + self.shape, dtype=self.dtype
-            )
+                raise ProcessingChainError(f"cannot deduce dtype of {self.name}")
+            self._buffer = self._make_buffer()
 
         if isinstance(self._buffer, np.ndarray):
             if self.is_coord is True:
@@ -417,6 +432,47 @@ class ProcessingChain:
         )
         self._vars_dict[name] = var
         return var
+
+    def set_constant(
+        self,
+        varname: str,
+        val: np.ndarray | int | float | Quantity,
+        dtype: str | np.dtype = None,
+        unit: str | Unit | Quantity = None,
+    ) -> ProcChainVar:
+        """Make a variable act as a constant and set it to val.
+
+        Parameters
+        ----------
+        varname
+            name of internal variable to set. If it does not exist, create
+            it; otherwise, set existing variable to be constant
+        val
+            value of constant
+        dtype
+            dtype of constant
+        unit
+            unit of constant
+        """
+
+        param = self.get_variable(varname)
+        assert param.is_constant or param._buffer is None
+        param.is_constant = True
+
+        if isinstance(val, Quantity):
+            unit = val.unit
+            val = val.magnitude
+
+        val = np.array(val, dtype=dtype)
+
+        param.update_auto(
+            shape=val.shape,
+            dtype=val.dtype,
+            unit=unit,
+        )
+        np.copyto(param.get_buffer(), val, casting="unsafe")
+        log.debug(f"set constant: {self.description()} = {val}")
+        return param
 
     def link_input_buffer(
         self, varname: str, buff: np.ndarray | LGDO = None
@@ -698,7 +754,12 @@ class ProcessingChain:
             op, op_form = ast_ops_dict[type(node.op)]
 
             if not (isinstance(lhs, ProcChainVar) or isinstance(rhs, ProcChainVar)):
-                return op(lhs, rhs)
+                ret = op(lhs, rhs)
+                if isinstance(ret, Quantity) and ureg.is_compatible_with(
+                    ret.u, ureg.dimensionless
+                ):
+                    ret = ret.to(ureg.dimensionless).magnitude
+                return ret
 
             name = "(" + op_form.format(str(lhs), str(rhs)) + ")"
             if isinstance(lhs, ProcChainVar) and isinstance(rhs, ProcChainVar):
@@ -847,7 +908,10 @@ class ProcessingChain:
                 return attr
 
             # Otherwise this is probably a ProcChainVar
-            val = self._parse_expr(node.value, expr, dry_run, var_name_list)
+            # Note that we are excluding this variable from the vars list
+            # because it does not strictly need to be computed before as a
+            # prerequisite before accessing its attributes
+            val = self._parse_expr(node.value, expr, dry_run, [])
             if val is None:
                 return None
             return getattr(val, node.attr)
@@ -1319,7 +1383,7 @@ class ProcessorManager:
                 # Convert scalar to right type, including units
                 if isinstance(param, (Quantity, Unit)):
                     if ureg.is_compatible_with(ureg.dimensionless, param):
-                        param = float(param)
+                        param = param.to(ureg.dimensionless).magnitude
                     elif not isinstance(
                         grid, CoordinateGrid
                     ) or not ureg.is_compatible_with(grid.period.u, param):
@@ -1328,7 +1392,7 @@ class ProcessorManager:
                             f"CoordinateGrid is {grid}"
                         )
                     else:
-                        param = float(param / grid.period)
+                        param = (param / grid.period).to(ureg.dimensionless).magnitude
                 if np.issubdtype(dtype, np.integer):
                     param = dtype.type(round(param))
                 else:
@@ -1977,10 +2041,10 @@ def build_processing_chain(
             module = importlib.import_module(recipe["module"])
             func = getattr(module, recipe["function"])
             args = recipe["args"]
+            new_vars = [k for k in re.split(",| ", proc_par) if k != ""]
 
             # Initialize the new variables, if needed
             if "unit" in recipe:
-                new_vars = [k for k in re.split(",| ", proc_par) if k != ""]
                 for i, name in enumerate(new_vars):
                     unit = recipe.get("unit", auto)
                     if isinstance(unit, list):
@@ -2038,7 +2102,42 @@ def build_processing_chain(
             except KeyError:
                 pass
 
-            proc_chain.add_processor(func, *args, **kwargs)
+            # Check if new variables should be treated as constants
+            if not recipe["prereqs"]:
+                arg_params = []
+                kwarg_params = {}
+                out_is_arg = False
+                for arg in args:
+                    if isinstance(arg, str):
+                        arg = proc_chain.get_variable(arg)
+                    if isinstance(arg, dict):
+                        kwarg_params.update(arg)
+                        arg = list(arg.values())[0]
+                    else:
+                        arg_params.append(arg)
+                    if isinstance(arg, ProcChainVar) and arg.name in new_vars:
+                        out_is_arg = True
+                        arg.is_const = True
+                        # arg = arg.get_buffer()
+
+                if out_is_arg:
+                    proc_man = ProcessorManager(
+                        proc_chain,
+                        func,
+                        arg_params,
+                        kwarg_params,
+                        kwargs.get("signature", None),
+                        kwargs.get("types", None),
+                    )
+                    proc_man.execute()
+                else:
+                    const_val = func(*arg_params, **kwarg_params)
+                    if len(new_vars) == 1:
+                        const_val = const_val
+                    for var, val in zip(new_vars, const_val):
+                        proc_chain.set_constant(var, val)
+            else:
+                proc_chain.add_processor(func, *args, **kwargs)
         except Exception as e:
             raise ProcessingChainError(
                 "Exception raised while attempting to add processor:\n"
