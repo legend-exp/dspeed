@@ -902,7 +902,10 @@ class ProcessingChain:
                 return attr
 
             # Otherwise this is probably a ProcChainVar
-            val = self._parse_expr(node.value, expr, dry_run, var_name_list)
+            # Note that we are excluding this variable from the vars list
+            # because it does not strictly need to be computed before as a
+            # prerequisite before accessing its attributes
+            val = self._parse_expr(node.value, expr, dry_run, [])
             if val is None:
                 return None
             return getattr(val, node.attr)
@@ -2032,10 +2035,10 @@ def build_processing_chain(
             module = importlib.import_module(recipe["module"])
             func = getattr(module, recipe["function"])
             args = recipe["args"]
+            new_vars = [k for k in re.split(",| ", proc_par) if k != ""]
 
             # Initialize the new variables, if needed
             if "unit" in recipe:
-                new_vars = [k for k in re.split(",| ", proc_par) if k != ""]
                 for i, name in enumerate(new_vars):
                     unit = recipe.get("unit", auto)
                     if isinstance(unit, list):
@@ -2093,7 +2096,34 @@ def build_processing_chain(
             except KeyError:
                 pass
 
-            proc_chain.add_processor(func, *args, **kwargs)
+            # Check if new variables should be treated as constants
+            if not recipe["prereqs"]:
+                arg_params = []
+                kwarg_params = {}
+                out_is_arg = False
+                for arg in args:
+                    if isinstance(arg, str):
+                        arg = proc_chain.get_variable(arg)
+                    if isinstance(arg, dict):
+                        kwarg_params.update(arg)
+                        arg = arg.values()[0]
+                    else:
+                        arg_params.append(arg)
+                    if isinstance(arg, ProcChainVar) and arg.name in new_vars:
+                        out_is_arg = True
+                        arg.is_const = True
+                        #arg = arg.get_buffer()
+
+                if out_is_arg:
+                    proc_man = ProcessorManager(proc_chain, func, arg_params, kwarg_params, kwargs.get('signature', None), kwargs.get('types', None))
+                    proc_man.execute()
+                else:
+                    const_val = func(*arg_params, **kwarg_params)
+                    if len(new_vars)==1: const_val = (const_val)
+                    for var, val in zip(new_vars, const_val):
+                        proc_chain.set_constant(var, val)
+            else:
+                proc_chain.add_processor(func, *args, **kwargs)
         except Exception as e:
             raise ProcessingChainError(
                 "Exception raised while attempting to add processor:\n"
