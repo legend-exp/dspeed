@@ -7,16 +7,21 @@ from scipy.signal import fftconvolve
 from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
+
 @guvectorize(
-        ["void(float32[:], float32[:], char, float32[:])", 
-         "void(float64[:], float64[:], char, float64[:])"],
-        "(n),(m),(),(p)",
-        **nb_kwargs(
-            cache=False,
-            forceobj=True,
-        ),
-    )
-def convolve_wf(w_in: np.ndarray, kernel:np.array, mode_in: np.int8, w_out: np.ndarray) -> None: #
+    [
+        "void(float32[:], float32[:], char, float32[:])",
+        "void(float64[:], float64[:], char, float64[:])",
+    ],
+    "(n),(m),(),(p)",
+    **nb_kwargs(
+        cache=False,
+        forceobj=True,
+    ),
+)
+def convolve_wf(
+    w_in: np.ndarray, kernel: np.array, mode_in: np.int8, w_out: np.ndarray
+) -> None:  #
     """
     Parameters
     ----------
@@ -24,8 +29,8 @@ def convolve_wf(w_in: np.ndarray, kernel:np.array, mode_in: np.int8, w_out: np.n
         the input waveform.
     kernel
         the kernel to convolve with
-    mode 
-        mode of convolution options are f : full, v : valid or s : same, 
+    mode
+        mode of convolution options are f : full, v : valid or s : same,
         explained here: https://numpy.org/doc/stable/reference/generated/numpy.convolve.html
     w_out
         the filtered waveform.
@@ -34,7 +39,7 @@ def convolve_wf(w_in: np.ndarray, kernel:np.array, mode_in: np.int8, w_out: np.n
 
     if np.isnan(w_in).any():
         return
-    
+
     if np.isnan(kernel).any():
         return
 
@@ -54,15 +59,19 @@ def convolve_wf(w_in: np.ndarray, kernel:np.array, mode_in: np.int8, w_out: np.n
 
 
 @guvectorize(
-        ["void(float32[:], float32[:], char, float32[:])", 
-         "void(float64[:], float64[:], char, float64[:])"],
-        "(n),(m),(),(p)",
-        **nb_kwargs(
-            cache=False,
-            forceobj=True,
-        ),
-    )
-def fft_convolve_wf(w_in: np.ndarray, kernel:np.array, mode_in: np.int8, w_out: np.ndarray) -> None: #
+    [
+        "void(float32[:], float32[:], char, float32[:])",
+        "void(float64[:], float64[:], char, float64[:])",
+    ],
+    "(n),(m),(),(p)",
+    **nb_kwargs(
+        cache=False,
+        forceobj=True,
+    ),
+)
+def fft_convolve_wf(
+    w_in: np.ndarray, kernel: np.array, mode_in: np.int8, w_out: np.ndarray
+) -> None:  #
     """
     Parameters
     ----------
@@ -70,8 +79,8 @@ def fft_convolve_wf(w_in: np.ndarray, kernel:np.array, mode_in: np.int8, w_out: 
         the input waveform.
     kernel
         the kernel to convolve with
-    mode 
-        mode of convolution options are f : full, v : valid or s : same, 
+    mode
+        mode of convolution options are f : full, v : valid or s : same,
         explained here: https://numpy.org/doc/stable/reference/generated/numpy.convolve.html
     w_out
         the filtered waveform.
@@ -80,13 +89,13 @@ def fft_convolve_wf(w_in: np.ndarray, kernel:np.array, mode_in: np.int8, w_out: 
 
     if np.isnan(w_in).any():
         return
-    
+
     if np.isnan(kernel).any():
         return
 
     if len(kernel) > len(w_in):
         raise DSPFatal("The filter is longer than the input waveform")
-    
+
     if chr(mode_in) == "f":
         mode = "full"
     elif chr(mode_in) == "v":
@@ -95,7 +104,5 @@ def fft_convolve_wf(w_in: np.ndarray, kernel:np.array, mode_in: np.int8, w_out: 
         mode = "same"
     else:
         raise DSPFatal("Invalid mode")
-    
+
     w_out[:] = fftconvolve(w_in, kernel, mode=mode)
-
-

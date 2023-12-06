@@ -6,16 +6,16 @@ from numba import guvectorize
 from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
+
 @guvectorize(
-    ["void(float32, float32, float32[:])", 
-    "void(float64, float64, float64[:])"],
+    ["void(float32, float32, float32[:])", "void(float64, float64, float64[:])"],
     "(),(),(n)",
     **nb_kwargs(
         cache=False,
         forceobj=True,
     ),
 )
-def t0_filter(rise: int, fall: int, kernel:np.array) -> None:
+def t0_filter(rise: int, fall: int, kernel: np.array) -> None:
     """Apply a modified, asymmetric trapezoidal filter to the waveform.
 
     Parameters
@@ -53,9 +53,9 @@ def t0_filter(rise: int, fall: int, kernel:np.array) -> None:
     for i in range(int(rise), len(kernel), 1):
         kernel[i] = -1 / fall
 
+
 @guvectorize(
-    ["void(float32, float32[:])", 
-    "void(float64, float64[:])"],
+    ["void(float32, float32[:])", "void(float64, float64[:])"],
     "(),(n)",
     **nb_kwargs(
         cache=False,
@@ -93,16 +93,16 @@ def moving_slope(kernel):
     kernel[:] /= length * sum_x2 - sum_x * sum_x
     kernel[:] = kernel[::-1]
 
+
 @guvectorize(
-        ["void(float32, float32[:])", 
-        "void(float64, float64[:])"],
-        "(),(n)",
-        **nb_kwargs(
-            cache=False,
-            forceobj=True,
-        ),
-    )
-def step(weight_pos: int, kernel:np.array) -> None:
+    ["void(float32, float32[:])", "void(float64, float64[:])"],
+    "(),(n)",
+    **nb_kwargs(
+        cache=False,
+        forceobj=True,
+    ),
+)
+def step(weight_pos: int, kernel: np.array) -> None:
     """Process waveforms with a step function.
 
     Parameters

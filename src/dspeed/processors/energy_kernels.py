@@ -6,16 +6,18 @@ from numba import guvectorize
 from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
-@guvectorize(
-        ["void(float32, float32, float32, float32[:])", 
-         "void(float64, float64, float64, float64[:])"],
-        "(),(),(),(n)",
-        **nb_kwargs(
-            cache=False,
-            forceobj=True,
-        ),
-    )
 
+@guvectorize(
+    [
+        "void(float32, float32, float32, float32[:])",
+        "void(float64, float64, float64, float64[:])",
+    ],
+    "(),(),(),(n)",
+    **nb_kwargs(
+        cache=False,
+        forceobj=True,
+    ),
+)
 def cusp_filter(sigma: float, flat: int, decay: int, kernel: np.array) -> None:
     """Calculates CUSP kernel.
 
@@ -69,15 +71,16 @@ def cusp_filter(sigma: float, flat: int, decay: int, kernel: np.array) -> None:
 
 
 @guvectorize(
-        ["void(float32, float32, float32, float32[:])", 
-         "void(float64, float64, float64, float64[:])"],
-        "(),(),(),(n)",
-        **nb_kwargs(
-            cache=False,
-            forceobj=True,
-        ),
-    )
-
+    [
+        "void(float32, float32, float32, float32[:])",
+        "void(float64, float64, float64, float64[:])",
+    ],
+    "(),(),(),(n)",
+    **nb_kwargs(
+        cache=False,
+        forceobj=True,
+    ),
+)
 def zac_filter(sigma: float, flat: int, decay: int, kernel: np.array) -> None:
     """Calculates ZAC (Zero Area CUSP) kernel.
 
@@ -149,15 +152,16 @@ def zac_filter(sigma: float, flat: int, decay: int, kernel: np.array) -> None:
 
 
 @guvectorize(
-        ["void(float32[:,:], float32[:], float32, float32, float32, float32, float32[:])", 
-         "void(float64[:,:], float64[:], float64, float64, float64, float64, float64[:])"],
-        "(n,n),(m),(),(),(),(),(n)",
-        **nb_kwargs(
-            cache=False,
-            forceobj=True,
-        ),
-    )
-
+    [
+        "void(float32[:,:], float32[:], float32, float32, float32, float32, float32[:])",
+        "void(float64[:,:], float64[:], float64, float64, float64, float64, float64[:])",
+    ],
+    "(n,n),(m),(),(),(),(),(n)",
+    **nb_kwargs(
+        cache=False,
+        forceobj=True,
+    ),
+)
 def dplms(
     noise_mat: list,
     reference: list,
@@ -165,7 +169,7 @@ def dplms(
     a2: float,
     a3: float,
     ff: int,
-    kernel:np.array
+    kernel: np.array,
 ) -> None:
     """Calculate and apply an optimum DPLMS filter to the waveform.
 
@@ -227,19 +231,13 @@ def dplms(
         raise DSPFatal("The penalized coefficient for the noise must be positive")
 
     if a2 <= 0:
-        raise DSPFatal(
-            "The penalized coefficient for the reference must be positive"
-        )
+        raise DSPFatal("The penalized coefficient for the reference must be positive")
 
     if a3 <= 0:
-        raise DSPFatal(
-            "The penalized coefficient for the zero area must be positive"
-        )
+        raise DSPFatal("The penalized coefficient for the zero area must be positive")
 
     if ff <= 0:
-        raise DSPFatal(
-            "The penalized coefficient for the ref matrix must be positive"
-        )
+        raise DSPFatal("The penalized coefficient for the ref matrix must be positive")
 
     # reference matrix
     length = len(kernel)
@@ -253,19 +251,15 @@ def dplms(
     elif ff == 1:
         ff = [-1, 0, 1]
     else:
-        raise DSPFatal(
-            "The penalized coefficient for the ref matrix must be 0 or 1"
-        )
+        raise DSPFatal("The penalized coefficient for the ref matrix must be 0 or 1")
     for i in ff:
-        ref_mat += np.outer(
-            reference[flo + i : fhi + i], reference[flo + i : fhi + i]
-        )
+        ref_mat += np.outer(reference[flo + i : fhi + i], reference[flo + i : fhi + i])
         ref_sig += reference[flo + i : fhi + i]
     ref_mat /= len(ff)
 
     # filter calculation
     mat = a1 * noise_mat + a2 * ref_mat + a3 * np.ones([length, length])
     kernel[:] = np.flip(np.linalg.solve(mat, ref_sig))
-    y = np.convolve(reference,kernel, mode="valid")
+    y = np.convolve(reference, kernel, mode="valid")
     maxy = np.amax(y)
     kernel[:] /= maxy
