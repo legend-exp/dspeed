@@ -122,33 +122,35 @@ def zac_filter(sigma: float, flat: int, decay: int, kernel: np.array) -> None:
 
     lt = int((len(kernel) - flat) / 2)
     flat_int = int(flat)
+    length = len(kernel)
 
     # calculate cusp filter and negative parables
-    par = np.zeros(len(kernel))
+    cusp = np.zeros(length)
+    par = np.zeros(length)
     for ind in range(0, lt, 1):
-        kernel[ind] = float(np.sinh(ind / sigma) / np.sinh(lt / sigma))
-        kernel[ind] = np.power(ind - lt / 2, 2) - np.power(lt / 2, 2)
+        cusp[ind] = float(np.sinh(ind / sigma) / np.sinh(lt / sigma))
+        par[ind] = np.power(ind - lt / 2, 2) - np.power(lt / 2, 2)
     for ind in range(lt, lt + flat_int + 1, 1):
-        kernel[ind] = 1
-    for ind in range(lt + flat_int + 1, len(kernel), 1):
-        kernel[ind] = float(np.sinh((len(kernel) - ind) / sigma) / np.sinh(lt / sigma))
-        par[ind] = np.power(len(kernel) - ind - lt / 2, 2) - np.power(lt / 2, 2)
+        cusp[ind] = 1
+    for ind in range(lt + flat_int + 1, length, 1):
+        cusp[ind] = float(np.sinh((length - ind) / sigma) / np.sinh(lt / sigma))
+        par[ind] = np.power(length - ind - lt / 2, 2) - np.power(lt / 2, 2)
 
     # calculate area of cusp and parables
     areapar, areacusp = 0, 0
-    for i in range(0, len(kernel), 1):
+    for i in range(0, length, 1):
         areapar += par[i]
-        areacusp += kernel[i]
+        areacusp += cusp[i]
 
     # normalize parables area
     par = -par / areapar * areacusp
 
     # create zac filter
-    kernel += par
+    zac = cusp + par
 
     # deconvolve zac filter
     den = [1, -np.exp(-1 / decay)]
-    kernel = np.convolve(kernel, den, "same")
+    kernel[:] = np.convolve(zac, den, "same")
 
 
 @guvectorize(
