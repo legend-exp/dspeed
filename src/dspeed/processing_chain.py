@@ -2106,7 +2106,7 @@ def build_processing_chain(
                         arg = proc_chain.get_variable(arg)
                     if isinstance(arg, dict):
                         kwarg_params.update(arg)
-                        arg = arg.values()[0]
+                        arg = list(arg.values())[0]
                     else:
                         arg_params.append(arg)
                     if isinstance(arg, ProcChainVar) and arg.name in new_vars:
