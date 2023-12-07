@@ -875,7 +875,9 @@ class ProcessingChain:
                             new_off = ProcChainVar(
                                 self, name=f"({str(off)}+{str(start)})", is_coord=True
                             )
-                            proc_man = ProcessorManager(self, np.add, [off, start, new_off])
+                            proc_man = ProcessorManager(
+                                self, np.add, [off, start, new_off]
+                            )
                             self._proc_managers.append(proc_man)
                             log.debug(f"added processor: {proc_man}")
                             off = new_off
@@ -2106,7 +2108,7 @@ def build_processing_chain(
             params = []
             kw_params = {}
             out_params = []
-            is_const=True
+            is_const = True
             for param in args:
                 if isinstance(param, str):
                     param = proc_chain.get_variable(param)
@@ -2138,7 +2140,9 @@ def build_processing_chain(
                     )
                     proc_man.execute()
                     for param in out_params:
-                        log.debug(f"set constant: {param.description()} = {param.get_buffer()}")
+                        log.debug(
+                            f"set constant: {param.description()} = {param.get_buffer()}"
+                        )
 
                 else:
                     const_val = func(*params, **kw_params)
