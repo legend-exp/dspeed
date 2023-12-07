@@ -15,7 +15,6 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
     ],
     "(n),(m),(),(p)",
     **nb_kwargs(
-        cache=False,
         forceobj=True,
     ),
 )
@@ -48,10 +47,22 @@ def convolve_wf(
 
     if chr(mode_in) == "f":
         mode = "full"
+        if len(w_out) != len(w_in) + len(kernel) - 1:
+            raise DSPFatal(
+                f"Output waveform has length {len(w_out)}; expect {len(w_in) + len(kernel) - 1}"
+            )
     elif chr(mode_in) == "v":
         mode = "valid"
+        if len(w_out) != abs(len(w_in) - len(kernel)) + 1:
+            raise DSPFatal(
+                f"Output waveform has length {len(w_out)}; expect {abs(len(w_in) - len(kernel)) + 1}"
+            )
     elif chr(mode_in) == "s":
         mode = "same"
+        if len(w_out) != max(len(w_in), len(kernel)):
+            raise DSPFatal(
+                "Output waveform has length {len(w_out)}; expect {max(len(w_in), len(kernel))}"
+            )
     else:
         raise DSPFatal("Invalid mode")
 
@@ -65,7 +76,6 @@ def convolve_wf(
     ],
     "(n),(m),(),(p)",
     **nb_kwargs(
-        cache=False,
         forceobj=True,
     ),
 )

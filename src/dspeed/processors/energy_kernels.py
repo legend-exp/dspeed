@@ -14,7 +14,6 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
     ],
     "(),(),(),(n)",
     **nb_kwargs(
-        cache=False,
         forceobj=True,
     ),
 )
@@ -77,7 +76,6 @@ def cusp_filter(sigma: float, flat: int, decay: int, kernel: np.array) -> None:
     ],
     "(),(),(),(n)",
     **nb_kwargs(
-        cache=False,
         forceobj=True,
     ),
 )
@@ -160,7 +158,6 @@ def zac_filter(sigma: float, flat: int, decay: int, kernel: np.array) -> None:
     ],
     "(n,n),(m),(),(),(),(),(n)",
     **nb_kwargs(
-        cache=False,
         forceobj=True,
     ),
 )
