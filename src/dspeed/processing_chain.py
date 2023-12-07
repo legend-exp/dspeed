@@ -215,7 +215,7 @@ class ProcChainVar(ProcChainVarBase):
             if self.is_const
             else (self.proc_chain._block_width,) + self.shape
         )
-        len = np.product(shape)
+        len = np.prod(shape)
         # Flattened array, with padding to allow memory alignment
         buf = np.zeros(len + 64 // self.dtype.itemsize, dtype=self.dtype)
         # offset to ensure memory alignment
