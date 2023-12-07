@@ -914,10 +914,7 @@ class ProcessingChain:
                 return attr
 
             # Otherwise this is probably a ProcChainVar
-            # Note that we are excluding this variable from the vars list
-            # because it does not strictly need to be computed before as a
-            # prerequisite before accessing its attributes
-            val = self._parse_expr(node.value, expr, dry_run, [])
+            val = self._parse_expr(node.value, expr, dry_run, var_name_list)
             if val is None:
                 return None
             return getattr(val, node.attr)
@@ -1904,8 +1901,8 @@ def build_processing_chain(
             for db_var in db_parser.findall(arg):
                 try:
                     db_node = db_dict
-                    for key in db_var[3:].split("."):
-                        db_node = db_node[key]
+                    for db_key in db_var[3:].split("."):
+                        db_node = db_node[db_key]
                     log.debug(f"database lookup: found {db_node} for {db_var}")
                 except (KeyError, TypeError):
                     try:
@@ -2106,41 +2103,53 @@ def build_processing_chain(
                 pass
 
             # Check if new variables should be treated as constants
-            if not recipe["prereqs"]:
-                arg_params = []
-                kwarg_params = {}
-                out_is_arg = False
-                for arg in args:
-                    if isinstance(arg, str):
-                        arg = proc_chain.get_variable(arg)
-                    if isinstance(arg, dict):
-                        kwarg_params.update(arg)
-                        arg = list(arg.values())[0]
-                    else:
-                        arg_params.append(arg)
-                    if isinstance(arg, ProcChainVar) and arg.name in new_vars:
-                        out_is_arg = True
-                        arg.is_const = True
-                        # arg = arg.get_buffer()
+            params = []
+            kw_params = {}
+            out_params = []
+            is_const=True
+            for param in args:
+                if isinstance(param, str):
+                    param = proc_chain.get_variable(param)
+                if isinstance(param, dict):
+                    kw_params.update(param)
+                    param = list(param.values())[0]
+                elif isinstance(param, str):
+                    params.append(f"'{param}'")
+                else:
+                    params.append(param)
 
-                if out_is_arg:
+                if isinstance(param, ProcChainVar):
+                    if param.name in new_vars:
+                        out_params.append(param)
+                    elif not param.is_const:
+                        is_const = False
+
+            if is_const:
+                if out_params:
+                    for param in out_params:
+                        param.is_const = True
                     proc_man = ProcessorManager(
                         proc_chain,
                         func,
-                        arg_params,
-                        kwarg_params,
+                        params,
+                        kw_params,
                         kwargs.get("signature", None),
                         kwargs.get("types", None),
                     )
                     proc_man.execute()
+                    for param in out_params:
+                        log.debug(f"set constant: {param.description()} = {param.get_buffer()}")
+
                 else:
-                    const_val = func(*arg_params, **kwarg_params)
+                    const_val = func(*params, **kw_params)
                     if len(new_vars) == 1:
-                        const_val = const_val
+                        const_val = [const_val]
                     for var, val in zip(new_vars, const_val):
                         proc_chain.set_constant(var, val)
+
             else:
-                proc_chain.add_processor(func, *args, **kwargs)
+                proc_chain.add_processor(func, *params, kw_params, **kwargs)
+
         except Exception as e:
             raise ProcessingChainError(
                 "Exception raised while attempting to add processor:\n"
