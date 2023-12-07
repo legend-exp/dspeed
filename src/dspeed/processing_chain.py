@@ -264,6 +264,7 @@ class ProcChainVar(ProcChainVarBase):
         conversion_manager = UnitConversionManager(self, unit)
         self._buffer.append((conversion_manager.out_buffer, unit))
         self.proc_chain._proc_managers.append(conversion_manager)
+        log.debug(f"added conversion: {conversion_manager}")
         return conversion_manager.out_buffer
 
     @property
@@ -471,7 +472,7 @@ class ProcessingChain:
             unit=unit,
         )
         np.copyto(param.get_buffer(), val, casting="unsafe")
-        log.debug(f"set constant: {self.description()} = {val}")
+        log.debug(f"set constant: {param.description()} = {val}")
         return param
 
     def link_input_buffer(
@@ -632,6 +633,7 @@ class ProcessingChain:
 
         proc_man = ProcessorManager(self, func, params, kw_params, signature, types)
         self._proc_managers.append(proc_man)
+        log.debug(f"added processor: {proc_man}")
 
     def execute(self, start: int = 0, stop: int = None) -> None:
         """Execute the dsp chain on the entire input/output buffers."""
@@ -786,7 +788,9 @@ class ProcessingChain:
                     is_coord=rhs.is_coord,
                 )
 
-            self._proc_managers.append(ProcessorManager(self, op, [lhs, rhs, out]))
+            proc_man = ProcessorManager(self, op, [lhs, rhs, out])
+            self._proc_managers.append(proc_man)
+            log.debug(f"added processor: {proc_man}")
             return out
 
         # define unary operators (-)
@@ -807,7 +811,9 @@ class ProcessingChain:
                     operand.unit,
                     operand.is_coord,
                 )
-                self._proc_managers.append(ProcessorManager(self, op, [operand, out]))
+                proc_man = ProcessorManager(self, op, [operand, out])
+                self._proc_managers.append(proc_man)
+                log.debug(f"added processor: {proc_man}")
             else:
                 out = op(operand)
 
@@ -869,9 +875,9 @@ class ProcessingChain:
                             new_off = ProcChainVar(
                                 self, name=f"({str(off)}+{str(start)})", is_coord=True
                             )
-                            self._proc_managers.append(
-                                ProcessorManager(self, np.add, [off, start, new_off])
-                            )
+                            proc_man = ProcessorManager(self, np.add, [off, start, new_off])
+                            self._proc_managers.append(proc_man)
+                            log.debug(f"added processor: {proc_man}")
                             off = new_off
                         else:
                             off += start
@@ -1047,6 +1053,7 @@ class ProcessingChain:
                 conversion_manager = UnitConversionManager(var, grid, round=True)
                 out._buffer = conversion_manager.out_buffer
                 var.proc_chain._proc_managers.append(conversion_manager)
+                log.debug(f"added conversion: {conversion_manager}")
             else:
                 out = ProcChainVar(
                     var.proc_chain,
@@ -1080,16 +1087,16 @@ class ProcessingChain:
                 var.unit,
                 var.is_coord,
             )
-            var.proc_chain._proc_managers.append(
-                ProcessorManager(
-                    var.proc_chain,
-                    np.copyto,
-                    [out, var],
-                    kw_params={"casting": "'unsafe'"},
-                    signature="(),(),()",
-                    types=f"{dtype.char}{var.dtype.char}",
-                )
+            proc_man = ProcessorManager(
+                var.proc_chain,
+                np.copyto,
+                [out, var],
+                kw_params={"casting": "'unsafe'"},
+                signature="(),(),()",
+                types=f"{dtype.char}{var.dtype.char}",
             )
+            var.proc_chain._proc_managers.append(proc_man)
+            log.debug(f"added processor: {proc_man}")
             return out
 
     def _loadlh5(path_to_file, path_in_file: str) -> np.array:  # noqa: N805
@@ -1403,8 +1410,6 @@ class ProcessorManager:
             else:
                 self.kwargs[arg_name] = param
 
-        log.debug(f"added processor: {self}")
-
     def execute(self) -> None:
         self.processor(*self.args, **self.kwargs)
 
@@ -1510,8 +1515,6 @@ class UnitConversionManager(ProcessorManager):
             self.out_buffer,
         ]
         self.kwargs = {}
-
-        log.debug(f"added conversion: {self}")
 
 
 class IOManager(metaclass=ABCMeta):
@@ -2152,7 +2155,7 @@ def build_processing_chain(
         buf_in = lh5_in.get(copy_par)
         if buf_in is None:
             log.warning(
-                f"I don't know what to do with {copy_par}. Building output without it!"
+                f"Did not find {copy_par} in either input file or parameter list. Building output without it!"
             )
         else:
             lh5_out.add_field(copy_par, buf_in)
