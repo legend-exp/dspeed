@@ -15,7 +15,6 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
     ],
     "(n),(m),(),(p)",
     **nb_kwargs(
-        cache=False,
         forceobj=True,
     ),
 )
@@ -71,7 +70,6 @@ def convolve_wf(
     ],
     "(n),(m),(),(p)",
     **nb_kwargs(
-        cache=False,
         forceobj=True,
     ),
 )

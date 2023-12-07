@@ -11,7 +11,6 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
     ["void(float32, float32, float32[:])", "void(float64, float64, float64[:])"],
     "(),(),(n)",
     **nb_kwargs(
-        cache=False,
         forceobj=True,
     ),
 )
@@ -58,7 +57,6 @@ def t0_filter(rise: int, fall: int, kernel: np.array) -> None:
     ["void(float32[:])", "void(float64[:])"],
     "(n)",
     **nb_kwargs(
-        cache=False,
         forceobj=True,
     ),
 )
@@ -98,7 +96,6 @@ def moving_slope(kernel):
     ["void(float32, float32[:])", "void(float64, float64[:])"],
     "(),(n)",
     **nb_kwargs(
-        cache=False,
         forceobj=True,
     ),
 )
