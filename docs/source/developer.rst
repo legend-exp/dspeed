@@ -321,3 +321,43 @@ Jupyter notebooks. To build documentation, run the following commands:
 Documentation can be then displayed by opening ``build/html/index.html`` with a
 web browser. Documentation for the :mod:`dspeed` website is built and deployed by
 `Read the Docs <https://readthedocs.org/projects/dspeed>`_.
+
+Versioning
+----------
+
+Collaborators with push access to the GitHub repository that wish to release a
+new project version must implement the following procedures:
+
+* `Semantic versioning <https://semver.org>`_ is adopted. The version string
+  uses the ``MAJOR.MINOR.PATCH`` format.
+* To release a new **minor** or **major version**, the following procedure
+  should be followed:
+
+  1. A new branch with name ``releases/vMAJOR.MINOR`` (note the ``v``) containing
+     the code at the intended stage is created
+  2. The commit is tagged with a descriptive message: ``git tag vMAJOR.MINOR.0
+     -m 'short descriptive message here'`` (note the ``v``)
+  3. Changes are pushed to the remote:
+
+     .. code-block:: console
+
+       $ git push origin releases/vMAJOR.MINOR
+       $ git push origin refs/tags/vMAJOR.MINOR.0
+
+* To release a new **patch version**, the following procedure should be followed:
+
+  1. A commit with the patch is created on the relevant release branch
+     ``releases/vMAJOR.MINOR``
+  2. The commit is tagged: ``git tag vMAJOR.MINOR.PATCH`` (note the ``v``)
+  3. Changes are pushed to the remote:
+
+     .. code-block:: console
+
+       $ git push origin releases/vMAJOR.MINOR
+       $ git push origin refs/tags/vMAJOR.MINOR.PATCH
+
+* To upload the release to the `Python Package Index
+  <https://pypi.org/project/dspeed>`_, a new release must be created through
+  `the GitHub interface <https://github.com/legend-exp/dspeed/releases/new>`_,
+  associated to the just created tag.  Usage of the "Generate release notes"
+  option is recommended.
