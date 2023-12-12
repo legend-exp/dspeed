@@ -92,7 +92,6 @@ def gaussian_filter1d(sigma: int, truncate: float = 4.0) -> numpy.ndarray:
         ],
         "(n),(m)",
         **nb_kwargs(
-            cache=False,
             forceobj=True,
         ),
     )
