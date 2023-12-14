@@ -51,6 +51,23 @@ Table of Contents
    tutorials
    Package API reference <api/modules>
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Related projects
+
+   LEGEND Data Objects <https://legend-pydataobj.readthedocs.io>
+   Decoding Digitizer Data <https://legend-daq2lh5.readthedocs.io>
+   Data processing and analysis <https://pygama.readthedocs.io>
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Development
+
+   Source Code <https://github.com/legend-exp/dspeed>
+   License <https://github.com/legend-exp/dspeed/blob/main/LICENSE>
+   Changelog <https://github.com/legend-exp/dspeed/releases>
+   developer
+
 .. _2: https://pypi.org/project/dspeed
 .. _3: https://pip.pypa.io/en/stable/getting-started
 .. |dspeed| replace:: *dspeed*
