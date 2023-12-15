@@ -1,24 +1,23 @@
 from __future__ import annotations
 
+import pickle
 from typing import Callable
 
-import pickle
 import numpy as np
 from numba import guvectorize
 
-from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
 def svm_predict(svm_file: str) -> Callable:
     """
-    Apply a Support Vector Machine (SVM) to an input waveform to 
+    Apply a Support Vector Machine (SVM) to an input waveform to
     predict a data cleaning label.
 
     Note
     ----
-    This processor is composed of a factory function that is called 
-    using the ``init_args`` argument. The input waveform and output 
+    This processor is composed of a factory function that is called
+    using the ``init_args`` argument. The input waveform and output
     label are passed using ``args``.
 
 
@@ -41,8 +40,8 @@ def svm_predict(svm_file: str) -> Callable:
             "init_args": ["'svm_p*_r*_T***Z.sav'"]
         }
     """
-    
-    with open(svm_file, 'rb') as f:
+
+    with open(svm_file, "rb") as f:
         svm = pickle.load(f)
 
     @guvectorize(
@@ -67,8 +66,8 @@ def svm_predict(svm_file: str) -> Callable:
         label_out[0] = np.nan
 
         if w_in.ndim == 1:
-            label_out[0] = svm.predict(w_in.reshape(1,-1))
+            label_out[0] = svm.predict(w_in.reshape(1, -1))
         else:
-            label_out[0] = svm.predict(w_in) 
+            label_out[0] = svm.predict(w_in)
 
     return svm_out

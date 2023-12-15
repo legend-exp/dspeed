@@ -18,7 +18,6 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
         forceobj=True,
     ),
 )
-
 def discrete_wavelet_transform(
     w_in: np.ndarray, level: int, wave_type: np.int8, coeff: np.int8, w_out: np.ndarray
 ) -> None:
@@ -59,19 +58,18 @@ def discrete_wavelet_transform(
 
     if level <= 0:
         raise DSPFatal("The level must be a positive integer")
-        
+
     if np.isnan(w_in).any():
-            return
+        return
 
     w_out[:] = np.nan
-    
-    coeff = chr(coeff)
-    
-    if chr(wave_type) == 'h':
-        wave_type = 'haar'
-        
-    elif chr(wave_type) == 'd':
-        wave_type = 'db1'
-    
-    w_out[:] = downcoef(coeff, w_in, wave_type, level=level)
 
+    coeff = chr(coeff)
+
+    if chr(wave_type) == "h":
+        wave_type = "haar"
+
+    elif chr(wave_type) == "d":
+        wave_type = "db1"
+
+    w_out[:] = downcoef(coeff, w_in, wave_type, level=level)
