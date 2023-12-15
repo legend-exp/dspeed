@@ -10,7 +10,7 @@ def test_discrete_wavelet_transform(compare_numba_vs_python):
 
     # set up values to use for each test case
     len_wf_in = 16
-    wave_type = "haar"
+    wave_type = "h"
     level = 2
     coeff = "a"
     len_wf_out = 4
