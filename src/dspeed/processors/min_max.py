@@ -71,6 +71,7 @@ def min_max(
     t_min[0] = float(min_index)
     t_max[0] = float(max_index)
 
+
 @guvectorize(
     [
         "void(float32[:], float32[:], float32[:], float32[:])",
