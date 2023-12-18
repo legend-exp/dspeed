@@ -1,7 +1,5 @@
 import numpy as np
-import pytest
 
-from dspeed.errors import DSPFatal
 from dspeed.processors import min_max_norm
 
 
