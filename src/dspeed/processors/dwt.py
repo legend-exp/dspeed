@@ -13,14 +13,14 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
         "void(float32[:], int32, char, char, float32[:])",
         "void(float64[:], int64, char, char, float64[:])",
     ],
-    "(n),(),(),(),(m)",
+    "(n),(),(),()->(m)",
     **nb_kwargs(
         forceobj=True,
     ),
 )
 
 def discrete_wavelet_transform(
-    w_in: np.ndarray, level: int, wave_type: np.int8, coeff: np.int8, w_out: np.ndarray
+    w_in: np.ndarray, level: int, wave_type: int, coeff: int, w_out: np.ndarray
 ) -> None:
     """
     Apply a discrete wavelet transform to the waveform and return only
@@ -56,14 +56,14 @@ def discrete_wavelet_transform(
             "prereqs": ["wf_blsub"],
         }
     """
-
+    
+    w_out[:] = np.nan
+    
     if level <= 0:
         raise DSPFatal("The level must be a positive integer")
         
     if np.isnan(w_in).any():
-            return
-
-    w_out[:] = np.nan
+        return 
     
     coeff = chr(coeff)
     
