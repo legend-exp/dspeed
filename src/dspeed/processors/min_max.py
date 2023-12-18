@@ -112,7 +112,7 @@ def min_max_norm(
     """
 
     w_out[:] = np.nan
-        
+
     if np.isnan(w_in).any():
         return
 

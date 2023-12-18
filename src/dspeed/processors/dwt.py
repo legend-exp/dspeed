@@ -55,21 +55,21 @@ def discrete_wavelet_transform(
             "prereqs": ["wf_blsub"],
         }
     """
-    
+
     w_out[:] = np.nan
-    
+
     if level <= 0:
         raise DSPFatal("The level must be a positive integer")
 
     if np.isnan(w_in).any():
-        return 
-    
+        return
+
     coeff = chr(coeff)
-    
-    if chr(wave_type) == 'h':
-        wave_type = 'haar'
-        
-    elif chr(wave_type) == 'd':
-        wave_type = 'db1'
-    
+
+    if chr(wave_type) == "h":
+        wave_type = "haar"
+
+    elif chr(wave_type) == "d":
+        wave_type = "db1"
+
     w_out[:] = downcoef(coeff, w_in, wave_type, level=level)

@@ -10,9 +10,9 @@ def test_discrete_wavelet_transform(compare_numba_vs_python):
 
     # set up values to use for each test case
     len_wf_in = 16
-    wave_type = ord('h')
+    wave_type = ord("h")
     level = 2
-    coeff = ord('a')
+    coeff = ord("a")
     len_wf_out = 4
 
     # ensure the DSPFatal is raised for a negative level
@@ -24,7 +24,9 @@ def test_discrete_wavelet_transform(compare_numba_vs_python):
     # ensure that a valid input gives the expected output
     w_out_expected = np.ones(len_wf_out) * 2 ** (level / 2)
     assert np.allclose(
-        compare_numba_vs_python(discrete_wavelet_transform, w_in, level, wave_type, coeff, w_out),
+        compare_numba_vs_python(
+            discrete_wavelet_transform, w_in, level, wave_type, coeff, w_out
+        ),
         w_out_expected,
     )
 
