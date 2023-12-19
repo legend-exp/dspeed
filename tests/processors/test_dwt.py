@@ -10,23 +10,23 @@ def test_discrete_wavelet_transform(compare_numba_vs_python):
 
     # set up values to use for each test case
     len_wf_in = 16
-    wave_type = "haar"
+    wave_type = ord("h")
     level = 2
-    coeff = "a"
+    coeff = ord("a")
     len_wf_out = 4
 
     # ensure the DSPFatal is raised for a negative level
-    with pytest.raises(DSPFatal):
-        discrete_wavelet_transform(wave_type, -1, coeff)
-
-    # ensure that a valid input gives the expected output
     w_in = np.ones(len_wf_in)
     w_out = np.empty(len_wf_out)
-    w_out_expected = np.ones(len_wf_out) * 2 ** (level / 2)
+    with pytest.raises(DSPFatal):
+        discrete_wavelet_transform(w_in, -1, wave_type, coeff, w_out)
 
-    dwt_func = discrete_wavelet_transform(wave_type, level, coeff)
+    # ensure that a valid input gives the expected output
+    w_out_expected = np.ones(len_wf_out) * 2 ** (level / 2)
     assert np.allclose(
-        compare_numba_vs_python(dwt_func, w_in, w_out),
+        compare_numba_vs_python(
+            discrete_wavelet_transform, w_in, level, wave_type, coeff, w_out
+        ),
         w_out_expected,
     )
 
@@ -34,6 +34,10 @@ def test_discrete_wavelet_transform(compare_numba_vs_python):
     w_in = np.ones(len_wf_in)
     w_in[4] = np.nan
     w_out = np.empty(len_wf_out)
-
-    dwt_func = discrete_wavelet_transform(wave_type, level, coeff)
-    assert np.all(np.isnan(compare_numba_vs_python(dwt_func, w_in, w_out)))
+    assert np.all(
+        np.isnan(
+            compare_numba_vs_python(
+                discrete_wavelet_transform, w_in, level, wave_type, coeff, w_out
+            )
+        )
+    )
