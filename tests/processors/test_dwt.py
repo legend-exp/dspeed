@@ -33,6 +33,7 @@ def test_discrete_wavelet_transform(compare_numba_vs_python):
     # ensure that if there is a nan in w_in, all nans are outputted
     w_in = np.ones(len_wf_in)
     w_in[4] = np.nan
+    w_out = np.empty(len_wf_out)
     assert np.all(
         np.isnan(
             compare_numba_vs_python(

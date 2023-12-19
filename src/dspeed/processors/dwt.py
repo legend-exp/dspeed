@@ -13,7 +13,7 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
         "void(float32[:], int32, char, char, float32[:])",
         "void(float64[:], int64, char, char, float64[:])",
     ],
-    "(n),(),(),()->(m)",
+    "(n),(),(),(),(m)",
     **nb_kwargs(
         forceobj=True,
     ),
