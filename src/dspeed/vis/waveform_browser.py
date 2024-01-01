@@ -5,12 +5,13 @@ import math
 import string
 import sys
 
-import lgdo.lh5_store as lh5
+import lgdo
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas
 import pint
 from cycler import cycler
+from lgdo import lh5
 from matplotlib.lines import Line2D
 
 from ..processing_chain import build_processing_chain
@@ -28,7 +29,7 @@ class WaveformBrowser:
 
     def __init__(
         self,
-        files_in: str | list[str] | lgdo.LH5Iterator,  # noqa: F821
+        files_in: str | list[str] | lh5.LH5Iterator,  # noqa: F821
         lh5_group: str | list[str] = "",
         base_path: str = "",
         entry_list: list[int] | list[list[int]] = None,
@@ -61,7 +62,7 @@ class WaveformBrowser:
             and group, they must be the same size. If a file is wild-carded,
             the same group will be assigned to each file found
         base_path
-            base path for file. See :class:`~lgdo.lh5_store.LH5Store`.
+            base path for file. See :class:`~lgdo.lh5.LH5Store`.
 
         entry_list
             list of event indices to draw. If it is a nested list, use local
@@ -293,7 +294,7 @@ class WaveformBrowser:
         # If we still have no x_unit get it from the first waveform we can find
         if self.x_unit is None:
             for wf in self.lh5_out.values():
-                if not isinstance(wf, lh5.WaveformTable):
+                if not isinstance(wf, lgdo.WaveformTable):
                     continue
                 self.x_unit = ureg(wf.dt_units)
 
@@ -390,7 +391,7 @@ class WaveformBrowser:
             ref_time = 0
         elif isinstance(self.align_par, str):
             data = self.lh5_out.get(self.align_par, None)
-            if isinstance(data, lh5.Array):
+            if isinstance(data, lgdo.Array):
                 ref_time = data.nda[i_tb]
                 unit = data.attrs.get("units", None)
                 if unit and unit in ureg and ureg.is_compatible_with(unit, self.x_unit):
@@ -405,7 +406,7 @@ class WaveformBrowser:
         for name, lines in self.lines.items():
             # Get the data; note this is implicitly copying it!
             data = self.lh5_out.get(name, None)
-            if isinstance(data, lh5.WaveformTable):
+            if isinstance(data, lgdo.WaveformTable):
                 y = data.values.nda[i_tb, :] / norm
                 dt = data.dt.nda[i_tb] * float(ureg(data.dt_units) / self.x_unit)
                 t0 = (
@@ -416,13 +417,13 @@ class WaveformBrowser:
                 lines.append(Line2D(x, y))
                 self._update_auto_limit(x, y)
 
-            elif isinstance(data, lh5.ArrayOfEqualSizedArrays):
+            elif isinstance(data, lgdo.ArrayOfEqualSizedArrays):
                 y = data.nda[i_tb, :] / norm
                 x = np.arange(len(y), dtype="float")
                 lines.append(Line2D(x, y))
                 self._update_auto_limit(x, y)
 
-            elif isinstance(data, lh5.Array):
+            elif isinstance(data, lgdo.Array):
                 val = data.nda[i_tb]
                 unit = data.attrs.get("units", None)
                 if unit and unit in ureg and ureg.is_compatible_with(unit, self.x_unit):
@@ -453,7 +454,7 @@ class WaveformBrowser:
 
             if not data:
                 data = ureg.Quantity(self.aux_vals[name][entry])
-            elif isinstance(data, lh5.Array):
+            elif isinstance(data, lgdo.Array):
                 unit = data.attrs.get("units", None)
                 if unit and unit in ureg:
                     data = data.nda[i_tb] * ureg(unit)

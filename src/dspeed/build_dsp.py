@@ -9,9 +9,8 @@ import logging
 import os
 
 import h5py
-import lgdo.lh5_store as lh5
 import numpy as np
-from lgdo.lgdo_utils import expand_path
+from lgdo import lh5
 from tqdm.auto import tqdm
 
 from .errors import DSPFatal
@@ -133,7 +132,7 @@ def build_dsp(
     # get the database parameters. For now, this will just be a dict in a json
     # file, but eventually we will want to interface with the metadata repo
     if isinstance(database, str):
-        with open(expand_path(database)) as db_file:
+        with open(lh5.utils.expand_path(database)) as db_file:
             database = json.load(db_file)
 
     if database and not isinstance(database, dict):
@@ -190,7 +189,7 @@ def build_dsp(
                 e.wf_range = f"{e.wf_range[0]+start_row}-{e.wf_range[1]+start_row}"
                 raise e
 
-            raw_store.write_object(
+            raw_store.write(
                 obj=tb_out,
                 name=tb_name,
                 lh5_file=f_dsp,

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import lgdo
 import pytest
-from lgdo.lh5_store import LH5Store, ls
+from lgdo.lh5 import LH5Store, ls
 
 from dspeed import build_dsp
 
@@ -72,7 +72,7 @@ def test_build_dsp_spms_channelwise(dsp_test_file_spm):
     ]
 
     store = LH5Store()
-    lh5_obj, n_rows = store.read_object("/ch0/dsp/energies", dsp_test_file_spm)
+    lh5_obj, n_rows = store.read("/ch0/dsp/energies", dsp_test_file_spm)
     assert isinstance(lh5_obj, lgdo.ArrayOfEqualSizedArrays)
     assert len(lh5_obj) == 5
     assert len(lh5_obj.nda[0]) == 20
