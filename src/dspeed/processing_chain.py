@@ -1778,8 +1778,8 @@ def build_processing_chain(
     block_width: int = 16,
 ) -> tuple[ProcessingChain, list[str], lgdo.Table]:
     """Produces a :class:`ProcessingChain` object and an LH5
-    :class:`~lgdo.table.Table` for output parameters from an input LH5
-    :class:`~lgdo.table.Table` and a JSON recipe.
+    :class:`~lgdo.types.table.Table` for output parameters from an input LH5
+    :class:`~lgdo.types.table.Table` and a JSON recipe.
 
     Parameters
     ----------

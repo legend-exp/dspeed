@@ -62,7 +62,7 @@ class WaveformBrowser:
             and group, they must be the same size. If a file is wild-carded,
             the same group will be assigned to each file found
         base_path
-            base path for file. See :class:`~lgdo.lh5_store.LH5Store`.
+            base path for file. See :class:`~lgdo.lh5.LH5Store`.
 
         entry_list
             list of event indices to draw. If it is a nested list, use local
