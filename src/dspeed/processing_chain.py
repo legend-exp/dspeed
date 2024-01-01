@@ -16,10 +16,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import lgdo
-import lgdo.lh5_store as lh5
 import numpy as np
-from lgdo import LGDO
-from lgdo.lgdo_utils import expand_path
+from lgdo import LGDO, lh5
 from numba import vectorize
 from pint import Quantity, Unit
 
@@ -1111,7 +1109,7 @@ class ProcessingChain:
         """
 
         try:
-            loaded_data = sto.read_object(path_in_file, path_to_file)[0].nda
+            loaded_data = sto.read(path_in_file, path_to_file)[0].nda
         except ValueError:
             raise ProcessingChainError(f"LH5 file not found: {path_to_file}")
 
@@ -1863,7 +1861,7 @@ def build_processing_chain(
     proc_chain = ProcessingChain(block_width, lh5_in.size)
 
     if isinstance(dsp_config, str):
-        with open(expand_path(dsp_config)) as f:
+        with open(lh5.utils.expand_path(dsp_config)) as f:
             dsp_config = json.load(f)
     elif dsp_config is None:
         dsp_config = {"outputs": [], "processors": {}}

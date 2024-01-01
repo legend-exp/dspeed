@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
 
-import lgdo.lh5_store as store
 import numpy as np
+from lgdo import lh5
 
 from dspeed import build_dsp
 
@@ -33,6 +33,6 @@ def test_list_parisng(lgnd_test_data, tmptestdir):
     )
     assert os.path.exists(dsp_file)
 
-    df = store.load_nda(dsp_file, ["wf_out"], "geds/dsp/")
+    df = lh5.load_nda(dsp_file, ["wf_out"], "geds/dsp/")
 
     assert np.all(df["wf_out"][:] == np.array([7, 9, 11, 13, 15]))

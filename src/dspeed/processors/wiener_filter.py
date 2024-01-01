@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import lgdo.lh5_store as lh5
 import numpy as np
+from lgdo import lh5
 from numba import guvectorize
 
 from ..errors import DSPFatal
@@ -65,10 +65,10 @@ def wiener_filter(file_name_array: list[str]) -> np.ndarray:
 
     # Read in the data
 
-    superpulse, _ = sto.read_object("spms/processed/superpulse", file_name)
+    superpulse, _ = sto.read("spms/processed/superpulse", file_name)
     superpulse = superpulse.nda
 
-    noise_wf, _ = sto.read_object("spms/processed/noise_wf", file_name)
+    noise_wf, _ = sto.read("spms/processed/noise_wf", file_name)
     noise_wf = noise_wf.nda
 
     # Now check that the data are valid
