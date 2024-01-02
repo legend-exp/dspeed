@@ -1405,18 +1405,19 @@ class ProcessorManager:
                     is_coord=is_coord,
                 )
 
-                arshape = list(param.shape)
-                param = param.get_buffer(grid)
-
                 # reshape just in case there are some missing dimensions
+                arshape = list(param.shape)
                 for idim in range(-1, -1 - len(shape), -1):
                     if (
                         len(arshape) < len(shape) + 1 + idim
                         or arshape[idim] != shape[idim]
                     ):
                         arshape.insert(len(arshape) + idim + 1, 1)
-                        print(arshape)
-                param = param.reshape(tuple([self.proc_chain._block_width] + arshape))
+
+                if param.is_const:
+                    param = param.get_buffer(grid).reshape(arshape)
+                else:
+                    param = param.get_buffer(grid).reshape(tuple([self.proc_chain._block_width] + arshape))
 
             elif isinstance(param, str):
                 # Convert string into integer buffer if appropriate
