@@ -6,12 +6,12 @@ import string
 import sys
 
 import lgdo
+from lgdo.lh5 import LH5Iterator
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas
 import pint
 from cycler import cycler
-from lgdo import lh5
 from matplotlib.lines import Line2D
 
 from ..processing_chain import build_processing_chain
@@ -29,7 +29,7 @@ class WaveformBrowser:
 
     def __init__(
         self,
-        files_in: str | list[str] | lh5.LH5Iterator,  # noqa: F821
+        files_in: str | list[str] | LH5Iterator,  # noqa: F821
         lh5_group: str | list[str] = "",
         base_path: str = "",
         entry_list: list[int] | list[list[int]] = None,
@@ -152,12 +152,12 @@ class WaveformBrowser:
         self.next_entry = 0
 
         # data i/o initialization
-        if isinstance(files_in, lh5.LH5Iterator):
+        if isinstance(files_in, LH5Iterator):
             self.lh5_it = files_in
         else:
             # HACK: do not read VOV "tracelist", cannot be handled correctly by LH5Iterator
             # remove this hack once VOV support is properly implemented
-            self.lh5_it = lh5.LH5Iterator(
+            self.lh5_it = LH5Iterator(
                 files_in,
                 lh5_group,
                 base_path=base_path,
@@ -418,9 +418,9 @@ class WaveformBrowser:
                 self._update_auto_limit(x, y)
 
             elif isinstance(
-                data, (lh5.Array, lh5.ArrayOfEqualSizedArrays, lh5.VectorOfVectors)
+                data, (lgdo.Array, lgdo.ArrayOfEqualSizedArrays, lgdo.VectorOfVectors)
             ):
-                if isinstance(data, lh5.Array):
+                if isinstance(data, lgdo.Array):
                     vals = [data.nda[i_tb]]
                 else:
                     vals = data[i_tb]
