@@ -15,8 +15,8 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
-import numpy as np
 import lgdo
+import numpy as np
 from lgdo import LGDO, lh5
 from numba import guvectorize, vectorize
 from pint import Quantity, Unit
@@ -1417,7 +1417,9 @@ class ProcessorManager:
                 if param.is_const:
                     param = param.get_buffer(grid).reshape(arshape)
                 else:
-                    param = param.get_buffer(grid).reshape(tuple([self.proc_chain._block_width] + arshape))
+                    param = param.get_buffer(grid).reshape(
+                        tuple([self.proc_chain._block_width] + arshape)
+                    )
 
             elif isinstance(param, str):
                 # Convert string into integer buffer if appropriate

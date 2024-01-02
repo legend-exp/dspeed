@@ -6,12 +6,12 @@ import string
 import sys
 
 import lgdo
-from lgdo.lh5 import LH5Iterator
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas
 import pint
 from cycler import cycler
+from lgdo.lh5 import LH5Iterator
 from matplotlib.lines import Line2D
 
 from ..processing_chain import build_processing_chain
