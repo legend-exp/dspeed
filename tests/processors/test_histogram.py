@@ -1,6 +1,6 @@
 import os
 
-import lgdo.lh5_store as store
+from lgdo import lh5
 
 from dspeed import build_dsp
 
@@ -28,7 +28,7 @@ def test_histogram_fixed_width(lgnd_test_data, tmptestdir):
     )
     assert os.path.exists(dsp_file)
 
-    df = store.load_nda(dsp_file, ["hist_weights", "hist_borders"], "geds/dsp/")
+    df = lh5.load_nda(dsp_file, ["hist_weights", "hist_borders"], "geds/dsp/")
 
     assert len(df["hist_weights"][0]) + 1 == len(df["hist_borders"][0])
     for i in range(2, len(df["hist_borders"][0])):

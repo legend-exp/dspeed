@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
 
-import lgdo.lh5_store as store
 import numpy as np
+from lgdo import lh5
 
 from dspeed import build_dsp
 
@@ -24,7 +24,7 @@ def test_build_dsp(lgnd_test_data, tmptestdir):
 
 def test_numpy_math_constants_dsp(tmptestdir):
     dsp_file = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp.lh5"
-    df = store.load_nda(dsp_file, ["timestamp", "calc1", "calc2", "calc3"], "geds/dsp/")
+    df = lh5.load_nda(dsp_file, ["timestamp", "calc1", "calc2", "calc3"], "geds/dsp/")
 
     a1 = df["timestamp"] - df["timestamp"] - np.pi * df["timestamp"]
     a2 = df["timestamp"] - df["timestamp"] - np.pi
@@ -41,7 +41,7 @@ def test_numpy_math_constants_dsp(tmptestdir):
 
 def test_numpy_infinity_and_nan_dsp(tmptestdir):
     dsp_file = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp.lh5"
-    df = store.load_nda(dsp_file, ["calc4", "calc5", "calc6"], "geds/dsp/")
+    df = lh5.load_nda(dsp_file, ["calc4", "calc5", "calc6"], "geds/dsp/")
 
     assert (np.isnan(df["calc4"])).all()
     assert (np.isneginf(df["calc5"])).all()

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import lgdo
 import pytest
-from lgdo.lh5_store import LH5Store, ls
+from lgdo.lh5 import LH5Store, ls
 
 from dspeed import build_dsp
 

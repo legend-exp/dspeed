@@ -15,10 +15,9 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
-import lgdo
 import numpy as np
-from lgdo import LGDO, LH5Store
-from lgdo.lgdo_utils import expand_path
+import lgdo
+from lgdo import LGDO, lh5
 from numba import guvectorize, vectorize
 from pint import Quantity, Unit
 
@@ -29,7 +28,7 @@ from .utils import ProcChainVarBase
 from .utils import numba_defaults_kwargs as nb_kwargs
 
 log = logging.getLogger(__name__)
-sto = LH5Store()
+sto = lh5.LH5Store()
 
 # Filler value for variables to be automatically deduced later
 auto = "auto"
@@ -134,6 +133,7 @@ class ProcChainVar(ProcChainVarBase):
         unit: str | Unit = auto,
         is_coord: bool = auto,
         vector_len: str | ProcChainVar = None,
+        is_const: bool = False,
     ) -> None:
         """
         Parameters
@@ -158,6 +158,10 @@ class ProcChainVar(ProcChainVarBase):
         vector_len
             For VectorOfVector variables, this points to the variable used
             to represent the length of each vector
+        is_const
+            If ``True``, variable is a constant. Variable will be set before
+            executing, and will not be recomputed. Does not have outer
+            dimension of size _block_width
         """
         assert isinstance(proc_chain, ProcessingChain) and isinstance(name, str)
         self.proc_chain = proc_chain
@@ -173,6 +177,7 @@ class ProcChainVar(ProcChainVarBase):
         self.unit = unit
         self.is_coord = is_coord
         self.vector_len = vector_len
+        self.is_const = is_const
 
         log.debug(f"added variable: {self.description()}")
 
@@ -218,18 +223,27 @@ class ProcChainVar(ProcChainVarBase):
 
         super().__setattr__(name, value)
 
+    def _make_buffer(self) -> np.ndarray:
+        shape = (
+            self.shape
+            if self.is_const
+            else (self.proc_chain._block_width,) + self.shape
+        )
+        len = np.prod(shape)
+        # Flattened array, with padding to allow memory alignment
+        buf = np.zeros(len + 64 // self.dtype.itemsize, dtype=self.dtype)
+        # offset to ensure memory alignment
+        offset = (64 - buf.ctypes.data) % 64 // self.dtype.itemsize
+        return buf[offset : offset + len].reshape(shape)
+
     def get_buffer(self, unit: str | Unit = None) -> np.ndarray:
         # If buffer needs to be created, do so now
         if self._buffer is None:
             if self.shape is auto:
                 raise ProcessingChainError(f"cannot deduce shape of {self.name}")
             if self.dtype is auto:
-                raise ProcessingChainError(f"cannot deduce shape of {self.name}")
-
-            # create the buffer so that the array start is aligned in memory on a multiple of 64 bytes
-            self._buffer = np.zeros(
-                shape=(self.proc_chain._block_width,) + self.shape, dtype=self.dtype
-            )
+                raise ProcessingChainError(f"cannot deduce dtype of {self.name}")
+            self._buffer = self._make_buffer()
 
         if isinstance(self._buffer, np.ndarray):
             if self.is_coord is True:
@@ -264,6 +278,7 @@ class ProcChainVar(ProcChainVarBase):
         conversion_manager = UnitConversionManager(self, unit)
         self._buffer.append((conversion_manager.out_buffer, unit))
         self.proc_chain._proc_managers.append(conversion_manager)
+        log.debug(f"added conversion: {conversion_manager}")
         return conversion_manager.out_buffer
 
     @property
@@ -437,6 +452,47 @@ class ProcessingChain:
         )
         self._vars_dict[name] = var
         return var
+
+    def set_constant(
+        self,
+        varname: str,
+        val: np.ndarray | int | float | Quantity,
+        dtype: str | np.dtype = None,
+        unit: str | Unit | Quantity = None,
+    ) -> ProcChainVar:
+        """Make a variable act as a constant and set it to val.
+
+        Parameters
+        ----------
+        varname
+            name of internal variable to set. If it does not exist, create
+            it; otherwise, set existing variable to be constant
+        val
+            value of constant
+        dtype
+            dtype of constant
+        unit
+            unit of constant
+        """
+
+        param = self.get_variable(varname)
+        assert param.is_constant or param._buffer is None
+        param.is_constant = True
+
+        if isinstance(val, Quantity):
+            unit = val.unit
+            val = val.magnitude
+
+        val = np.array(val, dtype=dtype)
+
+        param.update_auto(
+            shape=val.shape,
+            dtype=val.dtype,
+            unit=unit,
+        )
+        np.copyto(param.get_buffer(), val, casting="unsafe")
+        log.debug(f"set constant: {param.description()} = {val}")
+        return param
 
     def link_input_buffer(
         self, varname: str, buff: np.ndarray | LGDO = None
@@ -616,6 +672,7 @@ class ProcessingChain:
 
         proc_man = ProcessorManager(self, func, params, kw_params, signature, types)
         self._proc_managers.append(proc_man)
+        log.debug(f"added processor: {proc_man}")
 
     def execute(self, start: int = 0, stop: int = None) -> None:
         """Execute the dsp chain on the entire input/output buffers."""
@@ -740,7 +797,12 @@ class ProcessingChain:
             op, op_form = ast_ops_dict[type(node.op)]
 
             if not (isinstance(lhs, ProcChainVar) or isinstance(rhs, ProcChainVar)):
-                return op(lhs, rhs)
+                ret = op(lhs, rhs)
+                if isinstance(ret, Quantity) and ureg.is_compatible_with(
+                    ret.u, ureg.dimensionless
+                ):
+                    ret = ret.to(ureg.dimensionless).magnitude
+                return ret
 
             name = "(" + op_form.format(str(lhs), str(rhs)) + ")"
             if isinstance(lhs, ProcChainVar) and isinstance(rhs, ProcChainVar):
@@ -761,7 +823,9 @@ class ProcessingChain:
                     is_coord=rhs.is_coord,
                 )
 
-            self._proc_managers.append(ProcessorManager(self, op, [lhs, rhs, out]))
+            proc_man = ProcessorManager(self, op, [lhs, rhs, out])
+            self._proc_managers.append(proc_man)
+            log.debug(f"added processor: {proc_man}")
             return out
 
         # define unary operators (-)
@@ -782,7 +846,9 @@ class ProcessingChain:
                     operand.unit,
                     operand.is_coord,
                 )
-                self._proc_managers.append(ProcessorManager(self, op, [operand, out]))
+                proc_man = ProcessorManager(self, op, [operand, out])
+                self._proc_managers.append(proc_man)
+                log.debug(f"added processor: {proc_man}")
             else:
                 out = op(operand)
 
@@ -844,9 +910,11 @@ class ProcessingChain:
                             new_off = ProcChainVar(
                                 self, name=f"({str(off)}+{str(start)})", is_coord=True
                             )
-                            self._proc_managers.append(
-                                ProcessorManager(self, np.add, [off, start, new_off])
+                            proc_man = ProcessorManager(
+                                self, np.add, [off, start, new_off]
                             )
+                            self._proc_managers.append(proc_man)
+                            log.debug(f"added processor: {proc_man}")
                             off = new_off
                         else:
                             off += start
@@ -1022,6 +1090,7 @@ class ProcessingChain:
                 conversion_manager = UnitConversionManager(var, grid, round=True)
                 out._buffer = conversion_manager.out_buffer
                 var.proc_chain._proc_managers.append(conversion_manager)
+                log.debug(f"added conversion: {conversion_manager}")
             else:
                 out = ProcChainVar(
                     var.proc_chain,
@@ -1055,16 +1124,16 @@ class ProcessingChain:
                 var.unit,
                 var.is_coord,
             )
-            var.proc_chain._proc_managers.append(
-                ProcessorManager(
-                    var.proc_chain,
-                    np.copyto,
-                    [out, var],
-                    kw_params={"casting": "'unsafe'"},
-                    signature="(),(),()",
-                    types=f"{dtype.char}{var.dtype.char}",
-                )
+            proc_man = ProcessorManager(
+                var.proc_chain,
+                np.copyto,
+                [out, var],
+                kw_params={"casting": "'unsafe'"},
+                signature="(),(),()",
+                types=f"{dtype.char}{var.dtype.char}",
             )
+            var.proc_chain._proc_managers.append(proc_man)
+            log.debug(f"added processor: {proc_man}")
             return out
 
     def _loadlh5(path_to_file, path_in_file: str) -> np.array:  # noqa: N805
@@ -1080,7 +1149,7 @@ class ProcessingChain:
         """
 
         try:
-            loaded_data = sto.read_object(path_in_file, path_to_file)[0].nda
+            loaded_data = sto.read(path_in_file, path_to_file)[0].nda
         except ValueError:
             raise ProcessingChainError(f"LH5 file not found: {path_to_file}")
 
@@ -1366,7 +1435,7 @@ class ProcessorManager:
                 # Convert scalar to right type, including units
                 if isinstance(param, (Quantity, Unit)):
                     if ureg.is_compatible_with(ureg.dimensionless, param):
-                        param = param.magnitude
+                        param = param.to(ureg.dimensionless).magnitude
                     elif not isinstance(
                         grid, CoordinateGrid
                     ) or not ureg.is_compatible_with(grid.period.u, param):
@@ -1375,7 +1444,7 @@ class ProcessorManager:
                             f"CoordinateGrid is {grid}"
                         )
                     else:
-                        param = (param / grid.period).magnitude
+                        param = (param / grid.period).to(ureg.dimensionless).magnitude
                 if np.issubdtype(dtype, np.integer):
                     param = dtype.type(np.round(param))
                 else:
@@ -1385,8 +1454,6 @@ class ProcessorManager:
                 self.args.append(param)
             else:
                 self.kwargs[arg_name] = param
-
-        log.debug(f"added processor: {self}")
 
     def execute(self) -> None:
         self.processor(*self.args, **self.kwargs)
@@ -1504,8 +1571,6 @@ class UnitConversionManager(ProcessorManager):
             self.out_buffer,
         ]
         self.kwargs = {}
-
-        log.debug(f"added conversion: {self}")
 
 
 class IOManager(metaclass=ABCMeta):
@@ -1872,8 +1937,8 @@ def build_processing_chain(
     block_width: int = 16,
 ) -> tuple[ProcessingChain, list[str], lgdo.Table]:
     """Produces a :class:`ProcessingChain` object and an LH5
-    :class:`~lgdo.table.Table` for output parameters from an input LH5
-    :class:`~lgdo.table.Table` and a JSON recipe.
+    :class:`~lgdo.types.table.Table` for output parameters from an input LH5
+    :class:`~lgdo.types.table.Table` and a JSON recipe.
 
     Parameters
     ----------
@@ -1955,7 +2020,7 @@ def build_processing_chain(
     proc_chain = ProcessingChain(block_width, lh5_in.size)
 
     if isinstance(dsp_config, str):
-        with open(expand_path(dsp_config)) as f:
+        with open(lh5.utils.expand_path(dsp_config)) as f:
             dsp_config = json.load(f)
     elif dsp_config is None:
         dsp_config = {"outputs": [], "processors": {}}
@@ -1995,8 +2060,8 @@ def build_processing_chain(
             for db_var in db_parser.findall(arg):
                 try:
                     db_node = db_dict
-                    for key in db_var[3:].split("."):
-                        db_node = db_node[key]
+                    for db_key in db_var[3:].split("."):
+                        db_node = db_node[db_key]
                     log.debug(f"database lookup: found {db_node} for {db_var}")
                 except (KeyError, TypeError):
                     try:
@@ -2135,10 +2200,10 @@ def build_processing_chain(
             module = importlib.import_module(recipe["module"])
             func = getattr(module, recipe["function"])
             args = recipe["args"]
+            new_vars = [k for k in re.split(",| ", proc_par) if k != ""]
 
             # Initialize the new variables, if needed
             if "unit" in recipe:
-                new_vars = [k for k in re.split(",| ", proc_par) if k != ""]
                 for i, name in enumerate(new_vars):
                     unit = recipe.get("unit", auto)
                     if isinstance(unit, list):
@@ -2196,7 +2261,56 @@ def build_processing_chain(
             except KeyError:
                 pass
 
-            proc_chain.add_processor(func, *args, **kwargs)
+            # Check if new variables should be treated as constants
+            params = []
+            kw_params = {}
+            out_params = []
+            is_const = True
+            for param in args:
+                if isinstance(param, str):
+                    param = proc_chain.get_variable(param)
+                if isinstance(param, dict):
+                    kw_params.update(param)
+                    param = list(param.values())[0]
+                elif isinstance(param, str):
+                    params.append(f"'{param}'")
+                else:
+                    params.append(param)
+
+                if isinstance(param, ProcChainVar):
+                    if param.name in new_vars:
+                        out_params.append(param)
+                    elif not param.is_const:
+                        is_const = False
+
+            if is_const:
+                if out_params:
+                    for param in out_params:
+                        param.is_const = True
+                    proc_man = ProcessorManager(
+                        proc_chain,
+                        func,
+                        params,
+                        kw_params,
+                        kwargs.get("signature", None),
+                        kwargs.get("types", None),
+                    )
+                    proc_man.execute()
+                    for param in out_params:
+                        log.debug(
+                            f"set constant: {param.description()} = {param.get_buffer()}"
+                        )
+
+                else:
+                    const_val = func(*params, **kw_params)
+                    if len(new_vars) == 1:
+                        const_val = [const_val]
+                    for var, val in zip(new_vars, const_val):
+                        proc_chain.set_constant(var, val)
+
+            else:
+                proc_chain.add_processor(func, *params, kw_params, **kwargs)
+
         except Exception as e:
             raise ProcessingChainError(
                 "Exception raised while attempting to add processor:\n"
@@ -2211,7 +2325,7 @@ def build_processing_chain(
         buf_in = lh5_in.get(copy_par)
         if buf_in is None:
             log.warning(
-                f"I don't know what to do with {copy_par}. Building output without it!"
+                f"Did not find {copy_par} in either input file or parameter list. Building output without it!"
             )
         else:
             lh5_out.add_field(copy_par, buf_in)
