@@ -46,7 +46,7 @@ class NumbaDefaults(MutableMapping):
     """
 
     def __init__(self) -> None:
-        self.cache: bool = getenv_bool("DSPEED_CACHE")
+        self.cache: bool = getenv_bool("DSPEED_CACHE", default=True)
         self.boundscheck: bool = getenv_bool("DSPEED_BOUNDSCHECK")
 
     def __getitem__(self, item: str) -> Any:
