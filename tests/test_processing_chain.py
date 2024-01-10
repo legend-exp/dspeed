@@ -249,6 +249,7 @@ def test_output_types(spms_raw_tbl):
     assert isinstance(lh5_out["aoa_out"], lgdo.ArrayOfEqualSizedArrays)
     assert isinstance(lh5_out["vov_max_out"], lgdo.VectorOfVectors)
 
+
 def test_output_attrs(geds_raw_tbl):
     dsp_config = {
         "outputs": ["wf_blsub"],
@@ -258,9 +259,7 @@ def test_output_attrs(geds_raw_tbl):
                 "module": "dspeed.processors",
                 "args": ["waveform[0:100]", "baseline", "wf_blsub"],
                 "unit": "ADC",
-                "lh5_attrs": {
-                    "test_attr": "This is a test"
-                },
+                "lh5_attrs": {"test_attr": "This is a test"},
             }
         },
     }

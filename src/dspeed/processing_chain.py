@@ -2340,9 +2340,7 @@ def build_processing_chain(
             recipe = processors[out_par]
             if isinstance(recipe, str):
                 recipe = processors[recipe]
-            buf_out.attrs.update(
-                recipe.get("lh5_attrs", {})
-            )
+            buf_out.attrs.update(recipe.get("lh5_attrs", {}))
             lh5_out.add_field(out_par, buf_out)
         except Exception as e:
             raise ProcessingChainError(
