@@ -46,8 +46,10 @@ def build_dsp(
         :class:`~.processing_chain.ProcessingChain` config. See
         :func:`~.processing_chain.build_processing_chain` for details.
     lh5_tables
-        list of HDF5 groups to consider in the input file. If ``None``, process
-        all valid groups.
+        list of LGDO groups to process in the input file. These table should
+        include all input variables for processing or contain a subgroup
+        called raw that contains such a table. If ``None``, process
+        all valid groups. Note that wildcards are accepted (e.g. "ch*").
     database
         dictionary or name of JSON file containing a parameter database. See
         :func:`~.processing_chain.build_processing_chain` for details.
