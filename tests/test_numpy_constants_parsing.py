@@ -24,7 +24,8 @@ def test_build_dsp(lgnd_test_data, tmptestdir):
 
 def test_numpy_math_constants_dsp(tmptestdir):
     dsp_file = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp.lh5"
-    df = lh5.load_nda(dsp_file, ["timestamp", "calc1", "calc2", "calc3"], "geds/dsp/")
+    st = lh5.LH5Store()
+    df = st.read("geds/dsp/", dsp_file, field_mask=["timestamp", "calc1", "calc2", "calc3"])[0].view_as('pd')
 
     a1 = df["timestamp"] - df["timestamp"] - np.pi * df["timestamp"]
     a2 = df["timestamp"] - df["timestamp"] - np.pi
@@ -41,7 +42,8 @@ def test_numpy_math_constants_dsp(tmptestdir):
 
 def test_numpy_infinity_and_nan_dsp(tmptestdir):
     dsp_file = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp.lh5"
-    df = lh5.load_nda(dsp_file, ["calc4", "calc5", "calc6"], "geds/dsp/")
+    st = lh5.LH5Store()
+    df = st.read("geds/dsp/", dsp_file, field_mask=["calc4", "calc5", "calc6"])[0].view_as('pd')
 
     assert (np.isnan(df["calc4"])).all()
     assert (np.isneginf(df["calc5"])).all()

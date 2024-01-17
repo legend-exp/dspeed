@@ -28,7 +28,8 @@ def test_histogram_fixed_width(lgnd_test_data, tmptestdir):
     )
     assert os.path.exists(dsp_file)
 
-    df = lh5.load_nda(dsp_file, ["hist_weights", "hist_borders"], "geds/dsp/")
+    st = lh5.LH5Store()
+    df = st.read("geds/dsp/", dsp_file, field_mask=["hist_weights", "hist_borders"])[0].view_as('pd')
 
     assert len(df["hist_weights"][0]) + 1 == len(df["hist_borders"][0])
     for i in range(2, len(df["hist_borders"][0])):
