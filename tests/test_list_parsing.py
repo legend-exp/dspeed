@@ -9,7 +9,7 @@ from dspeed import build_dsp
 config_dir = Path(__file__).parent / "configs"
 
 
-def test_list_parsng(lgnd_test_data, tmptestdir):
+def test_list_parsing(lgnd_test_data, tmptestdir):
     dsp_file = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp.lh5"
     dsp_config = {
         "outputs": ["wf_out"],
@@ -32,6 +32,9 @@ def test_list_parsng(lgnd_test_data, tmptestdir):
     )
     assert os.path.exists(dsp_file)
 
-    df = lh5.load_nda(dsp_file, ["wf_out"], "geds/dsp/")
+    st = lh5.LH5Store()
+    df = st.read("geds/dsp/", dsp_file, n_rows=5, field_mask=["wf_out"])[0].view_as(
+        "pd"
+    )
 
     assert np.all(df["wf_out"][:] == np.array([7, 9, 11, 13, 15]))

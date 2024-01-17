@@ -58,9 +58,11 @@ class WaveformBrowser:
             also pass an LH5Iterator
 
         lh5_group
-            HDF5 group(s) to read. If a list is provided for both lh5_files
+            HDF5 base group(s) to read containing a LGDO table that contains
+            the waveforms. If a list is provided for both lh5_files
             and group, they must be the same size. If a file is wild-carded,
             the same group will be assigned to each file found
+
         base_path
             base path for file. See :class:`~lgdo.lh5.LH5Store`.
 

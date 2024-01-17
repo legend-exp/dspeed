@@ -248,3 +248,21 @@ def test_output_types(spms_raw_tbl):
     assert isinstance(lh5_out["wf_out"], lgdo.WaveformTable)
     assert isinstance(lh5_out["aoa_out"], lgdo.ArrayOfEqualSizedArrays)
     assert isinstance(lh5_out["vov_max_out"], lgdo.VectorOfVectors)
+
+
+def test_output_attrs(geds_raw_tbl):
+    dsp_config = {
+        "outputs": ["wf_blsub"],
+        "processors": {
+            "wf_blsub": {
+                "function": "bl_subtract",
+                "module": "dspeed.processors",
+                "args": ["waveform[0:100]", "baseline", "wf_blsub"],
+                "unit": "ADC",
+                "lh5_attrs": {"test_attr": "This is a test"},
+            }
+        },
+    }
+    proc_chain, _, lh5_out = build_processing_chain(geds_raw_tbl, dsp_config)
+    proc_chain.execute(0, 1)
+    assert lh5_out["wf_blsub"].attrs["test_attr"] == "This is a test"
