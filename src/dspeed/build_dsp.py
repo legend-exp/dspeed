@@ -4,7 +4,7 @@ on waveform data.
 """
 from __future__ import annotations
 
-import json
+from yaml import safe_load
 import logging
 import os
 
@@ -42,7 +42,7 @@ def build_dsp(
     f_dsp
         name of dsp-tier LH5 file to write to.
     dsp_config
-        :class:`dict` or name of JSON file containing
+        :class:`dict` or name of JSON or YAML file containing
         :class:`~.processing_chain.ProcessingChain` config. See
         :func:`~.processing_chain.build_processing_chain` for details.
     lh5_tables
@@ -51,7 +51,7 @@ def build_dsp(
         called raw that contains such a table. If ``None``, process
         all valid groups. Note that wildcards are accepted (e.g. "ch*").
     database
-        dictionary or name of JSON file containing a parameter database. See
+        dictionary or name of JSON or YAMLfile containing a parameter database. See
         :func:`~.processing_chain.build_processing_chain` for details.
     outputs
         list of parameter names to write to the output file. If not provided,
@@ -68,7 +68,7 @@ def build_dsp(
     block_width
         number of waveforms to process at a time.
     chan_config
-        contains JSON DSP configuration file names for every table in
+        contains JSON or YAML DSP configuration file names for every table in
         `lh5_tables`.
     """
 
@@ -131,14 +131,14 @@ def build_dsp(
     if len(lh5_tables) == 0:
         raise RuntimeError(f"could not find any valid LH5 table in {f_raw}")
 
-    # get the database parameters. For now, this will just be a dict in a json
+    # get the database parameters. For now, this will just be a dict in a
     # file, but eventually we will want to interface with the metadata repo
     if isinstance(database, str):
         with open(lh5.utils.expand_path(database)) as db_file:
-            database = json.load(db_file)
+            database = safe_load(db_file)
 
     if database and not isinstance(database, dict):
-        raise ValueError("input database is not a valid JSON file or dict")
+        raise ValueError("input database is not a valid JSON or YAML file or dict")
 
     if write_mode is None and os.path.isfile(f_dsp):
         raise FileExistsError(

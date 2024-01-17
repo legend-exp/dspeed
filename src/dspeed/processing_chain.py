@@ -7,7 +7,7 @@ from __future__ import annotations
 import ast
 import importlib
 import itertools as it
-import json
+from yaml import safe_load, dump
 import logging
 import re
 from abc import ABCMeta, abstractmethod
@@ -1941,7 +1941,7 @@ def build_processing_chain(
 ) -> tuple[ProcessingChain, list[str], lgdo.Table]:
     """Produces a :class:`ProcessingChain` object and an LH5
     :class:`~lgdo.types.table.Table` for output parameters from an input LH5
-    :class:`~lgdo.types.table.Table` and a JSON recipe.
+    :class:`~lgdo.types.table.Table` and a JSON or YAML recipe.
 
     Parameters
     ----------
@@ -1950,7 +1950,7 @@ def build_processing_chain(
         should be read in prior to calling this!
 
     dsp_config
-        A dictionary or JSON filename containing the recipes for computing DSP
+        A dictionary or YAML/JSON filename containing the recipes for computing DSP
         parameter from raw parameters. The format is as follows:
 
         .. code-block:: json
@@ -2024,14 +2024,14 @@ def build_processing_chain(
 
     if isinstance(dsp_config, str):
         with open(lh5.utils.expand_path(dsp_config)) as f:
-            dsp_config = json.load(f)
+            dsp_config = safe_load(f)
     elif dsp_config is None:
         dsp_config = {"outputs": [], "processors": {}}
     elif isinstance(dsp_config, dict):
         # We don't want to modify the input!
         dsp_config = deepcopy(dsp_config)
     else:
-        raise ValueError("dsp_config must be a dict, json file, or None")
+        raise ValueError("dsp_config must be a dict, json/yaml file, or None")
 
     if outputs is None:
         outputs = dsp_config["outputs"]
@@ -2317,7 +2317,7 @@ def build_processing_chain(
         except Exception as e:
             raise ProcessingChainError(
                 "Exception raised while attempting to add processor:\n"
-                + json.dumps(recipe, indent=2)
+                + dump(recipe)
             ) from e
 
     # build the output buffers
