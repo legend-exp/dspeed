@@ -2210,8 +2210,16 @@ def build_processing_chain(
                 log.debug(f"setting {new_var} = {fun_var}")
                 continue
 
-            module = importlib.import_module(recipe["module"])
-            func = getattr(module, recipe["function"])
+            if "module" in recipe:
+                module = importlib.import_module(recipe["module"])
+                func = getattr(module, recipe["function"])
+            else:
+                p = recipe["function"].rfind('.')
+                if p<0:
+                    raise ProcessingChainError(f"Must provide a module for function {recipe['function']}")
+                module = importlib.import_module(recipe["function"][:p])
+                func = getattr(module, recipe["function"][p+1:])
+
             args = recipe["args"]
             new_vars = [k for k in re.split(",| ", proc_par) if k != ""]
 
