@@ -977,7 +977,7 @@ class ProcessingChain:
                 for kwarg in node.keywords
             }
             if func is not None:
-                return func(*args, **kwargs)
+                return func(*args, **kwargs) if not dry_run else None
             elif self._validate_name(node.func.id):
                 var_name = node.func.id
                 var_name_list.append(var_name)
@@ -2226,6 +2226,7 @@ def build_processing_chain(
 
             # get this list of kwargs
             kwargs = recipe.get("kwargs", {})  # might also need db lookup here
+            kwargs.update({key:recipe[key] for key in ["signature", "types", "coord_grid"] if key in recipe})
 
             # if init_args are defined, parse any strings and then call func
             # as a factory/constructor function
