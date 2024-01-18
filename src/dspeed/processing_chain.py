@@ -59,10 +59,17 @@ class CoordinateGrid:
     offset: Quantity | ProcChainVar | float | int = 0
 
     def __post_init__(self) -> None:
-        # Copy constructor
+        # Copy constructor and conversions
         if isinstance(self.period, CoordinateGrid):
             self.offset = self.period.offset
             self.period = self.period.period
+        elif isinstance(self.period, ProcChainVar):
+            if self.period.grid in (None, auto):
+                raise ProcessingChainError(f"{self.period} does not have an assigned coordinate grid")
+            self.offset = self.period.offset
+            self.period = self.period.period
+        elif isinstance(self.period, tuple):
+            self.period, self.offset = self.period
 
         if isinstance(self.period, str):
             self.period = Quantity(1.0, self.period)
@@ -655,7 +662,7 @@ class ProcessingChain:
         return buff
 
     def add_processor(
-        self, func: np.ufunc, *args, signature: str = None, types: list[str] = None
+        self, func: np.ufunc, *args, signature: str = None, types: list[str] = None, coord_grid: tuple | str = None
     ) -> None:
         """Make a list of parameters from `*args`. Replace any strings in the
         list with NumPy objects from `vars_dict`, where able.
@@ -670,7 +677,10 @@ class ProcessingChain:
             else:
                 params.append(param)
 
-        proc_man = ProcessorManager(self, func, params, kw_params, signature, types)
+        if coord_grid is not None:
+            coord_grid = CoordinateGrid(coord_grid)
+
+        proc_man = ProcessorManager(self, func, params, kw_params, signature, types, coord_grid)
         self._proc_managers.append(proc_man)
         log.debug(f"added processor: {proc_man}")
 
@@ -1181,6 +1191,7 @@ class ProcessorManager:
         kw_params: dict = None,
         signature: str = None,
         types: list[str] = None,
+        grid: CoordinateGrid = None
     ) -> None:
         assert (
             isinstance(proc_chain, ProcessingChain)
@@ -1237,7 +1248,6 @@ class ProcessorManager:
 
         dims_dict = {}  # map from dim name -> DimInfo
         outerdims = []  # list of DimInfo
-        grid = None  # period/offset to use for unit and coordinate conversions
 
         for ipar, (dims, param) in enumerate(
             zip(dims_list, it.chain(self.params, self.kw_params.values()))
