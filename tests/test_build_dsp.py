@@ -10,12 +10,23 @@ from dspeed import build_dsp
 config_dir = Path(__file__).parent / "configs"
 
 
-def test_build_dsp_basics(lgnd_test_data, tmptestdir):
+def test_build_dsp_json(lgnd_test_data, tmptestdir):
     out_name = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds_dsp.lh5"
     build_dsp(
         lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
         out_name,
         dsp_config=f"{config_dir}/icpc-dsp-config.json",
+        database={"pz": {"tau": 27460.5}},
+        write_mode="r",
+    )
+    assert os.path.exists(out_name)
+
+def test_build_dsp_yaml(lgnd_test_data, tmptestdir):
+    out_name = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds_dsp.lh5"
+    build_dsp(
+        lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
+        out_name,
+        dsp_config=f"{config_dir}/icpc-dsp-config.yaml",
         database={"pz": {"tau": 27460.5}},
         write_mode="r",
     )
