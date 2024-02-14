@@ -50,7 +50,6 @@ def pole_zero(w_in: np.ndarray, t_tau: float, w_out: np.ndarray) -> None:
 
 @guvectorize(
     [
-        "void(float32[:], float32, float32, float32, float32[:])",
         "void(float64[:], float64, float64, float64, float64[:])",
     ],
     "(n),(),(),()->(n)",
