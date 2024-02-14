@@ -35,7 +35,7 @@ def test_pole_zero(compare_numba_vs_python):
 
 def test_double_pole_zero(compare_numba_vs_python):
     """
-    Test that the double pole-zero filter can correct thw sum of two RC decays into a step function
+    Test that the double pole-zero filter can correct the sum of two RC decays into a step function
     """
 
     # Create a double exponential pulse to double-pole-zero correct
