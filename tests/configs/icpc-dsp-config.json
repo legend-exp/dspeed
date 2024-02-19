@@ -362,8 +362,8 @@
     "wf_psd": {
       "function": "psd",
       "module": "dspeed.processors",
-      "args": ["waveform", "wf_psd"],
-      "init_args": ["waveform", "wf_psd"]
+      "args": ["wf_blsub", "wf_psd"],
+      "init_args": ["wf_blsub", "wf_psd"]
     }
   }
 }
