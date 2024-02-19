@@ -157,10 +157,12 @@ def interpolated_time_point_thresh(
         for i in range(int(t_start), len(w_in) - 1, 1):
             if w_in[i] <= a_threshold < w_in[i + 1]:
                 i_cross = i
+                return
     else:
         for i in range(int(t_start), 1, -1):
             if w_in[i - 1] < a_threshold <= w_in[i]:
                 i_cross = i - 1
+                return
 
     if i_cross == -1:
         return
