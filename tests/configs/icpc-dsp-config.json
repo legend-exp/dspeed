@@ -33,7 +33,8 @@
     "cuspEmax",
     "zacEmax",
     "zacEftp",
-    "cuspEftp"
+    "cuspEftp",
+    "wf_psd"
   ],
   "processors": {
     "tp_min, tp_max, wf_min, wf_max": {
@@ -357,6 +358,12 @@
       "module": "numpy",
       "args": ["tp_0_est", "tp_aoe_max/16", "tp_aoe_samp"],
       "unit": "ns"
+    },
+    "wf_psd": {
+      "function": "psd",
+      "module": "dspeed.processors",
+      "args": ["waveform", "wf_psd"],
+      "init_args": ["waveform", "wf_psd"]
     }
   }
 }
