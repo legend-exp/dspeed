@@ -169,7 +169,7 @@ def interpolated_time_point_thresh(
 
     if mode_in == ord("i"):  # return index before crossing
         t_out[0] = i_cross
-    elif mode_in == ord("f"):  # return index before crossing
+    elif mode_in == ord("f"):  # return index after crossing
         t_out[0] = i_cross + 1
     elif mode_in == ord("c"):  # return index before crossing
         t_out[0] = i_cross
