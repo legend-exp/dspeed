@@ -19,6 +19,7 @@ _____  _________________________________________________________________
 ![GitHub pull requests](https://img.shields.io/github/issues-pr/legend-exp/dspeed?logo=github)
 ![License](https://img.shields.io/github/license/legend-exp/dspeed)
 [![Read the Docs](https://img.shields.io/readthedocs/dspeed?logo=readthedocs)](https://dspeed.readthedocs.io)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10684780.svg)](https://doi.org/10.5281/zenodo.10684780)
 
 # DSPeed
 DSPeed (pronounced dee-ess-speed) is a python-based package that performs bulk, high-performance digital signal processing (DSP) of time-series data such as digitized waveforms. This package is part of the [pygama](https://github.com/legend-exp/pygama) scientific computing suite.
@@ -26,3 +27,5 @@ DSPeed (pronounced dee-ess-speed) is a python-based package that performs bulk, 
 DSPeed enables the user to define an arbitrary chain of vectorized signal processing routines that can be applied in bulk to waveforms and other data provided using the [LH5-format](https://legend-exp.github.io/legend-data-format-specs). These routines can include [numpy ufuncs](https://numpy.org/doc/stable/reference/ufuncs.html), custom functions accelerated with [numba](https://numba.pydata.org/), or other arbitrary functions. DSPeed will carefully manage file I/O to optimize memory usage and performance. Processing chains are defined using highly portable JSON files that can be applied to data from multiple digitizers.
 
 See the [online documentation](https://dspeed.readthedocs.io/en/stable/) for more information!
+
+Please consider citing us using [https://doi.org/10.5281/zenodo.10684780](https://doi.org/10.5281/zenodo.10684780).
