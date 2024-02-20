@@ -43,13 +43,23 @@ def pole_zero(w_in: np.ndarray, t_tau: float, w_out: np.ndarray) -> None:
         return
 
     const = np.exp(-1 / t_tau)
-    w_out[0] = w_in[0]
+    w_tmp = np.zeros(
+        len(w_in), dtype=np.float64
+    )  # truncating the output array at float32 causes instabilities in the filter
+
+    w_tmp[0] = w_in[0]
     for i in range(1, len(w_in), 1):
-        w_out[i] = w_out[i - 1] + w_in[i] - w_in[i - 1] * const
+        w_tmp[i] = w_tmp[i - 1] + w_in[i] - w_in[i - 1] * const
+
+    # Check the output
+    if np.isnan(w_tmp).any():
+        raise DSPFatal("Pole-zero filter produced nans in output.")
+    w_out[:] = w_tmp[:]
 
 
 @guvectorize(
     [
+        "void(float32[:], float32, float32, float32, float32[:])",
         "void(float64[:], float64, float64, float64, float64[:])",
     ],
     "(n),(),(),()->(n)",
@@ -133,15 +143,22 @@ def double_pole_zero(
     transfer_num_1 = -1 * (a + b)
     transfer_num_2 = a * b
 
-    w_out[0] = w_in[0]
-    w_out[1] = w_in[1]
-    w_out[2] = w_in[2]
+    w_tmp = np.zeros(
+        len(w_in), dtype=np.float64
+    )  # truncating the output array at float32 causes instabilities in the filter
+    w_tmp[0] = w_in[0]
+    w_tmp[1] = w_in[1]
+    w_tmp[2] = w_in[2]
 
     for i in range(2, len(w_in), 1):
-        w_out[i] = (
+        w_tmp[i] = (
             w_in[i]
             + transfer_num_1 * w_in[i - 1]
             + transfer_num_2 * w_in[i - 2]
-            - transfer_denom_1 * w_out[i - 1]
-            - transfer_denom_2 * w_out[i - 2]
+            - transfer_denom_1 * w_tmp[i - 1]
+            - transfer_denom_2 * w_tmp[i - 2]
         )
+    # Check the output
+    if np.isnan(w_tmp).any():
+        raise DSPFatal("Pole-zero filter produced nans in output.")
+    w_out[:] = w_tmp[:]

@@ -11,9 +11,9 @@ def test_pole_zero(compare_numba_vs_python):
     """
 
     # Create a single exponential pulse to pole-zero correct
-    tau = 10
-    ts = np.arange(0, 100)
-    amplitude = 10
+    tau = 30000
+    ts = np.arange(0, 8192)
+    amplitude = 17500
     pulse_in = np.insert(amplitude * np.exp(-ts / tau), 0, np.zeros(20))
     pulse_in = np.array(pulse_in, dtype=np.float32)
 
@@ -27,9 +27,18 @@ def test_pole_zero(compare_numba_vs_python):
     step = np.full(len(ts), amplitude)
     w_out_expected = np.insert(step, 0, np.zeros(20))
 
+    # Check that it works at float32 precision
+    pulse_in.astype(np.float32)
+    tau = np.array([tau], dtype=np.float32)[0]
     assert np.allclose(
-        compare_numba_vs_python(pole_zero, pulse_in, tau),
-        w_out_expected,
+        compare_numba_vs_python(pole_zero, pulse_in, tau), w_out_expected, rtol=1e-07
+    )
+
+    # Check that it works at float64 precision
+    pulse_in.astype(np.float64)
+    tau = np.array([tau], dtype=np.float64)[0]
+    assert np.allclose(
+        compare_numba_vs_python(pole_zero, pulse_in, tau), w_out_expected, rtol=1e-07
     )
 
 
@@ -71,4 +80,16 @@ def test_double_pole_zero(compare_numba_vs_python):
     assert np.allclose(
         compare_numba_vs_python(double_pole_zero, pulse_in, tau1, tau2, frac),
         w_out_expected,
+        rtol=1e-7,
+    )
+
+    # Make sure that the processor also works for float32 precision
+    pulse_in.astype(np.float32)
+    tau1 = np.array([tau1], dtype=np.float32)[0]
+    tau2 = np.array([tau2], dtype=np.float32)[0]
+    frac = np.array([frac], dtype=np.float32)[0]
+    assert np.allclose(
+        compare_numba_vs_python(double_pole_zero, pulse_in, tau1, tau2, frac),
+        w_out_expected,
+        rtol=1e-7,
     )
