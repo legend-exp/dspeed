@@ -65,6 +65,7 @@ Table of Contents
 
    Source Code <https://github.com/legend-exp/dspeed>
    License <https://github.com/legend-exp/dspeed/blob/main/LICENSE>
+   Citation <https://zenodo.org/doi/10.5281/zenodo.10684779>
    Changelog <https://github.com/legend-exp/dspeed/releases>
    developer
 
