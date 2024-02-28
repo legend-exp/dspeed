@@ -57,7 +57,7 @@ Table of Contents
 
    LEGEND Data Objects <https://legend-pydataobj.readthedocs.io>
    Decoding Digitizer Data <https://legend-daq2lh5.readthedocs.io>
-   Data processing and analysis <https://pygama.readthedocs.io>
+   pygama <https://pygama.readthedocs.io>
 
 .. toctree::
    :maxdepth: 1
