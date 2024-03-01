@@ -216,7 +216,6 @@ def test_proc_chain_coordinate_grid(spms_raw_tbl):
 
     proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
     proc_chain.execute(0, 1)
-    print(lh5_out["tp"][0], lh5_out["tp_window"][0], lh5_out["tp_downsample"][0])
     assert lh5_out["a_window"][0] == lh5_out["a_downsample"][0]
     assert lh5_out["tp_window"][0] == lh5_out["tp"][0]
     assert -128 < lh5_out["tp_downsample"][0] - lh5_out["tp"][0] < 128
