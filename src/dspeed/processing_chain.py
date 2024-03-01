@@ -7,7 +7,6 @@ from __future__ import annotations
 import ast
 import importlib
 import itertools as it
-import json
 import logging
 import re
 from abc import ABCMeta, abstractmethod
@@ -20,6 +19,7 @@ import numpy as np
 from lgdo import LGDO, lh5
 from numba import guvectorize, vectorize
 from pint import Quantity, Unit
+from yaml import dump, safe_load
 
 from .errors import DSPFatal, ProcessingChainError
 from .processors.round_to_nearest import round_to_nearest
@@ -59,10 +59,19 @@ class CoordinateGrid:
     offset: Quantity | ProcChainVar | float | int = 0
 
     def __post_init__(self) -> None:
-        # Copy constructor
+        # Copy constructor and conversions
         if isinstance(self.period, CoordinateGrid):
             self.offset = self.period.offset
             self.period = self.period.period
+        elif isinstance(self.period, ProcChainVar):
+            if self.period.grid in (None, auto):
+                raise ProcessingChainError(
+                    f"{self.period} does not have an assigned coordinate grid"
+                )
+            self.offset = self.period.offset
+            self.period = self.period.period
+        elif isinstance(self.period, tuple):
+            self.period, self.offset = self.period
 
         if isinstance(self.period, str):
             self.period = Quantity(1.0, self.period)
@@ -245,29 +254,32 @@ class ProcChainVar(ProcChainVarBase):
                 raise ProcessingChainError(f"cannot deduce dtype of {self.name}")
             self._buffer = self._make_buffer()
 
+        # if no unit is given, use the native unit/coordinate grid
+        if unit is None:
+            unit = self.grid if self.is_coord else self.unit
+        if not isinstance(unit, CoordinateGrid) and unit and unit in ureg:
+            unit = CoordinateGrid(unit)
+
         if isinstance(self._buffer, np.ndarray):
             if self.is_coord is True:
                 if isinstance(self.grid, CoordinateGrid):
                     pass
                 elif unit is not None:
                     self.grid = CoordinateGrid(unit)
-                else:
-                    self.grid = CoordinateGrid(self.unit)
-                self._buffer = [(self._buffer, self.grid)]
-            elif self.unit is None or not (
-                isinstance(self.unit, (Unit, Quantity)) or self.unit in ureg
+
+            if unit is None or not (
+                isinstance(unit, (Unit, Quantity, CoordinateGrid)) or unit in ureg
             ):
                 # buffer cannot be converted so return
                 return self._buffer
             else:
                 # buffer can be converted, so make it a list of buffers
-                self._buffer = [(self._buffer, CoordinateGrid(self.unit))]
+                self._buffer = [(self._buffer, unit)]
 
-        # if no unit is given, use the native unit
-        if unit is None:
-            unit = self.unit
-        if not isinstance(unit, CoordinateGrid) and unit in ureg:
-            unit = CoordinateGrid(unit)
+        if unit is None or not (
+            isinstance(unit, (Unit, Quantity, CoordinateGrid)) or unit in ureg
+        ):
+            return self._buffer[0][0]
 
         # check if coordinate conversion has been done already
         for buff, buf_u in self._buffer:
@@ -655,7 +667,12 @@ class ProcessingChain:
         return buff
 
     def add_processor(
-        self, func: np.ufunc, *args, signature: str = None, types: list[str] = None
+        self,
+        func: np.ufunc,
+        *args,
+        signature: str = None,
+        types: list[str] = None,
+        coord_grid: tuple | str = None,
     ) -> None:
         """Make a list of parameters from `*args`. Replace any strings in the
         list with NumPy objects from `vars_dict`, where able.
@@ -670,7 +687,12 @@ class ProcessingChain:
             else:
                 params.append(param)
 
-        proc_man = ProcessorManager(self, func, params, kw_params, signature, types)
+        if coord_grid is not None:
+            coord_grid = CoordinateGrid(coord_grid)
+
+        proc_man = ProcessorManager(
+            self, func, params, kw_params, signature, types, coord_grid
+        )
         self._proc_managers.append(proc_man)
         log.debug(f"added processor: {proc_man}")
 
@@ -967,7 +989,7 @@ class ProcessingChain:
                 for kwarg in node.keywords
             }
             if func is not None:
-                return func(*args, **kwargs)
+                return func(*args, **kwargs) if not dry_run else None
             elif self._validate_name(node.func.id):
                 var_name = node.func.id
                 var_name_list.append(var_name)
@@ -1181,6 +1203,7 @@ class ProcessorManager:
         kw_params: dict = None,
         signature: str = None,
         types: list[str] = None,
+        grid: CoordinateGrid = None,
     ) -> None:
         assert (
             isinstance(proc_chain, ProcessingChain)
@@ -1237,7 +1260,6 @@ class ProcessorManager:
 
         dims_dict = {}  # map from dim name -> DimInfo
         outerdims = []  # list of DimInfo
-        grid = None  # period/offset to use for unit and coordinate conversions
 
         for ipar, (dims, param) in enumerate(
             zip(dims_list, it.chain(self.params, self.kw_params.values()))
@@ -1410,7 +1432,9 @@ class ProcessorManager:
                 for idim in range(-1, -1 - len(shape), -1):
                     if len(arshape) < -idim or arshape[idim] != shape[idim]:
                         arshape.insert(len(arshape) + idim + 1, 1)
-                param = param.get_buffer(grid).reshape(arshape)
+                param = param.get_buffer(grid if param.is_coord else None).reshape(
+                    arshape
+                )
 
             elif isinstance(param, str):
                 # Convert string into integer buffer if appropriate
@@ -1515,10 +1539,6 @@ class UnitConversionManager(ProcessorManager):
         else:
             self.processor = UnitConversionManager.convert_int
 
-        # list of parameters prior to converting to internal representation
-        self.params = [var, unit]
-        self.kw_params = {}
-
         to_offset = 0
         if isinstance(unit, CoordinateGrid):
             to_offset = unit.get_offset()
@@ -1531,6 +1551,10 @@ class UnitConversionManager(ProcessorManager):
             from_unit = var.unit
             if isinstance(from_unit, str) and from_unit in ureg:
                 from_unit = ureg.Quantity(from_unit)
+
+        # list of parameters prior to converting to internal representation
+        self.params = [var]
+        self.kw_params = {"from": from_unit, "to": unit}
 
         if isinstance(from_unit, CoordinateGrid):
             ratio = from_unit.get_period(unit)
@@ -1932,7 +1956,7 @@ def build_processing_chain(
 ) -> tuple[ProcessingChain, list[str], lgdo.Table]:
     """Produces a :class:`ProcessingChain` object and an LH5
     :class:`~lgdo.types.table.Table` for output parameters from an input LH5
-    :class:`~lgdo.types.table.Table` and a JSON recipe.
+    :class:`~lgdo.types.table.Table` and a JSON or YAML recipe.
 
     Parameters
     ----------
@@ -1941,7 +1965,7 @@ def build_processing_chain(
         should be read in prior to calling this!
 
     dsp_config
-        A dictionary or JSON filename containing the recipes for computing DSP
+        A dictionary or YAML/JSON filename containing the recipes for computing DSP
         parameter from raw parameters. The format is as follows:
 
         .. code-block:: json
@@ -2015,14 +2039,14 @@ def build_processing_chain(
 
     if isinstance(dsp_config, str):
         with open(lh5.utils.expand_path(dsp_config)) as f:
-            dsp_config = json.load(f)
+            dsp_config = safe_load(f)
     elif dsp_config is None:
         dsp_config = {"outputs": [], "processors": {}}
     elif isinstance(dsp_config, dict):
         # We don't want to modify the input!
         dsp_config = deepcopy(dsp_config)
     else:
-        raise ValueError("dsp_config must be a dict, json file, or None")
+        raise ValueError("dsp_config must be a dict, json/yaml file, or None")
 
     if outputs is None:
         outputs = dsp_config["outputs"]
@@ -2191,8 +2215,18 @@ def build_processing_chain(
                 log.debug(f"setting {new_var} = {fun_var}")
                 continue
 
-            module = importlib.import_module(recipe["module"])
-            func = getattr(module, recipe["function"])
+            if "module" in recipe:
+                module = importlib.import_module(recipe["module"])
+                func = getattr(module, recipe["function"])
+            else:
+                p = recipe["function"].rfind(".")
+                if p < 0:
+                    raise ProcessingChainError(
+                        f"Must provide a module for function {recipe['function']}"
+                    )
+                module = importlib.import_module(recipe["function"][:p])
+                func = getattr(module, recipe["function"][p + 1 :])
+
             args = recipe["args"]
             new_vars = [k for k in re.split(",| ", proc_par) if k != ""]
 
@@ -2207,6 +2241,13 @@ def build_processing_chain(
 
             # get this list of kwargs
             kwargs = recipe.get("kwargs", {})  # might also need db lookup here
+            kwargs.update(
+                {
+                    key: recipe[key]
+                    for key in ["signature", "types", "coord_grid"]
+                    if key in recipe
+                }
+            )
 
             # if init_args are defined, parse any strings and then call func
             # as a factory/constructor function
@@ -2307,8 +2348,7 @@ def build_processing_chain(
 
         except Exception as e:
             raise ProcessingChainError(
-                "Exception raised while attempting to add processor:\n"
-                + json.dumps(recipe, indent=2)
+                "Exception raised while attempting to add processor:\n" + dump(recipe)
             ) from e
 
     # build the output buffers
