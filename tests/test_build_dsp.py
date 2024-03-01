@@ -21,6 +21,7 @@ def test_build_dsp_json(lgnd_test_data, tmptestdir):
     )
     assert os.path.exists(out_name)
 
+
 def test_build_dsp_yaml(lgnd_test_data, tmptestdir):
     out_name = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds_dsp.lh5"
     build_dsp(

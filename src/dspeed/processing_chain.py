@@ -7,7 +7,6 @@ from __future__ import annotations
 import ast
 import importlib
 import itertools as it
-from yaml import safe_load, dump
 import logging
 import re
 from abc import ABCMeta, abstractmethod
@@ -20,6 +19,7 @@ import numpy as np
 from lgdo import LGDO, lh5
 from numba import guvectorize, vectorize
 from pint import Quantity, Unit
+from yaml import dump, safe_load
 
 from .errors import DSPFatal, ProcessingChainError
 from .processors.round_to_nearest import round_to_nearest
@@ -65,7 +65,9 @@ class CoordinateGrid:
             self.period = self.period.period
         elif isinstance(self.period, ProcChainVar):
             if self.period.grid in (None, auto):
-                raise ProcessingChainError(f"{self.period} does not have an assigned coordinate grid")
+                raise ProcessingChainError(
+                    f"{self.period} does not have an assigned coordinate grid"
+                )
             self.offset = self.period.offset
             self.period = self.period.period
         elif isinstance(self.period, tuple):
@@ -275,10 +277,10 @@ class ProcChainVar(ProcChainVarBase):
                 self._buffer = [(self._buffer, unit)]
 
         if unit is None or not (
-                isinstance(unit, (Unit, Quantity, CoordinateGrid)) or unit in ureg
-            ):
+            isinstance(unit, (Unit, Quantity, CoordinateGrid)) or unit in ureg
+        ):
             return self._buffer[0][0]
-        
+
         # check if coordinate conversion has been done already
         for buff, buf_u in self._buffer:
             if buf_u == unit:
@@ -665,7 +667,12 @@ class ProcessingChain:
         return buff
 
     def add_processor(
-        self, func: np.ufunc, *args, signature: str = None, types: list[str] = None, coord_grid: tuple | str = None
+        self,
+        func: np.ufunc,
+        *args,
+        signature: str = None,
+        types: list[str] = None,
+        coord_grid: tuple | str = None,
     ) -> None:
         """Make a list of parameters from `*args`. Replace any strings in the
         list with NumPy objects from `vars_dict`, where able.
@@ -683,7 +690,9 @@ class ProcessingChain:
         if coord_grid is not None:
             coord_grid = CoordinateGrid(coord_grid)
 
-        proc_man = ProcessorManager(self, func, params, kw_params, signature, types, coord_grid)
+        proc_man = ProcessorManager(
+            self, func, params, kw_params, signature, types, coord_grid
+        )
         self._proc_managers.append(proc_man)
         log.debug(f"added processor: {proc_man}")
 
@@ -1194,7 +1203,7 @@ class ProcessorManager:
         kw_params: dict = None,
         signature: str = None,
         types: list[str] = None,
-        grid: CoordinateGrid = None
+        grid: CoordinateGrid = None,
     ) -> None:
         assert (
             isinstance(proc_chain, ProcessingChain)
@@ -1423,7 +1432,9 @@ class ProcessorManager:
                 for idim in range(-1, -1 - len(shape), -1):
                     if len(arshape) < -idim or arshape[idim] != shape[idim]:
                         arshape.insert(len(arshape) + idim + 1, 1)
-                param = param.get_buffer(grid if param.is_coord else None).reshape(arshape)
+                param = param.get_buffer(grid if param.is_coord else None).reshape(
+                    arshape
+                )
 
             elif isinstance(param, str):
                 # Convert string into integer buffer if appropriate
@@ -1528,7 +1539,6 @@ class UnitConversionManager(ProcessorManager):
         else:
             self.processor = UnitConversionManager.convert_int
 
-
         to_offset = 0
         if isinstance(unit, CoordinateGrid):
             to_offset = unit.get_offset()
@@ -1545,7 +1555,7 @@ class UnitConversionManager(ProcessorManager):
         # list of parameters prior to converting to internal representation
         self.params = [var]
         self.kw_params = {"from": from_unit, "to": unit}
-        
+
         if isinstance(from_unit, CoordinateGrid):
             ratio = from_unit.get_period(unit)
             from_offset = from_unit.get_offset()
@@ -2209,11 +2219,13 @@ def build_processing_chain(
                 module = importlib.import_module(recipe["module"])
                 func = getattr(module, recipe["function"])
             else:
-                p = recipe["function"].rfind('.')
-                if p<0:
-                    raise ProcessingChainError(f"Must provide a module for function {recipe['function']}")
+                p = recipe["function"].rfind(".")
+                if p < 0:
+                    raise ProcessingChainError(
+                        f"Must provide a module for function {recipe['function']}"
+                    )
                 module = importlib.import_module(recipe["function"][:p])
-                func = getattr(module, recipe["function"][p+1:])
+                func = getattr(module, recipe["function"][p + 1 :])
 
             args = recipe["args"]
             new_vars = [k for k in re.split(",| ", proc_par) if k != ""]
@@ -2229,7 +2241,13 @@ def build_processing_chain(
 
             # get this list of kwargs
             kwargs = recipe.get("kwargs", {})  # might also need db lookup here
-            kwargs.update({key:recipe[key] for key in ["signature", "types", "coord_grid"] if key in recipe})
+            kwargs.update(
+                {
+                    key: recipe[key]
+                    for key in ["signature", "types", "coord_grid"]
+                    if key in recipe
+                }
+            )
 
             # if init_args are defined, parse any strings and then call func
             # as a factory/constructor function
@@ -2330,8 +2348,7 @@ def build_processing_chain(
 
         except Exception as e:
             raise ProcessingChainError(
-                "Exception raised while attempting to add processor:\n"
-                + dump(recipe)
+                "Exception raised while attempting to add processor:\n" + dump(recipe)
             ) from e
 
     # build the output buffers

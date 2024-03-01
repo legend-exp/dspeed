@@ -4,7 +4,6 @@ on waveform data.
 """
 from __future__ import annotations
 
-from yaml import safe_load
 import logging
 import os
 
@@ -12,6 +11,7 @@ import h5py
 import numpy as np
 from lgdo import lh5
 from tqdm.auto import tqdm
+from yaml import safe_load
 
 from .errors import DSPFatal
 from .processing_chain import build_processing_chain

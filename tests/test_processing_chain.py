@@ -185,19 +185,31 @@ def test_proc_chain_coordinate_grid(spms_raw_tbl):
                 "function": "time_point_thresh",
                 "module": "dspeed.processors",
                 "args": ["waveform", "a_window", "52.48*us+waveform.offset", 0, "tp"],
-                "unit": "ns"
+                "unit": "ns",
             },
             "tp_window": {
                 "function": "time_point_thresh",
                 "module": "dspeed.processors",
-                "args": ["waveform[2625:4025]", "a_window", "52.48*us+waveform.offset", 0, "tp_window"],
-                "unit": "ns"
+                "args": [
+                    "waveform[2625:4025]",
+                    "a_window",
+                    "52.48*us+waveform.offset",
+                    0,
+                    "tp_window",
+                ],
+                "unit": "ns",
             },
             "tp_downsample": {
                 "function": "time_point_thresh",
                 "module": "dspeed.processors",
-                "args": ["waveform[0:8000:8]", "a_window", "52.48*us+waveform.offset", 0, "tp_downsample"],
-                "unit": "ns"
+                "args": [
+                    "waveform[0:8000:8]",
+                    "a_window",
+                    "52.48*us+waveform.offset",
+                    0,
+                    "tp_downsample",
+                ],
+                "unit": "ns",
             },
         },
     }
