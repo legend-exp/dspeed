@@ -252,30 +252,33 @@ class ProcChainVar(ProcChainVarBase):
                 raise ProcessingChainError(f"cannot deduce dtype of {self.name}")
             self._buffer = self._make_buffer()
 
+        # if no unit is given, use the native unit/coordinate grid
+        if unit is None:
+            unit = self.grid if self.is_coord else self.unit
+        if not isinstance(unit, CoordinateGrid) and unit and unit in ureg:
+            unit = CoordinateGrid(unit)
+
         if isinstance(self._buffer, np.ndarray):
             if self.is_coord is True:
                 if isinstance(self.grid, CoordinateGrid):
                     pass
                 elif unit is not None:
                     self.grid = CoordinateGrid(unit)
-                else:
-                    self.grid = CoordinateGrid(self.unit)
-                self._buffer = [(self._buffer, self.grid)]
-            elif self.unit is None or not (
-                isinstance(self.unit, (Unit, Quantity)) or self.unit in ureg
+
+            if unit is None or not (
+                isinstance(unit, (Unit, Quantity, CoordinateGrid)) or unit in ureg
             ):
                 # buffer cannot be converted so return
                 return self._buffer
             else:
                 # buffer can be converted, so make it a list of buffers
-                self._buffer = [(self._buffer, CoordinateGrid(self.unit))]
+                self._buffer = [(self._buffer, unit)]
 
-        # if no unit is given, use the native unit
-        if unit is None:
-            unit = self.unit
-        if not isinstance(unit, CoordinateGrid) and unit in ureg:
-            unit = CoordinateGrid(unit)
-
+        if unit is None or not (
+                isinstance(unit, (Unit, Quantity, CoordinateGrid)) or unit in ureg
+            ):
+            return self._buffer[0][0]
+        
         # check if coordinate conversion has been done already
         for buff, buf_u in self._buffer:
             if buf_u == unit:
@@ -1420,7 +1423,7 @@ class ProcessorManager:
                 for idim in range(-1, -1 - len(shape), -1):
                     if len(arshape) < -idim or arshape[idim] != shape[idim]:
                         arshape.insert(len(arshape) + idim + 1, 1)
-                param = param.get_buffer(grid).reshape(arshape)
+                param = param.get_buffer(grid if param.is_coord else None).reshape(arshape)
 
             elif isinstance(param, str):
                 # Convert string into integer buffer if appropriate
@@ -1525,9 +1528,6 @@ class UnitConversionManager(ProcessorManager):
         else:
             self.processor = UnitConversionManager.convert_int
 
-        # list of parameters prior to converting to internal representation
-        self.params = [var, unit]
-        self.kw_params = {}
 
         to_offset = 0
         if isinstance(unit, CoordinateGrid):
@@ -1542,6 +1542,10 @@ class UnitConversionManager(ProcessorManager):
             if isinstance(from_unit, str) and from_unit in ureg:
                 from_unit = ureg.Quantity(from_unit)
 
+        # list of parameters prior to converting to internal representation
+        self.params = [var]
+        self.kw_params = {"from": from_unit, "to": unit}
+        
         if isinstance(from_unit, CoordinateGrid):
             ratio = from_unit.get_period(unit)
             from_offset = from_unit.get_offset()
