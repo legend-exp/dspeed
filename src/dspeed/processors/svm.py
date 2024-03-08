@@ -64,6 +64,9 @@ def svm_predict(svm_file: str) -> Callable:
            The predicted label by the trained SVM for the input waveform.
         """
         label_out[0] = np.nan
+        
+        if np.isnan(w_in).any():
+            return
 
         if w_in.ndim == 1:
             label_out[0] = svm.predict(w_in.reshape(1, -1))
