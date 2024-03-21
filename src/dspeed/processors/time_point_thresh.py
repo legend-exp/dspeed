@@ -115,13 +115,18 @@ def interpolated_time_point_thresh(
 
         * ``i`` -- integer `t_in`; equivalent to
           :func:`~.dsp.processors.fixed_sample_pickoff`
-        * ``f`` -- floor; interpolated values are at previous neighbor, so
-          threshold crossing is at next neighbor
-        * ``c`` -- ceiling, interpolated values are at next neighbor, so
-          threshold crossing is at previous neighbor
+        * ``b`` -- before; closest integer sample before threshold crossing
+        * ``a`` -- after; closest integer sample after threshold crossing
+        * ``r`` -- round; round to nearest integer sample to threshold crossing
+        * ``l`` -- linear interpolation
+        The following modes are meant to mirror the options 
+        dspeed.upsampler
+        * ``f`` -- floor; interpolated values are at previous neighbor.
+          Equivalent to ``a``
+        * ``c`` -- ceiling, interpolated values are at next neighbor.
+          Equivalent to ``b``
         * ``n`` -- nearest-neighbor interpolation; threshold crossing is
           half-way between samples
-        * ``l`` -- linear interpolation
         * ``h`` -- Hermite cubic spline interpolation (*not implemented*)
         * ``s`` -- natural cubic spline interpolation (*not implemented*)
     t_out
@@ -169,10 +174,15 @@ def interpolated_time_point_thresh(
 
     if mode_in == ord("i"):  # return index before crossing
         t_out[0] = i_cross
-    elif mode_in == ord("f"):  # return index after crossing
+    elif mode_in in (ord("a"), ord("f")):  # return index after crossing
         t_out[0] = i_cross + 1
-    elif mode_in == ord("c"):  # return index before crossing
+    elif mode_in in (ord("b"), ord("c")):  # return index before crossing
         t_out[0] = i_cross
+    elif mode_in == ord("r"):  # return closest index to crossing
+        if abs(a_threshold - w_in[i_cross]) < abs(a_threshold - w_in[i_cross+1]):
+            t_out[0] = i_cross
+        else:
+            t_out[0] = i_cross + 1
     elif mode_in == ord("n"):  # nearest-neighbor; return half-way between samps
         t_out[0] = i_cross + 0.5
     elif mode_in == ord("l"):  # linear
