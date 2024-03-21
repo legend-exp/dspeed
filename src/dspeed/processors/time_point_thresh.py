@@ -119,8 +119,10 @@ def interpolated_time_point_thresh(
         * ``a`` -- after; closest integer sample after threshold crossing
         * ``r`` -- round; round to nearest integer sample to threshold crossing
         * ``l`` -- linear interpolation
+
         The following modes are meant to mirror the options
         dspeed.upsampler
+
         * ``f`` -- floor; interpolated values are at previous neighbor.
           Equivalent to ``a``
         * ``c`` -- ceiling, interpolated values are at next neighbor.
@@ -236,8 +238,10 @@ def multi_time_point_thresh(
         * ``a`` -- after; closest integer sample after threshold crossing
         * ``r`` -- round; round to nearest integer sample to threshold crossing
         * ``l`` -- linear interpolation
+
         The following modes are meant to mirror the options
         dspeed.upsampler
+
         * ``f`` -- floor; interpolated values are at previous neighbor.
           Equivalent to ``a``
         * ``c`` -- ceiling, interpolated values are at next neighbor.
