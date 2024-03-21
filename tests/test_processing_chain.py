@@ -157,7 +157,7 @@ def test_processor_variable_array_output(spms_raw_tbl):
 # a windowed wf and a down-sampled waveform; they should be the same
 def test_proc_chain_coordinate_grid(spms_raw_tbl):
     dsp_config = {
-        "outputs": ["a_window", "a_downsample"],
+        "outputs": ["a_window", "a_downsample", "tp", "tp_window", "tp_downsample"],
         "processors": {
             "a_window": {
                 "function": "fixed_time_pickoff",
@@ -181,12 +181,44 @@ def test_proc_chain_coordinate_grid(spms_raw_tbl):
                 ],
                 "unit": ["ADC"],
             },
+            "tp": {
+                "function": "time_point_thresh",
+                "module": "dspeed.processors",
+                "args": ["waveform", "a_window", "52.48*us+waveform.offset", 0, "tp"],
+                "unit": "ns",
+            },
+            "tp_window": {
+                "function": "time_point_thresh",
+                "module": "dspeed.processors",
+                "args": [
+                    "waveform[2625:4025]",
+                    "a_window",
+                    "52.48*us+waveform.offset",
+                    0,
+                    "tp_window",
+                ],
+                "unit": "ns",
+            },
+            "tp_downsample": {
+                "function": "time_point_thresh",
+                "module": "dspeed.processors",
+                "args": [
+                    "waveform[0:8000:8]",
+                    "a_window",
+                    "52.48*us+waveform.offset",
+                    0,
+                    "tp_downsample",
+                ],
+                "unit": "ns",
+            },
         },
     }
 
     proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
     proc_chain.execute(0, 1)
     assert lh5_out["a_window"][0] == lh5_out["a_downsample"][0]
+    assert lh5_out["tp_window"][0] == lh5_out["tp"][0]
+    assert -128 < lh5_out["tp_downsample"][0] - lh5_out["tp"][0] < 128
 
 
 def test_proc_chain_round(spms_raw_tbl):

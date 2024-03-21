@@ -57,7 +57,7 @@ Table of Contents
 
    LEGEND Data Objects <https://legend-pydataobj.readthedocs.io>
    Decoding Digitizer Data <https://legend-daq2lh5.readthedocs.io>
-   Data processing and analysis <https://pygama.readthedocs.io>
+   pygama <https://pygama.readthedocs.io>
 
 .. toctree::
    :maxdepth: 1
@@ -65,6 +65,7 @@ Table of Contents
 
    Source Code <https://github.com/legend-exp/dspeed>
    License <https://github.com/legend-exp/dspeed/blob/main/LICENSE>
+   Citation <https://zenodo.org/doi/10.5281/zenodo.10684779>
    Changelog <https://github.com/legend-exp/dspeed/releases>
    developer
 

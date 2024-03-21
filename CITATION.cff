@@ -1,8 +1,7 @@
 cff-version: 1.2.0
 title: dspeed
-doi: FILLME
-date-released: 2024-01-01
-url: https://github.com/github-linguist/linguist
+doi: https://doi.org/10.5281/zenodo.10684779
+date-released: 2024-02-20
 message: "If you use this software, please cite it as below."
 authors:
   - family-names: Guinn
