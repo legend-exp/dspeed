@@ -92,7 +92,11 @@ from .saturation import saturation
 from .soft_pileup_corr import soft_pileup_corr, soft_pileup_corr_bl
 from .svm import svm_predict
 from .time_over_threshold import time_over_threshold
-from .time_point_thresh import interpolated_time_point_thresh, time_point_thresh, multi_time_point_thresh
+from .time_point_thresh import (
+    interpolated_time_point_thresh,
+    multi_time_point_thresh,
+    time_point_thresh,
+)
 from .transfer_function_convolver import transfer_function_convolver
 from .trap_filters import asym_trap_filter, trap_filter, trap_norm, trap_pickoff
 from .upsampler import interpolating_upsampler, upsampler

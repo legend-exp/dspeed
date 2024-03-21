@@ -119,7 +119,7 @@ def interpolated_time_point_thresh(
         * ``a`` -- after; closest integer sample after threshold crossing
         * ``r`` -- round; round to nearest integer sample to threshold crossing
         * ``l`` -- linear interpolation
-        The following modes are meant to mirror the options 
+        The following modes are meant to mirror the options
         dspeed.upsampler
         * ``f`` -- floor; interpolated values are at previous neighbor.
           Equivalent to ``a``
@@ -179,7 +179,7 @@ def interpolated_time_point_thresh(
     elif mode_in in (ord("b"), ord("c")):  # return index before crossing
         t_out[0] = i_cross
     elif mode_in == ord("r"):  # return closest index to crossing
-        if abs(a_threshold - w_in[i_cross]) < abs(a_threshold - w_in[i_cross+1]):
+        if abs(a_threshold - w_in[i_cross]) < abs(a_threshold - w_in[i_cross + 1]):
             t_out[0] = i_cross
         else:
             t_out[0] = i_cross + 1
@@ -236,7 +236,7 @@ def multi_time_point_thresh(
         * ``a`` -- after; closest integer sample after threshold crossing
         * ``r`` -- round; round to nearest integer sample to threshold crossing
         * ``l`` -- linear interpolation
-        The following modes are meant to mirror the options 
+        The following modes are meant to mirror the options
         dspeed.upsampler
         * ``f`` -- floor; interpolated values are at previous neighbor.
           Equivalent to ``a``
@@ -263,20 +263,19 @@ def multi_time_point_thresh(
     """
     t_out[:] = np.nan
 
-    if (
-        np.isnan(w_in).any()
-        or np.isnan(a_threshold).any()
-        or np.isnan(t_start)
-    ):
+    if np.isnan(w_in).any() or np.isnan(a_threshold).any() or np.isnan(t_start):
         return
 
     if t_start < 0 or t_start >= len(w_in):
         return
 
     # make polarity +/- 1
-    if polarity>0: polarity = 1
-    elif polarity<0: polarity = -1
-    else: raise DSPFatal("polarity cannot be 0")
+    if polarity > 0:
+        polarity = 1
+    elif polarity < 0:
+        polarity = -1
+    else:
+        raise DSPFatal("polarity cannot be 0")
 
     sorted_idx = np.argsort(a_threshold)
 
@@ -291,24 +290,30 @@ def multi_time_point_thresh(
 
     # Search for timepoints at larger values
     i_tp = i_start
-    if i_tp<len(sorted_idx):
+    if i_tp < len(sorted_idx):
         idx = sorted_idx[i_tp]
-        for i_wf in range(t_start, len(w_in)-1 if polarity>0 else -1, polarity):
-            if i_tp >= len(sorted_idx): break
+        for i_wf in range(t_start, len(w_in) - 1 if polarity > 0 else -1, polarity):
+            if i_tp >= len(sorted_idx):
+                break
             while w_in[i_wf] <= a_threshold[idx] < w_in[i_wf + polarity]:
                 if mode_in == ord("i"):  # return index closest to start of search
                     t_out[idx] = i_wf
                 elif mode_in in (ord("a"), ord("f")):  # return index after crossing
-                    t_out[idx] = i_wf if polarity<0 else i_wf + 1
+                    t_out[idx] = i_wf if polarity < 0 else i_wf + 1
                 elif mode_in in (ord("b"), ord("c")):  # return index before crossing
-                    t_out[idx] = i_wf if polarity>0 else i_wf - 1
+                    t_out[idx] = i_wf if polarity > 0 else i_wf - 1
                 elif mode_in == ord("r"):  # round; return closest index
-                    if a_threshold[idx] - w_in[i_wf] < w_in[i_wf+polarity] - a_threshold[sorted_idx[i_tp]]:
+                    if (
+                        a_threshold[idx] - w_in[i_wf]
+                        < w_in[i_wf + polarity] - a_threshold[sorted_idx[i_tp]]
+                    ):
                         t_out[idx] = i_wf
                     else:
                         t_out[idx] = i_wf + polarity
-                elif mode_in == ord("n"):  # nearest-neighbor; return half-way between samps
-                    t_out[idx] = i_wf + 0.5*polarity
+                elif mode_in == ord(
+                    "n"
+                ):  # nearest-neighbor; return half-way between samps
+                    t_out[idx] = i_wf + 0.5 * polarity
                 elif mode_in == ord("l"):  # linear
                     t_out[idx] = i_wf + (a_threshold[idx] - w_in[i_wf]) / (
                         w_in[i_wf + polarity] - w_in[i_wf]
@@ -316,29 +321,38 @@ def multi_time_point_thresh(
                 else:
                     raise DSPFatal("Unrecognized interpolation mode")
                 i_tp += 1
-                if i_tp >= len(sorted_idx): break
+                if i_tp >= len(sorted_idx):
+                    break
                 idx = sorted_idx[i_tp]
 
     # Search for timepoints at smaller values
-    i_tp = i_start-1
+    i_tp = i_start - 1
     if i_tp >= 0:
         idx = sorted_idx[i_tp]
-        for i_wf in range(t_start-1, len(w_in)-1 if polarity<0 else -1, -polarity):
-            if i_tp < 0: break
-            while w_in[i_wf] <= a_threshold[idx] < w_in[i_wf+polarity]:
+        for i_wf in range(
+            t_start - 1, len(w_in) - 1 if polarity < 0 else -1, -polarity
+        ):
+            if i_tp < 0:
+                break
+            while w_in[i_wf] <= a_threshold[idx] < w_in[i_wf + polarity]:
                 if mode_in == ord("i"):  # return index closest to start of search
                     t_out[idx] = i_wf
                 elif mode_in in (ord("a"), ord("f")):  # return index after crossing
-                    t_out[idx] = i_wf if polarity<0 else i_wf + 1
+                    t_out[idx] = i_wf if polarity < 0 else i_wf + 1
                 elif mode_in in (ord("b"), ord("c")):  # return index before crossing
-                    t_out[idx] = i_wf if polarity>0 else i_wf - 1
+                    t_out[idx] = i_wf if polarity > 0 else i_wf - 1
                 elif mode_in == ord("r"):  # round; return closest index
-                    if a_threshold[idx] - w_in[i_wf] < w_in[i_wf + polarity] - a_threshold[idx]:
+                    if (
+                        a_threshold[idx] - w_in[i_wf]
+                        < w_in[i_wf + polarity] - a_threshold[idx]
+                    ):
                         t_out[idx] = i_wf
                     else:
                         t_out[idx] = i_wf + polarity
-                elif mode_in == ord("n"):  # nearest-neighbor; return half-way between samps
-                    t_out[idx] = i_wf + 0.5*polarity
+                elif mode_in == ord(
+                    "n"
+                ):  # nearest-neighbor; return half-way between samps
+                    t_out[idx] = i_wf + 0.5 * polarity
                 elif mode_in == ord("l"):  # linear
                     t_out[idx] = i_wf + (a_threshold[idx] - w_in[i_wf]) / (
                         w_in[i_wf + polarity] - w_in[i_wf]
@@ -346,5 +360,6 @@ def multi_time_point_thresh(
                 else:
                     raise DSPFatal("Unrecognized interpolation mode")
                 i_tp -= 1
-                if i_tp < 0: break
+                if i_tp < 0:
+                    break
                 idx = sorted_idx[i_tp]
