@@ -71,7 +71,7 @@ def time_point_thresh(
                 t_out[0] = i
                 return
     else:
-        for i in range(int(t_start), 1, -1):
+        for i in range(int(t_start), 0, -1):
             if w_in[i - 1] < a_threshold <= w_in[i]:
                 t_out[0] = i
                 return
