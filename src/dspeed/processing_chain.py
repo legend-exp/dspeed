@@ -488,8 +488,8 @@ class ProcessingChain:
         """
 
         param = self.get_variable(varname)
-        assert param.is_constant or param._buffer is None
-        param.is_constant = True
+        assert param.is_const or param._buffer is None
+        param.is_const = True
 
         if isinstance(val, Quantity):
             unit = val.unit
