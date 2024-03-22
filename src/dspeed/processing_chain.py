@@ -880,7 +880,7 @@ class ProcessingChain:
             val = self._parse_expr(node.value, expr, dry_run, var_name_list)
             if val is None:
                 return None
-            if not isinstance(val, ProcChainVar):
+            if not isinstance(val, ProcChainVar) or not len(val.shape)>0:
                 raise ProcessingChainError("Cannot apply subscript to", node.value)
 
             def get_index(slice_value):
@@ -898,10 +898,10 @@ class ProcessingChain:
                     return round_ret
                 return int(ret)
 
-            if isinstance(node.slice, ast.Index):
-                index = get_index(node.slice.value)
-                out_buf = val[..., index]
-                out_name = (f"{str(val)}[{index}]",)
+            if isinstance(node.slice, ast.Constant):
+                index = get_index(node.slice)
+                out_buf = val.buffer[..., index]
+                out_name = f"{str(val)}[{index}]"
                 out_grid = None
 
             elif isinstance(node.slice, ast.Slice):
