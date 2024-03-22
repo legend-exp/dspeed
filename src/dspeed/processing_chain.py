@@ -257,7 +257,7 @@ class ProcChainVar(ProcChainVarBase):
         # if no unit is given, use the native unit/coordinate grid
         if unit is None:
             unit = self.grid if self.is_coord else self.unit
-        if not isinstance(unit, CoordinateGrid) and unit and unit in ureg:
+        if not isinstance(unit, CoordinateGrid) and (isinstance(unit, (Unit, Quantity)) or unit and unit in ureg):
             unit = CoordinateGrid(unit)
 
         if isinstance(self._buffer, np.ndarray):
@@ -1721,19 +1721,28 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
         unit = io_array.attrs.get("units", None)
         var.update_auto(dtype=io_array.dtype, shape=io_array.nda.shape[1:], unit=unit)
 
-        if isinstance(var.unit, CoordinateGrid):
+        if isinstance(var.unit, (CoordinateGrid, Quantity, Unit)):
+            if isinstance(var.unit, CoordinateGrid):
+                var_u = var.unit.period.u
+            elif isinstance(var.unit, Quantity):
+                var_u = var.unit.u
+            else:
+                var_u = var.unit
+
             if unit is None:
-                unit = var.unit.period.u
-            elif ureg.is_compatible_with(var.unit.period, unit):
+                unit = var_u
+            elif ureg.is_compatible_with(var_u, unit):
                 unit = ureg.Quantity(unit).u
             else:
                 raise ProcessingChainError(
                     f"LGDO array and variable {var} have incompatible units "
-                    f"({var.unit.period.u} and {unit})"
+                    f"({var_u} and {unit})"
                 )
+        elif isinstance(var.unit, str) and unit is None:
+            unit = var.unit
 
-        if unit is None and var.unit is not None:
-            io_array.attrs["units"] = str(var.unit)
+        if "units" not in io_array.attrs and unit is not None:
+            io_array.attrs["units"] = str(unit)
 
         self.io_array = io_array
         self.raw_buf = io_array.nda
@@ -1779,24 +1788,31 @@ class LGDOVectorOfVectorsIOManager(IOManager):
                 f"{var.vector_len} must be an integer to act as a vector len"
             )
 
-        unit = io_vov.attrs.get("units", None)
-        var.update_auto(dtype=io_vov.dtype, shape=10, unit=unit)
-        if var.vector_len is None:
-            var.vector_len = (f"{var.name}_len",)
+        unit = io_array.attrs.get("units", None)
+        var.update_auto(dtype=io_array.dtype, shape=io_array.nda.shape[1:], unit=unit)
 
-        if isinstance(var.unit, CoordinateGrid):
+        if isinstance(var.unit, (CoordinateGrid, Quantity, Unit)):
+            if isinstance(var.unit, CoordinateGrid):
+                var_u = var.unit.period.u
+            elif isinstance(var.unit, Quantity):
+                var_u = var.unit.u
+            else:
+                var_u = var.unit
+
             if unit is None:
-                unit = var.unit.period.u
-            elif ureg.is_compatible_with(var.unit.period, unit):
+                unit = var_u
+            elif ureg.is_compatible_with(var_u, unit):
                 unit = ureg.Quantity(unit).u
             else:
                 raise ProcessingChainError(
                     f"LGDO array and variable {var} have incompatible units "
-                    f"({var.unit.period.u} and {unit})"
+                    f"({var_u} and {unit})"
                 )
+        elif isinstance(var.unit, str) and unit is None:
+            unit = var.unit
 
-        if unit is None and var.unit is not None:
-            io_vov.attrs["units"] = str(var.unit)
+        if "units" not in io_array.attrs and unit is not None:
+            io_vov.attrs["units"] = str(unit)
 
         self.io_vov = io_vov
         self.raw_buf = io_vov.flattened_data
