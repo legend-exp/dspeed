@@ -422,10 +422,10 @@ class WaveformBrowser:
             elif isinstance(
                 data, (lgdo.Array, lgdo.ArrayOfEqualSizedArrays, lgdo.VectorOfVectors)
             ):
-                if isinstance(data, lgdo.Array):
-                    vals = [data.nda[i_tb]]
+                if isinstance(data, (lgdo.ArrayOfEqualSizedArrays, lgdo.VectorOfVectors)):
+                    vals = list(data.nda[i_tb])
                 else:
-                    vals = data[i_tb]
+                    vals = [data.nda[i_tb]]
 
                 unit = data.attrs.get("units", None)
                 if unit and unit in ureg and ureg.is_compatible_with(unit, self.x_unit):
