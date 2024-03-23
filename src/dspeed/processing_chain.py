@@ -501,6 +501,7 @@ class ProcessingChain:
             shape=val.shape,
             dtype=val.dtype,
             unit=unit,
+            is_coord=False
         )
         np.copyto(param.get_buffer(), val, casting="unsafe")
         log.debug(f"set constant: {param.description()} = {val}")
