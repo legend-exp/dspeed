@@ -828,8 +828,25 @@ class ProcessingChain:
 
             name = "(" + op_form.format(str(lhs), str(rhs)) + ")"
             if isinstance(lhs, ProcChainVar) and isinstance(rhs, ProcChainVar):
-                # TODO: handle units/coords; for now make them match lhs
-                out = ProcChainVar(self, name, is_coord=lhs.is_coord)
+                if is_in_pint(lhs.unit) and is_in_pint(rhs.unit):
+                    unit = op(Quantity(lhs.unit), Quantity(rhs.unit)).u
+                    if unit==ureg.dimensionless:
+                        unit = None
+                elif lhs.unit is not None and rhs.unit is not None:
+                    unit = op_form.format(str(lhs.unit), str(rhs.unit))
+                elif lhs.unit is not None:
+                    unit = lhs.unit
+                else:
+                    unit = rhs.unit
+                # If both vars are coordinates, this is probably not a coord.
+                # If one var is a coord, this is probably a coord
+                out = ProcChainVar(
+                    self,
+                    name,
+                    grid = None if lhs.is_coord and rhs.is_coord else auto,
+                    is_coord = False if lhs.is_coord is True and rhs.is_coord is True else auto,
+                    unit = unit
+                )
             elif isinstance(lhs, ProcChainVar):
                 out = ProcChainVar(
                     self,
