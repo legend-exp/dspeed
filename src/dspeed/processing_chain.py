@@ -43,6 +43,9 @@ ast_ops_dict = {
     ast.USub: (np.negative, "-{}"),
 }
 
+# helper function to tell if an object is found in the unit registry
+def is_in_pint(unit):
+    return isinstance(unit, (Unit, Quantity)) or (unit and unit in ureg)
 
 @dataclass
 class CoordinateGrid:
@@ -257,7 +260,7 @@ class ProcChainVar(ProcChainVarBase):
         # if no unit is given, use the native unit/coordinate grid
         if unit is None:
             unit = self.grid if self.is_coord else self.unit
-        if not isinstance(unit, CoordinateGrid) and (isinstance(unit, (Unit, Quantity)) or unit and unit in ureg):
+        if not isinstance(unit, CoordinateGrid) and is_in_pint(unit):
             unit = CoordinateGrid(unit)
 
         if isinstance(self._buffer, np.ndarray):
@@ -267,18 +270,14 @@ class ProcChainVar(ProcChainVarBase):
                 elif unit is not None:
                     self.grid = CoordinateGrid(unit)
 
-            if unit is None or not (
-                isinstance(unit, (Unit, Quantity, CoordinateGrid)) or unit in ureg
-            ):
+            if not (isinstance(unit, CoordinateGrid) or is_in_pint(unit)):
                 # buffer cannot be converted so return
                 return self._buffer
             else:
                 # buffer can be converted, so make it a list of buffers
                 self._buffer = [(self._buffer, unit)]
 
-        if unit is None or not (
-            isinstance(unit, (Unit, Quantity, CoordinateGrid)) or unit in ureg
-        ):
+        if not isinstance(unit, CoordinateGrid) and not is_in_pint(unit):
             return self._buffer[0][0]
 
         # check if coordinate conversion has been done already
@@ -1284,11 +1283,10 @@ class ProcessorManager:
                 d.strip() for d in dims.split(",") if d
             ]
             arr_dims = list(param.shape)
-            arr_grid = (
-                param.grid
-                if isinstance(param, ProcChainVar) and param.grid is not auto
-                else None
-            )
+            if isinstance(param, ProcChainVar) and param.grid is not auto and not param.is_coord:
+                arr_grid =  param.grid
+            else:
+                arr_grid = None
             if not grid:
                 grid = arr_grid
 
@@ -1412,8 +1410,7 @@ class ProcessorManager:
                     unit = str(grid.period.u)
                     this_grid = grid
                 elif (
-                    isinstance(param.unit, str)
-                    and param.unit in ureg
+                    is_in_pint(param.unit)
                     and grid is not None
                     and ureg.is_compatible_with(grid.period, param.unit)
                 ):
