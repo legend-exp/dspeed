@@ -1803,8 +1803,8 @@ class LGDOVectorOfVectorsIOManager(IOManager):
                 f"{var.vector_len} must be an integer to act as a vector len"
             )
 
-        unit = io_array.attrs.get("units", None)
-        var.update_auto(dtype=io_array.dtype, shape=io_array.nda.shape[1:], unit=unit)
+        unit = io_vov.attrs.get("units", None)
+        var.update_auto(dtype=io_vov.dtype, shape=10, unit=unit)
 
         if isinstance(var.unit, (CoordinateGrid, Quantity, Unit)):
             if isinstance(var.unit, CoordinateGrid):
@@ -1826,7 +1826,7 @@ class LGDOVectorOfVectorsIOManager(IOManager):
         elif isinstance(var.unit, str) and unit is None:
             unit = var.unit
 
-        if "units" not in io_array.attrs and unit is not None:
+        if "units" not in io_vov.attrs and unit is not None:
             io_vov.attrs["units"] = str(unit)
 
         self.io_vov = io_vov
