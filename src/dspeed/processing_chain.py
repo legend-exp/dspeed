@@ -902,7 +902,7 @@ class ProcessingChain:
                 index = get_index(node.slice)
                 out_buf = val.buffer[..., index]
                 out_name = f"{str(val)}[{index}]"
-                out_grid = None
+                out_grid = val.grid if val.is_coord else None
 
             elif isinstance(node.slice, ast.Slice):
                 sl = slice(
