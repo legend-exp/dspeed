@@ -44,6 +44,11 @@ ast_ops_dict = {
 }
 
 
+# helper function to tell if an object is found in the unit registry
+def is_in_pint(unit):
+    return isinstance(unit, (Unit, Quantity)) or (unit and unit in ureg)
+
+
 @dataclass
 class CoordinateGrid:
     """Helper class that describes a system of units, consisting of a period
@@ -257,7 +262,7 @@ class ProcChainVar(ProcChainVarBase):
         # if no unit is given, use the native unit/coordinate grid
         if unit is None:
             unit = self.grid if self.is_coord else self.unit
-        if not isinstance(unit, CoordinateGrid) and unit and unit in ureg:
+        if not isinstance(unit, CoordinateGrid) and is_in_pint(unit):
             unit = CoordinateGrid(unit)
 
         if isinstance(self._buffer, np.ndarray):
@@ -267,18 +272,14 @@ class ProcChainVar(ProcChainVarBase):
                 elif unit is not None:
                     self.grid = CoordinateGrid(unit)
 
-            if unit is None or not (
-                isinstance(unit, (Unit, Quantity, CoordinateGrid)) or unit in ureg
-            ):
+            if not (isinstance(unit, CoordinateGrid) or is_in_pint(unit)):
                 # buffer cannot be converted so return
                 return self._buffer
             else:
                 # buffer can be converted, so make it a list of buffers
                 self._buffer = [(self._buffer, unit)]
 
-        if unit is None or not (
-            isinstance(unit, (Unit, Quantity, CoordinateGrid)) or unit in ureg
-        ):
+        if not isinstance(unit, CoordinateGrid) and not is_in_pint(unit):
             return self._buffer[0][0]
 
         # check if coordinate conversion has been done already
@@ -488,8 +489,8 @@ class ProcessingChain:
         """
 
         param = self.get_variable(varname)
-        assert param.is_constant or param._buffer is None
-        param.is_constant = True
+        assert param.is_const or param._buffer is None
+        param.is_const = True
 
         if isinstance(val, Quantity):
             unit = val.unit
@@ -497,11 +498,7 @@ class ProcessingChain:
 
         val = np.array(val, dtype=dtype)
 
-        param.update_auto(
-            shape=val.shape,
-            dtype=val.dtype,
-            unit=unit,
-        )
+        param.update_auto(shape=val.shape, dtype=val.dtype, unit=unit, is_coord=False)
         np.copyto(param.get_buffer(), val, casting="unsafe")
         log.debug(f"set constant: {param.description()} = {val}")
         return param
@@ -828,8 +825,27 @@ class ProcessingChain:
 
             name = "(" + op_form.format(str(lhs), str(rhs)) + ")"
             if isinstance(lhs, ProcChainVar) and isinstance(rhs, ProcChainVar):
-                # TODO: handle units/coords; for now make them match lhs
-                out = ProcChainVar(self, name, is_coord=lhs.is_coord)
+                if is_in_pint(lhs.unit) and is_in_pint(rhs.unit):
+                    unit = op(Quantity(lhs.unit), Quantity(rhs.unit)).u
+                    if unit == ureg.dimensionless:
+                        unit = None
+                elif lhs.unit is not None and rhs.unit is not None:
+                    unit = op_form.format(str(lhs.unit), str(rhs.unit))
+                elif lhs.unit is not None:
+                    unit = lhs.unit
+                else:
+                    unit = rhs.unit
+                # If both vars are coordinates, this is probably not a coord.
+                # If one var is a coord, this is probably a coord
+                out = ProcChainVar(
+                    self,
+                    name,
+                    grid=None if lhs.is_coord and rhs.is_coord else auto,
+                    is_coord=False
+                    if lhs.is_coord is True and rhs.is_coord is True
+                    else auto,
+                    unit=unit,
+                )
             elif isinstance(lhs, ProcChainVar):
                 out = ProcChainVar(
                     self,
@@ -880,7 +896,7 @@ class ProcessingChain:
             val = self._parse_expr(node.value, expr, dry_run, var_name_list)
             if val is None:
                 return None
-            if not isinstance(val, ProcChainVar):
+            if not isinstance(val, ProcChainVar) or not len(val.shape) > 0:
                 raise ProcessingChainError("Cannot apply subscript to", node.value)
 
             def get_index(slice_value):
@@ -898,11 +914,11 @@ class ProcessingChain:
                     return round_ret
                 return int(ret)
 
-            if isinstance(node.slice, ast.Index):
-                index = get_index(node.slice.value)
-                out_buf = val[..., index]
-                out_name = (f"{str(val)}[{index}]",)
-                out_grid = None
+            if isinstance(node.slice, ast.Constant):
+                index = get_index(node.slice)
+                out_buf = val.buffer[..., index]
+                out_name = f"{str(val)}[{index}]"
+                out_grid = val.grid if val.is_coord else None
 
             elif isinstance(node.slice, ast.Slice):
                 sl = slice(
@@ -1283,11 +1299,14 @@ class ProcessorManager:
                 d.strip() for d in dims.split(",") if d
             ]
             arr_dims = list(param.shape)
-            arr_grid = (
-                param.grid
-                if isinstance(param, ProcChainVar) and param.grid is not auto
-                else None
-            )
+            if (
+                isinstance(param, ProcChainVar)
+                and param.grid is not auto
+                and not param.is_coord
+            ):
+                arr_grid = param.grid
+            else:
+                arr_grid = None
             if not grid:
                 grid = arr_grid
 
@@ -1411,8 +1430,7 @@ class ProcessorManager:
                     unit = str(grid.period.u)
                     this_grid = grid
                 elif (
-                    isinstance(param.unit, str)
-                    and param.unit in ureg
+                    is_in_pint(param.unit)
                     and grid is not None
                     and ureg.is_compatible_with(grid.period, param.unit)
                 ):
@@ -1721,19 +1739,28 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
         unit = io_array.attrs.get("units", None)
         var.update_auto(dtype=io_array.dtype, shape=io_array.nda.shape[1:], unit=unit)
 
-        if isinstance(var.unit, CoordinateGrid):
+        if isinstance(var.unit, (CoordinateGrid, Quantity, Unit)):
+            if isinstance(var.unit, CoordinateGrid):
+                var_u = var.unit.period.u
+            elif isinstance(var.unit, Quantity):
+                var_u = var.unit.u
+            else:
+                var_u = var.unit
+
             if unit is None:
-                unit = var.unit.period.u
-            elif ureg.is_compatible_with(var.unit.period, unit):
+                unit = var_u
+            elif ureg.is_compatible_with(var_u, unit):
                 unit = ureg.Quantity(unit).u
             else:
                 raise ProcessingChainError(
                     f"LGDO array and variable {var} have incompatible units "
-                    f"({var.unit.period.u} and {unit})"
+                    f"({var_u} and {unit})"
                 )
+        elif isinstance(var.unit, str) and unit is None:
+            unit = var.unit
 
-        if unit is None and var.unit is not None:
-            io_array.attrs["units"] = str(var.unit)
+        if "units" not in io_array.attrs and unit is not None:
+            io_array.attrs["units"] = str(unit)
 
         self.io_array = io_array
         self.raw_buf = io_array.nda
@@ -1781,22 +1808,29 @@ class LGDOVectorOfVectorsIOManager(IOManager):
 
         unit = io_vov.attrs.get("units", None)
         var.update_auto(dtype=io_vov.dtype, shape=10, unit=unit)
-        if var.vector_len is None:
-            var.vector_len = (f"{var.name}_len",)
 
-        if isinstance(var.unit, CoordinateGrid):
+        if isinstance(var.unit, (CoordinateGrid, Quantity, Unit)):
+            if isinstance(var.unit, CoordinateGrid):
+                var_u = var.unit.period.u
+            elif isinstance(var.unit, Quantity):
+                var_u = var.unit.u
+            else:
+                var_u = var.unit
+
             if unit is None:
-                unit = var.unit.period.u
-            elif ureg.is_compatible_with(var.unit.period, unit):
+                unit = var_u
+            elif ureg.is_compatible_with(var_u, unit):
                 unit = ureg.Quantity(unit).u
             else:
                 raise ProcessingChainError(
                     f"LGDO array and variable {var} have incompatible units "
-                    f"({var.unit.period.u} and {unit})"
+                    f"({var_u} and {unit})"
                 )
+        elif isinstance(var.unit, str) and unit is None:
+            unit = var.unit
 
-        if unit is None and var.unit is not None:
-            io_vov.attrs["units"] = str(var.unit)
+        if "units" not in io_vov.attrs and unit is not None:
+            io_vov.attrs["units"] = str(unit)
 
         self.io_vov = io_vov
         self.raw_buf = io_vov.flattened_data
