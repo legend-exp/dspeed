@@ -43,9 +43,11 @@ ast_ops_dict = {
     ast.USub: (np.negative, "-{}"),
 }
 
+
 # helper function to tell if an object is found in the unit registry
 def is_in_pint(unit):
     return isinstance(unit, (Unit, Quantity)) or (unit and unit in ureg)
+
 
 @dataclass
 class CoordinateGrid:
@@ -496,12 +498,7 @@ class ProcessingChain:
 
         val = np.array(val, dtype=dtype)
 
-        param.update_auto(
-            shape=val.shape,
-            dtype=val.dtype,
-            unit=unit,
-            is_coord=False
-        )
+        param.update_auto(shape=val.shape, dtype=val.dtype, unit=unit, is_coord=False)
         np.copyto(param.get_buffer(), val, casting="unsafe")
         log.debug(f"set constant: {param.description()} = {val}")
         return param
@@ -830,7 +827,7 @@ class ProcessingChain:
             if isinstance(lhs, ProcChainVar) and isinstance(rhs, ProcChainVar):
                 if is_in_pint(lhs.unit) and is_in_pint(rhs.unit):
                     unit = op(Quantity(lhs.unit), Quantity(rhs.unit)).u
-                    if unit==ureg.dimensionless:
+                    if unit == ureg.dimensionless:
                         unit = None
                 elif lhs.unit is not None and rhs.unit is not None:
                     unit = op_form.format(str(lhs.unit), str(rhs.unit))
@@ -843,9 +840,11 @@ class ProcessingChain:
                 out = ProcChainVar(
                     self,
                     name,
-                    grid = None if lhs.is_coord and rhs.is_coord else auto,
-                    is_coord = False if lhs.is_coord is True and rhs.is_coord is True else auto,
-                    unit = unit
+                    grid=None if lhs.is_coord and rhs.is_coord else auto,
+                    is_coord=False
+                    if lhs.is_coord is True and rhs.is_coord is True
+                    else auto,
+                    unit=unit,
                 )
             elif isinstance(lhs, ProcChainVar):
                 out = ProcChainVar(
@@ -897,7 +896,7 @@ class ProcessingChain:
             val = self._parse_expr(node.value, expr, dry_run, var_name_list)
             if val is None:
                 return None
-            if not isinstance(val, ProcChainVar) or not len(val.shape)>0:
+            if not isinstance(val, ProcChainVar) or not len(val.shape) > 0:
                 raise ProcessingChainError("Cannot apply subscript to", node.value)
 
             def get_index(slice_value):
@@ -1300,8 +1299,12 @@ class ProcessorManager:
                 d.strip() for d in dims.split(",") if d
             ]
             arr_dims = list(param.shape)
-            if isinstance(param, ProcChainVar) and param.grid is not auto and not param.is_coord:
-                arr_grid =  param.grid
+            if (
+                isinstance(param, ProcChainVar)
+                and param.grid is not auto
+                and not param.is_coord
+            ):
+                arr_grid = param.grid
             else:
                 arr_grid = None
             if not grid:

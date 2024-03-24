@@ -422,7 +422,9 @@ class WaveformBrowser:
             elif isinstance(
                 data, (lgdo.Array, lgdo.ArrayOfEqualSizedArrays, lgdo.VectorOfVectors)
             ):
-                if isinstance(data, (lgdo.ArrayOfEqualSizedArrays, lgdo.VectorOfVectors)):
+                if isinstance(
+                    data, (lgdo.ArrayOfEqualSizedArrays, lgdo.VectorOfVectors)
+                ):
                     vals = list(data.nda[i_tb])
                 else:
                     vals = [data.nda[i_tb]]
