@@ -371,18 +371,19 @@ def multi_time_point_thresh(
 
 @guvectorize(
     [
-        "void(float32[:], float32, float32, float32, float32, float32[:])",
-        "void(float64[:], float64, float64, float64, float64, float64[:])",
+        "void(float32[:], float32, float32, float32, float32, float32[:], float32[:])",
+        "void(float64[:], float64, float64, float64, float64, float64[:], float64[:])",
     ],
-    "(n),(),(),(),(),(m)",
+    "(n),(),(),(),(),(m),(m)",
     **nb_kwargs,
 )
 def bi_level_zero_crossing_time_points(
     w_in: np.ndarray,
     a_pos_threshold_in: float,
     a_neg_threshold_in: float,
-    gate_time: int,
+    gate_time_in: int,
     t_start_in: int,
+    polarity_out: np.array,
     t_trig_times_out: np.array,
 ) -> None:
     """
@@ -398,10 +399,12 @@ def bi_level_zero_crossing_time_points(
         the positive threshold value.
     a_neg_threshold_in
         the negative threshold value.
-    gate_time
+    gate_time_in
         The number of samples that the next threshold crossing has to be within in order to count a 0 crossing
     t_start_in
         the starting index.
+    polarity_out
+        An array holding the polarity of identified pulses. 0 for negative and 1 for positive
     t_trig_times_out
         the indices where the waveform value has crossed the threshold and returned to 0.
         Arrays of fixed length (padded with :any:`numpy.nan`) that hold the
@@ -413,14 +416,15 @@ def bi_level_zero_crossing_time_points(
     .. code-block :: json
 
         "trig_times_out": {
-            "function": "bi_level_zero_crossing_time_points",
+            "function": "multi_trigger_time",
             "module": "dspeed.processors",
-            "args": ["wf_rc_cr2", "5", "-10", 1000, 0, "trig_times_out(20)"],
+            "args": ["wf_rc_cr2", "5", "-10", 0, "polarity_out(20)", "trig_times_out(20)"],
             "unit": "ns"
         }
     """
     # prepare output
     t_trig_times_out[:] = np.nan
+    polarity_out[:] = np.nan
 
     # Check everything is ok
     if (
@@ -437,7 +441,10 @@ def bi_level_zero_crossing_time_points(
     if int(t_start_in) < 0 or int(t_start_in) >= len(w_in):
         raise DSPFatal("The starting index is out of range")
 
-    gate_time = int(gate_time)  # make sure this is an integer!
+    if len(polarity_out) != len(t_trig_times_out):
+        raise DSPFatal("The output arrays are of different lengths.")
+
+    gate_time_in = int(gate_time_in)  # make sure this is an integer!
     # Perform the processing
     is_above_thresh = False
     is_below_thresh = False
@@ -451,8 +458,9 @@ def bi_level_zero_crossing_time_points(
         # Either we go above threshold
         if w_in[i] <= a_pos_threshold_in < w_in[i + 1]:
             if crossed_zero and is_below_thresh:
-                if i - is_below_thresh < gate_time:
+                if i - is_below_thresh < gate_time_in:
                     t_trig_times_out[trig_array_idx] = neg_trig_time_candidate
+                    polarity_out[trig_array_idx] = 0
                     trig_array_idx += 1
                 else:
                     is_above_thresh = i
@@ -469,8 +477,9 @@ def bi_level_zero_crossing_time_points(
         # Or we go below threshold
         if w_in[i] >= a_neg_threshold_in > w_in[i + 1]:
             if crossed_zero and is_above_thresh:
-                if i - is_above_thresh < gate_time:
+                if i - is_above_thresh < gate_time_in:
                     t_trig_times_out[trig_array_idx] = pos_trig_time_candidate
+                    polarity_out[trig_array_idx] = 1
                     trig_array_idx += 1
                 else:
                     is_below_thresh = i
