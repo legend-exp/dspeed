@@ -367,3 +367,114 @@ def multi_time_point_thresh(
                 if i_tp < 0:
                     break
                 idx = sorted_idx[i_tp]
+
+
+@guvectorize(
+    [
+        "void(float32[:], float32, float32, float32, float32, float32[:])",
+        "void(float64[:], float64, float64, float64, float64, float64[:])",
+    ],
+    "(n),(),(),(),(),(m)",
+    **nb_kwargs,
+)
+def bi_level_zero_crossing_time_points(
+    w_in: np.ndarray,
+    a_pos_threshold_in: float,
+    a_neg_threshold_in: float,
+    gate_time: int,
+    t_start_in: int,
+    t_trig_times_out: np.array,
+) -> None:
+    """
+    Find the indices where a waveform value crosses 0 after crossing the threshold and reaching the next threshold within some gate time.
+    Works on positive and negative polarity waveforms.
+    Useful for finding pileup events with the RC-CR^2 filter.
+
+    Parameters
+    ----------
+    w_in
+        the input waveform.
+    a_pos_threshold_in
+        the positive threshold value.
+    a_neg_threshold_in
+        the negative threshold value.
+    gate_time
+        The number of samples that the next threshold crossing has to be within in order to count a 0 crossing
+    t_start_in
+        the starting index.
+    t_trig_times_out
+        the indices where the waveform value has crossed the threshold and returned to 0.
+        Arrays of fixed length (padded with :any:`numpy.nan`) that hold the
+        indices of the identified trigger times.
+
+    JSON Configuration Example
+    --------------------------
+
+    .. code-block :: json
+
+        "trig_times_out": {
+            "function": "bi_level_zero_crossing_time_points",
+            "module": "dspeed.processors",
+            "args": ["wf_rc_cr2", "5", "-10", 1000, 0, "trig_times_out(20)"],
+            "unit": "ns"
+        }
+    """
+    # prepare output
+    t_trig_times_out[:] = np.nan
+
+    # Check everything is ok
+    if (
+        np.isnan(w_in).any()
+        or np.isnan(a_pos_threshold_in)
+        or np.isnan(a_neg_threshold_in)
+        or np.isnan(t_start_in)
+    ):
+        return
+
+    if np.floor(t_start_in) != t_start_in:
+        raise DSPFatal("The starting index must be an integer")
+
+    if int(t_start_in) < 0 or int(t_start_in) >= len(w_in):
+        raise DSPFatal("The starting index is out of range")
+
+    gate_time = int(gate_time)  # make sure this is an integer!
+    # Perform the processing
+    is_above_thresh = False
+    is_below_thresh = False
+    crossed_zero = False
+    trig_array_idx = 0
+    for i in range(int(t_start_in), len(w_in) - 1, 1):
+        if is_below_thresh and (w_in[i] <= 0 < w_in[i + 1]):
+            crossed_zero = True
+            neg_trig_time_candidate = i
+
+        # Either we go above threshold
+        if w_in[i] <= a_pos_threshold_in < w_in[i + 1]:
+            if crossed_zero and is_below_thresh:
+                if i - is_below_thresh < gate_time:
+                    t_trig_times_out[trig_array_idx] = neg_trig_time_candidate
+                    trig_array_idx += 1
+                else:
+                    is_above_thresh = i
+
+                is_below_thresh = False
+                crossed_zero = False
+            else:
+                is_above_thresh = i
+
+        if is_above_thresh and (w_in[i] >= 0 > w_in[i + 1]):
+            crossed_zero = True
+            pos_trig_time_candidate = i
+
+        # Or we go below threshold
+        if w_in[i] >= a_neg_threshold_in > w_in[i + 1]:
+            if crossed_zero and is_above_thresh:
+                if i - is_above_thresh < gate_time:
+                    t_trig_times_out[trig_array_idx] = pos_trig_time_candidate
+                    trig_array_idx += 1
+                else:
+                    is_below_thresh = i
+                is_above_thresh = False
+                crossed_zero = False
+            else:
+                is_below_thresh = i

@@ -87,12 +87,14 @@ from .peak_snr_threshold import peak_snr_threshold
 from .pole_zero import double_pole_zero, pole_zero
 from .presum import presum
 from .pulse_injector import inject_exp_pulse, inject_sig_pulse
+from .rc_cr2 import rc_cr2
 from .round_to_nearest import round_to_nearest
 from .saturation import saturation
 from .soft_pileup_corr import soft_pileup_corr, soft_pileup_corr_bl
 from .svm import svm_predict
 from .time_over_threshold import time_over_threshold
 from .time_point_thresh import (
+    bi_level_zero_crossing_time_points,
     interpolated_time_point_thresh,
     multi_time_point_thresh,
     time_point_thresh,
@@ -164,4 +166,6 @@ __all__ = [
     "wf_alignment",
     "round_to_nearest",
     "transfer_function_convolver",
+    "rc_cr2",
+    "bi_level_zero_crossing_time_points",
 ]
