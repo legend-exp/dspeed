@@ -155,9 +155,11 @@ def inv_dft(w_in: np.ndarray, w_out: np.ndarray) -> Callable:
             )
         else:
             w_out.update_auto(
-                shape=w_in.shape
-                if w_out.dtype.kind == "c"
-                else w_in.shape[:-1] + (2 * (w_in.shape[-1] - 1),),
+                shape=(
+                    w_in.shape
+                    if w_out.dtype.kind == "c"
+                    else w_in.shape[:-1] + (2 * (w_in.shape[-1] - 1),)
+                ),
                 period=1.0 / w_in.period / w_in.shape[-1],
             )
         w_in = w_in.buffer

@@ -2,6 +2,7 @@
 This module provides routines for setting up and running signal processing
 chains on waveform data.
 """
+
 from __future__ import annotations
 
 import ast
@@ -841,9 +842,9 @@ class ProcessingChain:
                     self,
                     name,
                     grid=None if lhs.is_coord and rhs.is_coord else auto,
-                    is_coord=False
-                    if lhs.is_coord is True and rhs.is_coord is True
-                    else auto,
+                    is_coord=(
+                        False if lhs.is_coord is True and rhs.is_coord is True else auto
+                    ),
                     unit=unit,
                 )
             elif isinstance(lhs, ProcChainVar):
@@ -1316,9 +1317,7 @@ class ProcessorManager:
                 ad = (
                     arr_dims[-i - 1]
                     if i < len(arr_dims)
-                    else self.proc_chain._block_width
-                    if i == len(arr_dims)
-                    else None
+                    else self.proc_chain._block_width if i == len(arr_dims) else None
                 )
 
                 if isinstance(fd, str):

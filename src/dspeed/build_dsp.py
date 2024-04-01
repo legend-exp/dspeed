@@ -2,6 +2,7 @@
 This module provides high-level routines for running signal processing chains
 on waveform data.
 """
+
 from __future__ import annotations
 
 import logging
