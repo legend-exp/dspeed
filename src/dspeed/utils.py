@@ -86,4 +86,5 @@ class ProcChainVarBase(metaclass=ABCMeta):
     :class:`ProcChainVar` implements this class. This base class is used
     by processors that use ProcChainVar in their constructors.
     """
+
     pass
