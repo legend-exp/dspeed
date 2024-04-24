@@ -41,8 +41,11 @@ def svm_predict(svm_file: str) -> Callable:
         }
     """
 
-    with open(svm_file, "rb") as f:
-        svm = pickle.load(f)
+    if svm_file == 0:
+        svm = None
+    else:
+        with open(svm_file, "rb") as f:
+            svm = pickle.load(f)
 
     @guvectorize(
         [
@@ -64,6 +67,9 @@ def svm_predict(svm_file: str) -> Callable:
            The predicted label by the trained SVM for the input waveform.
         """
         label_out[0] = np.nan
+
+        if svm is None:
+            return
 
         if np.isnan(w_in).any():
             return
