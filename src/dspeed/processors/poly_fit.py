@@ -81,14 +81,16 @@ def poly_diff(
 
 
 @guvectorize(
-   [
+    [
         "void(float32[:], float32[:], float32[:], float32[:])",
         "void(float64[:], float64[:], float64[:], float64[:])",
     ],
     "(n),(m)->(),()",
     **nb_kwargs,
 )
-def poly_exp_rms(w_in: np.ndarray, poly_pars: np.ndarray, mean: float, rms: float) -> None:
+def poly_exp_rms(
+    w_in: np.ndarray, poly_pars: np.ndarray, mean: float, rms: float
+) -> None:
     """ """
 
     mean[0] = np.nan
@@ -104,10 +106,8 @@ def poly_exp_rms(w_in: np.ndarray, poly_pars: np.ndarray, mean: float, rms: floa
         temp = 0.0
         for j in range(len(poly_pars)):
             temp += poly_pars[j] * i**j
-        mean += (w_in[i] - np.exp(temp))/ (i + 1)
-        rms += (w_in[i] - np.exp(temp))**2
-    
+        mean += (w_in[i] - np.exp(temp)) / (i + 1)
+        rms += (w_in[i] - np.exp(temp)) ** 2
+
     rms /= len(w_in) - 1
     np.sqrt(rms, rms)
-
-

@@ -85,7 +85,7 @@ from .optimize import optimize_1pz, optimize_2pz
 from .param_lookup import param_lookup
 from .peak_snr_threshold import peak_snr_threshold
 from .pole_zero import double_pole_zero, pole_zero
-from .poly_fit import poly_diff, poly_fit, poly_exp_rms
+from .poly_fit import poly_diff, poly_exp_rms, poly_fit
 from .presum import presum
 from .pulse_injector import inject_exp_pulse, inject_sig_pulse
 from .rc_cr2 import rc_cr2
