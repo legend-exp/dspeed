@@ -33,8 +33,7 @@
     "cuspEmax",
     "zacEmax",
     "zacEftp",
-    "cuspEftp",
-    "wf_psd"
+    "cuspEftp"
   ],
   "processors": {
     "tp_min, tp_max, wf_min, wf_max": {
@@ -311,16 +310,9 @@
       "args": ["wf_trap2", "tp_0_est + 8.096*us", "'l'", "trapQftp"],
       "unit": "ADC"
     },
-    "QDrift": {
-      "function": "multiply",
-      "module": "numpy",
-      "args": ["trapQftp", "(4*us)/waveform.period", "QDrift"],
-      "unit": "ADC"
-    },
+    "QDrift": "trapQftp * 16",
     "dt_eff": {
-      "function": "divide",
-      "module": "numpy",
-      "args": ["QDrift", "trapTmax", "dt_eff"],
+      "function": "QDrift/trapTmax",
       "unit": "ns"
     },
     "wf_le": {
@@ -358,12 +350,6 @@
       "module": "numpy",
       "args": ["tp_0_est", "tp_aoe_max/16", "tp_aoe_samp"],
       "unit": "ns"
-    },
-    "wf_psd": {
-      "function": "psd",
-      "module": "dspeed.processors",
-      "args": ["wf_blsub", "wf_psd"],
-      "init_args": ["wf_blsub", "wf_psd"]
     }
   }
 }

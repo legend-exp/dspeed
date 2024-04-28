@@ -783,12 +783,6 @@ class ProcessingChain:
             else:
                 ProcessingChainError("only 1D arrays are supported: " + expr)
 
-        elif isinstance(node, ast.Num):
-            return node.n
-
-        elif isinstance(node, ast.Str):
-            return node.s
-
         elif isinstance(node, ast.Constant):
             return node.value
 

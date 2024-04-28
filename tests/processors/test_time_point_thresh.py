@@ -194,37 +194,38 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     # ensure that if there is a nan in w_in, all nans are outputted
     w_in = np.ones(100)
     w_in[4] = np.nan
+    n_out = np.zeros(1, "uint32")
     t_out = np.zeros(5)
     pol_out = np.zeros(5)
-    bi_level_zero_crossing_time_points(w_in, 100, 100, 100, 0, pol_out, t_out)
+    bi_level_zero_crossing_time_points(w_in, 100, 100, 100, 0, n_out, pol_out, t_out)
     assert np.isnan(t_out).all()
 
     # ensure the ValueError is raised if the polarity output array is different length than the time point output array
     t_start_in = 1.02
     with pytest.raises(ValueError):
         bi_level_zero_crossing_time_points(
-            np.ones(9), 100, 100, 100, t_start_in, pol_out, np.zeros(1)
+            np.ones(9), 100, 100, 100, t_start_in, n_out, pol_out, np.zeros(1)
         )
 
     # ensure the DSPFatal is raised if initial timepoint is not an integer
     t_start_in = 1.02
     with pytest.raises(DSPFatal):
         bi_level_zero_crossing_time_points(
-            np.ones(9), 100, 100, 100, t_start_in, pol_out, t_out
+            np.ones(9), 100, 100, 100, t_start_in, n_out, pol_out, t_out
         )
 
     # ensure the DSPFatal is raised if initial timepoint is not negative
     t_start_in = -2
     with pytest.raises(DSPFatal):
         bi_level_zero_crossing_time_points(
-            np.ones(9), 100, 100, 100, t_start_in, pol_out, t_out
+            np.ones(9), 100, 100, 100, t_start_in, n_out, pol_out, t_out
         )
 
     # ensure the DSPFatal is raised if initial timepoint is outside length of waveform
     t_start_in = 100
     with pytest.raises(DSPFatal):
         bi_level_zero_crossing_time_points(
-            np.ones(9), 100, 100, 100, t_start_in, pol_out, t_out
+            np.ones(9), 100, 100, 100, t_start_in, n_out, pol_out, t_out
         )
 
     early_trig = 500  # start pulse1 500 samples from the start of the wf
@@ -260,7 +261,7 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     t_trig_times_out = np.zeros(5)
     pol_out = np.zeros(5)
     bi_level_zero_crossing_time_points(
-        pulse, 2000, -2000, gate_time, 0, pol_out, t_trig_times_out
+        pulse, 2000, -2000, gate_time, 0, n_out, pol_out, t_trig_times_out
     )
 
     cross_1 = early_trig + 2 * tau - 1  # minus 1 from delay?
@@ -276,7 +277,7 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     t_trig_times_out = np.zeros(5)
     pol_out = np.zeros(5)
     bi_level_zero_crossing_time_points(
-        -1 * pulse, 2000, -2000, gate_time, 0, pol_out, t_trig_times_out
+        -1 * pulse, 2000, -2000, gate_time, 0, n_out, pol_out, t_trig_times_out
     )
     assert np.allclose(int(t_trig_times_out[0]), cross_1, rtol=1)
     assert np.allclose(int(t_trig_times_out[1]), cross_2, rtol=1)
@@ -287,7 +288,7 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     t_trig_times_out = np.zeros(5)
     pol_out = np.zeros(5)
     bi_level_zero_crossing_time_points(
-        pulse, 2000, -300000, gate_time, 0, pol_out, t_trig_times_out
+        pulse, 2000, -300000, gate_time, 0, n_out, pol_out, t_trig_times_out
     )
     assert np.isnan(t_trig_times_out).all()
     assert np.isnan(pol_out).all()
@@ -296,7 +297,7 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     t_trig_times_out = np.zeros(5)
     pol_out = np.zeros(5)
     bi_level_zero_crossing_time_points(
-        -1 * pulse, 300000, -2000, gate_time, 0, pol_out, t_trig_times_out
+        -1 * pulse, 300000, -2000, gate_time, 0, n_out, pol_out, t_trig_times_out
     )
     assert np.isnan(t_trig_times_out).all()
     assert np.isnan(pol_out).all()
@@ -305,7 +306,7 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     t_trig_times_out = np.zeros(5)
     pol_out = np.zeros(5)
     bi_level_zero_crossing_time_points(
-        pulse, 300000, 300000, gate_time, 0, pol_out, t_trig_times_out
+        pulse, 300000, 300000, gate_time, 0, n_out, pol_out, t_trig_times_out
     )
     assert np.isnan(t_trig_times_out).all()
     assert np.isnan(pol_out).all()
@@ -314,7 +315,7 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     t_trig_times_out = np.zeros(5)
     pol_out = np.zeros(5)
     bi_level_zero_crossing_time_points(
-        np.linspace(-1, 100, 101), 4, -4, gate_time, 0, pol_out, t_trig_times_out
+        np.linspace(-1, 100, 101), 4, -4, gate_time, 0, n_out, pol_out, t_trig_times_out
     )
     assert np.isnan(t_trig_times_out).all()
     assert np.isnan(pol_out).all()
@@ -323,7 +324,14 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     t_trig_times_out = np.zeros(5)
     pol_out = np.zeros(5)
     bi_level_zero_crossing_time_points(
-        -1 * np.linspace(-1, 100, 101), 4, -4, gate_time, 0, pol_out, t_trig_times_out
+        -1 * np.linspace(-1, 100, 101),
+        4,
+        -4,
+        gate_time,
+        0,
+        n_out,
+        pol_out,
+        t_trig_times_out,
     )
     assert np.isnan(t_trig_times_out).all()
     assert np.isnan(pol_out).all()
@@ -334,7 +342,7 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     t_trig_times_out = np.zeros(5)
     pol_out = np.zeros(5)
     bi_level_zero_crossing_time_points(
-        pulse * scale_arr, 2000, -20000, gate_time, 0, pol_out, t_trig_times_out
+        pulse * scale_arr, 2000, -20000, gate_time, 0, n_out, pol_out, t_trig_times_out
     )
     assert np.allclose(
         int(t_trig_times_out[0]), cross_2, rtol=1
@@ -347,7 +355,7 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     t_trig_times_out = np.zeros(5)
     pol_out = np.zeros(5)
     bi_level_zero_crossing_time_points(
-        pulse * scale_arr, 2000, -20000, gate_time, 0, pol_out, t_trig_times_out
+        pulse * scale_arr, 2000, -20000, gate_time, 0, n_out, pol_out, t_trig_times_out
     )
     assert np.allclose(
         int(t_trig_times_out[0]), cross_1, rtol=1
@@ -360,9 +368,19 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     t_trig_times_out = np.zeros(5)
     pol_out = np.zeros(5)
     bi_level_zero_crossing_time_points(
-        pulse * scale_arr, 50000, -2000, gate_time, 0, pol_out, t_trig_times_out
+        pulse * scale_arr, 50000, -2000, gate_time, 0, n_out, pol_out, t_trig_times_out
     )
     assert np.allclose(
         int(t_trig_times_out[0]), cross_2, rtol=1
     )  # only the 2nd time point should have been crossed
     assert int(pol_out[0]) == 1
+
+    # Check for overflow. This should not fail and should return n_crossings greater than the length of the outputs
+    w_in = np.zeros(100, "float") * 10
+    w_in[::2] = -10
+    w_in[1::2] = 10
+    pol_out = np.zeros(30)
+    t_trig_out = np.zeros(30)
+    bi_level_zero_crossing_time_points(w_in, 1, 1, 10, 0, n_out, pol_out, t_trig_out)
+    assert np.all(pol_out == 0)
+    assert n_out[0] == 49
