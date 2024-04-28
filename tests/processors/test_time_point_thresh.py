@@ -194,7 +194,7 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     # ensure that if there is a nan in w_in, all nans are outputted
     w_in = np.ones(100)
     w_in[4] = np.nan
-    n_out = np.zeros(1, 'uint32')
+    n_out = np.zeros(1, "uint32")
     t_out = np.zeros(5)
     pol_out = np.zeros(5)
     bi_level_zero_crossing_time_points(w_in, 100, 100, 100, 0, n_out, pol_out, t_out)
@@ -324,7 +324,14 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     t_trig_times_out = np.zeros(5)
     pol_out = np.zeros(5)
     bi_level_zero_crossing_time_points(
-        -1 * np.linspace(-1, 100, 101), 4, -4, gate_time, 0, n_out, pol_out, t_trig_times_out
+        -1 * np.linspace(-1, 100, 101),
+        4,
+        -4,
+        gate_time,
+        0,
+        n_out,
+        pol_out,
+        t_trig_times_out,
     )
     assert np.isnan(t_trig_times_out).all()
     assert np.isnan(pol_out).all()
@@ -369,13 +376,11 @@ def test_bi_level_zero_crossing_time_points(compare_numba_vs_python):
     assert int(pol_out[0]) == 1
 
     # Check for overflow. This should not fail and should return n_crossings greater than the length of the outputs
-    w_in = np.zeros(100, 'float')*10
+    w_in = np.zeros(100, "float") * 10
     w_in[::2] = -10
     w_in[1::2] = 10
     pol_out = np.zeros(30)
     t_trig_out = np.zeros(30)
-    bi_level_zero_crossing_time_points(
-        w_in, 1, 1, 10, 0, n_out, pol_out, t_trig_out
-    )
-    assert np.all(pol_out==0)
+    bi_level_zero_crossing_time_points(w_in, 1, 1, 10, 0, n_out, pol_out, t_trig_out)
+    assert np.all(pol_out == 0)
     assert n_out[0] == 49
