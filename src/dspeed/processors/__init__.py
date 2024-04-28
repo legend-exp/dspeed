@@ -63,7 +63,6 @@ from .bl_subtract import bl_subtract
 from .convolutions import convolve_wf, fft_convolve_wf
 from .dwt import discrete_wavelet_transform
 from .energy_kernels import cusp_filter, dplms, zac_filter
-from .fftw import dft, inv_dft, psd
 from .fixed_time_pickoff import fixed_time_pickoff
 from .gaussian_filter1d import gaussian_filter1d
 from .get_multi_local_extrema import get_multi_local_extrema
@@ -115,9 +114,6 @@ __all__ = [
     "t0_filter",
     "zac_filter",
     "discrete_wavelet_transform",
-    "dft",
-    "inv_dft",
-    "psd",
     "fixed_time_pickoff",
     "gaussian_filter1d",
     "get_multi_local_extrema",
