@@ -102,10 +102,10 @@ def get_multi_local_extrema(
     n_min_right_counter = 0
 
     # initialize temporary arrays
-    left_vt_max = np.zeros(len(vt_max_out), dtype=np.float_)
-    left_vt_min = np.zeros(len(vt_min_out), dtype=np.float_)
-    right_vt_max = np.zeros(len(vt_max_out), dtype=np.float_)
-    right_vt_min = np.zeros(len(vt_min_out), dtype=np.float_)
+    left_vt_max = np.zeros(len(vt_max_out), dtype=float)
+    left_vt_min = np.zeros(len(vt_min_out), dtype=float)
+    right_vt_max = np.zeros(len(vt_max_out), dtype=float)
+    right_vt_min = np.zeros(len(vt_min_out), dtype=float)
 
     left_vt_max[:] = np.nan
     left_vt_min[:] = np.nan
