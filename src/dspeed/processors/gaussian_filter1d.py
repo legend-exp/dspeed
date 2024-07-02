@@ -30,7 +30,7 @@
 
 # All this code belongs to the team that coded Scipy, found at this link:
 #     https://github.com/scipy/scipy/blob/v1.6.0/scipy/ndimage/filters.py#L210-L260
-# The only thing changed was the calculation of the convulution, which
+# The only thing changed was the calculation of the convolution, which
 # originally called a function from a C library.  In this code, the convolution is
 # performed with NumPy's built in convolution function.
 from __future__ import annotations
