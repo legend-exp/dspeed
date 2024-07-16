@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import logging
 import math
 import string
 import sys
@@ -16,6 +17,8 @@ from matplotlib.lines import Line2D
 
 from ..processing_chain import build_processing_chain
 from ..units import unit_registry as ureg
+
+log = logging.getLogger(__name__)
 
 
 class WaveformBrowser:
@@ -37,7 +40,7 @@ class WaveformBrowser:
         dsp_config: dict | str = None,
         database: str | dict = None,
         aux_values: pandas.DataFrame = None,
-        lines: str | list[str] = "waveform",
+        lines: str | list[str] = None,
         styles: dict[str, list] | str = None,
         legend: str | list[str] = None,
         legend_opts: dict = None,
@@ -187,7 +190,15 @@ class WaveformBrowser:
         if isinstance(lines, str):
             self.lines = {lines: []}
         elif lines is None:
-            self.lines = {}
+            # default: include all input fields of type WaveformTable
+            self.lines = {
+                key: []
+                for key, val in self.lh5_in.items()
+                if isinstance(val, lgdo.WaveformTable)
+            }
+            log.warning(
+                f"Found waveforms {self.lines.keys()}. Use the lines argument to select one or more."
+            )
         else:
             self.lines = {line: [] for line in lines}
 
