@@ -20,6 +20,7 @@ from ..units import unit_registry as ureg
 
 log = logging.getLogger(__name__)
 
+
 class WaveformBrowser:
     """The :class:`WaveformBrowser` is a tool meant for interacting with
     waveforms from LEGEND HDF5 files. It defines an interface for drawing
@@ -190,8 +191,14 @@ class WaveformBrowser:
             self.lines = {lines: []}
         elif lines is None:
             # default: include all input fields of type WaveformTable
-            self.lines = { key: [] for key, val in self.lh5_in.items() if isinstance(val, lgdo.WaveformTable) }
-            log.warning(f"Found waveforms {self.lines.keys()}. Use the lines argument to select one or more.")
+            self.lines = {
+                key: []
+                for key, val in self.lh5_in.items()
+                if isinstance(val, lgdo.WaveformTable)
+            }
+            log.warning(
+                f"Found waveforms {self.lines.keys()}. Use the lines argument to select one or more."
+            )
         else:
             self.lines = {line: [] for line in lines}
 
