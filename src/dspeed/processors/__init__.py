@@ -61,8 +61,10 @@ several advantages:
 
 from .bl_subtract import bl_subtract
 from .convolutions import (
+    convolve_damped_oscillator,
+    convolve_exp,
     convolve_wf,
-    fft_convolve_wf,
+    fft_convolve_wf
 )
 from .dwt import discrete_wavelet_transform
 from .energy_kernels import cusp_filter, dplms, zac_filter
