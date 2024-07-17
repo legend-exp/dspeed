@@ -7,20 +7,26 @@ from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
 from .convolutions import convolve_damped_oscillator
 
+
 @guvectorize(
     [
         "void(float32[:], float64, float64, float64, float64, float32[:])",
         "void(float64[:], float64, float64, float64, float64, float64[:])",
     ],
     "(n),(),(),(),()->(n)",
-    **nb_kwargs(
-        forceobj=True
-    )
+    **nb_kwargs(forceobj=True),
 )
-def inject_damped_oscillation(w_in: np.ndarray, tau: float, omega: float, phase: float, frac: float, w_out: np.ndarray) -> None:
+def inject_damped_oscillation(
+    w_in: np.ndarray,
+    tau: float,
+    omega: float,
+    phase: float,
+    frac: float,
+    w_out: np.ndarray,
+) -> None:
     """
     Inject a damped oscillation component/pole into the electronics response
-    
+
     Parameters
     ----------
     w_in

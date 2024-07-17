@@ -117,6 +117,7 @@ def fft_convolve_wf(
 
     w_out[:] = fftconvolve(w_in, kernel, mode=mode)
 
+
 @guvectorize(
     [
         "void(float32[:], float64, float32[:])",
@@ -127,12 +128,12 @@ def fft_convolve_wf(
 )
 def convolve_exp(w_in: np.ndarray, tau: float, w_out: np.ndarray) -> None:
     """Convolve waveform with exponential kernel.
-    
+
     Notes
     -----
     kernel is normalized to have a maximum amplitude of 1. To normalize
     by area instead, divide result by tau.
-    
+
     Parameters
     ----------
     w_in
@@ -146,15 +147,16 @@ def convolve_exp(w_in: np.ndarray, tau: float, w_out: np.ndarray) -> None:
     if np.isnan(w_in).any():
         return
 
-    if tau==0. or np.isnan(tau):
+    if tau == 0.0 or np.isnan(tau):
         raise DSPFatal("tau cannot be zero or NaN.")
 
     w_out[:] = 0
-    c = np.exp(-1./tau)
-    cn = 1.
+    c = np.exp(-1.0 / tau)
+    cn = 1.0
     for i in range(len(w_in)):
-        w_out[i:] += cn * w_in[:len(w_in)-i]
+        w_out[i:] += cn * w_in[: len(w_in) - i]
         cn *= c
+
 
 @guvectorize(
     [
@@ -164,14 +166,16 @@ def convolve_exp(w_in: np.ndarray, tau: float, w_out: np.ndarray) -> None:
     "(n),(),(),()->(n)",
     **nb_kwargs,
 )
-def convolve_damped_oscillator(w_in: np.ndarray, tau: float, omega:float, phase:float, w_out: np.ndarray) -> None:
+def convolve_damped_oscillator(
+    w_in: np.ndarray, tau: float, omega: float, phase: float, w_out: np.ndarray
+) -> None:
     """Convolve waveform with damped oscillator kernel.
-    
+
     Notes
     -----
     kernel is normalized to have a maximum amplitude of 1. To normalize
     by area instead, divide result by tau.
-    
+
     Parameters
     ----------
     w_in
@@ -179,7 +183,7 @@ def convolve_damped_oscillator(w_in: np.ndarray, tau: float, omega:float, phase:
     tau
         decay time of exponential
     omega
-        angular frequency of oscillation 
+        angular frequency of oscillation
     phase
         starting phase of oscillation
     w_out
@@ -190,7 +194,7 @@ def convolve_damped_oscillator(w_in: np.ndarray, tau: float, omega:float, phase:
     if np.isnan(w_in).any():
         return
 
-    if tau==0. or np.isnan(tau):
+    if tau == 0.0 or np.isnan(tau):
         raise DSPFatal("tau cannot be zero or NaN.")
     if np.isnan(omega):
         raise DSPFatal("omega cannot be NaN.")
@@ -198,8 +202,8 @@ def convolve_damped_oscillator(w_in: np.ndarray, tau: float, omega:float, phase:
         raise DSPFatal("phase cannot be NaN.")
 
     w_out[:] = 0
-    c = np.exp(-1./tau + omega*1j)
-    cn = np.exp(phase*1j)
+    c = np.exp(-1.0 / tau + omega * 1j)
+    cn = np.exp(phase * 1j)
     for i in range(len(w_in)):
-        w_out[i:] += np.real(cn) * w_in[:len(w_in)-i] 
+        w_out[i:] += np.real(cn) * w_in[: len(w_in) - i]
         cn *= c
