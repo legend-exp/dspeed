@@ -68,6 +68,7 @@ from .gaussian_filter1d import gaussian_filter1d
 from .get_multi_local_extrema import get_multi_local_extrema
 from .get_wf_centroid import get_wf_centroid
 from .histogram import histogram, histogram_stats
+from .inject_ringing import inject_damped_oscillation
 from .kernels import moving_slope, step, t0_filter
 from .linear_slope_fit import linear_slope_diff, linear_slope_fit
 from .log_check import log_check
