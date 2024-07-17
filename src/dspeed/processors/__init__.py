@@ -60,7 +60,7 @@ several advantages:
 """
 
 from .bl_subtract import bl_subtract
-from .convolutions import convolve_wf, fft_convolve_wf
+from .convolutions import convolve_wf, fft_convolve_wf, convolve_exp, convolve_damped_oscillator
 from .dwt import discrete_wavelet_transform
 from .energy_kernels import cusp_filter, dplms, zac_filter
 from .fixed_time_pickoff import fixed_time_pickoff

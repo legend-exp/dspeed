@@ -116,3 +116,90 @@ def fft_convolve_wf(
         raise DSPFatal("Invalid mode")
 
     w_out[:] = fftconvolve(w_in, kernel, mode=mode)
+
+@guvectorize(
+    [
+        "void(float32[:], float64, float32[:])",
+        "void(float64[:], float64, float64[:])",
+    ],
+    "(n),()->(n)",
+    **nb_kwargs,
+)
+def convolve_exp(w_in: np.ndarray, tau: float, w_out: np.ndarray) -> None:
+    """Convolve waveform with exponential kernel.
+    
+    Notes
+    -----
+    kernel is normalized to have a maximum amplitude of 1. To normalize
+    by area instead, divide result by tau.
+    
+    Parameters
+    ----------
+    w_in
+        the input waveform
+    tau
+        decay time of exponential kernel
+    w_out
+        output waveform after convolution
+    """
+    w_out[:] = np.nan
+    if np.isnan(w_in).any():
+        return
+
+    if tau==0. or np.isnan(tau):
+        raise DSPFatal("tau cannot be zero or NaN.")
+
+    w_out[:] = 0
+    c = np.exp(-1./tau)
+    cn = 1.
+    for i in range(len(w_in)):
+        w_out[i:] += cn * w_in[:len(w_in)-i]
+        cn *= c
+
+@guvectorize(
+    [
+        "void(float32[:], float64, float64, float64, float32[:])",
+        "void(float64[:], float64, float64, float64, float64[:])",
+    ],
+    "(n),(),(),()->(n)",
+    **nb_kwargs,
+)
+def convolve_damped_oscillator(w_in: np.ndarray, tau: float, omega:float, phase:float, w_out: np.ndarray) -> None:
+    """Convolve waveform with damped oscillator kernel.
+    
+    Notes
+    -----
+    kernel is normalized to have a maximum amplitude of 1. To normalize
+    by area instead, divide result by tau.
+    
+    Parameters
+    ----------
+    w_in
+        the input waveform
+    tau
+        decay time of exponential
+    omega
+        angular frequency of oscillation 
+    phase
+        starting phase of oscillation
+    w_out
+        output waveform after convolution
+    """
+    w_out[:] = np.nan
+
+    if np.isnan(w_in).any():
+        return
+
+    if tau==0. or np.isnan(tau):
+        raise DSPFatal("tau cannot be zero or NaN.")
+    if np.isnan(omega):
+        raise DSPFatal("omega cannot be NaN.")
+    if np.isnan(phase):
+        raise DSPFatal("phase cannot be NaN.")
+
+    w_out[:] = 0
+    c = np.exp(-1./tau + omega*1j)
+    cn = np.exp(phase*1j)
+    for i in range(len(w_in)):
+        w_out[i:] += np.real(cn) * w_in[:len(w_in)-i] 
+        cn *= c
