@@ -64,7 +64,7 @@ from .convolutions import (
     convolve_damped_oscillator,
     convolve_exp,
     convolve_wf,
-    fft_convolve_wf
+    fft_convolve_wf,
 )
 from .dwt import discrete_wavelet_transform
 from .energy_kernels import cusp_filter, dplms, zac_filter
@@ -73,6 +73,7 @@ from .gaussian_filter1d import gaussian_filter1d
 from .get_multi_local_extrema import get_multi_local_extrema
 from .get_wf_centroid import get_wf_centroid
 from .histogram import histogram, histogram_stats
+from .inject_ringing import inject_damped_oscillation
 from .kernels import moving_slope, step, t0_filter
 from .linear_slope_fit import linear_slope_diff, linear_slope_fit
 from .log_check import log_check
@@ -173,4 +174,7 @@ __all__ = [
     "transfer_function_convolver",
     "rc_cr2",
     "bi_level_zero_crossing_time_points",
+    "convolve_exp",
+    "convolve_damped_oscillator",
+    "inject_damped_oscillation",
 ]
