@@ -13,7 +13,7 @@ def test_convolve_exp(compare_numba_vs_python):
     def test_with_delta(wf_len: int, t_offset: int, amp: float, tau: float):
         delta = np.zeros(wf_len, "float32")
         delta[t_offset] = amp
-        out = convolve_exp(delta, tau)
+        out = compare_numba_vs_python(convolve_exp, delta, tau)
 
         exp = np.zeros_like(delta)
         exp[t_offset:] = amp * np.exp(-np.arange(wf_len - t_offset) / tau)
@@ -32,7 +32,7 @@ def test_convolve_exp(compare_numba_vs_python):
     def test_with_step(wf_len: int, t_offset: int, amp: float, tau: float):
         step = np.zeros(wf_len, "float64")
         step[t_offset + 1 :] = amp
-        out = convolve_exp(step, tau)
+        out = compare_numba_vs_python(convolve_exp, step, tau)
 
         exp = np.zeros_like(step)
         exp[t_offset:] = (
@@ -59,7 +59,9 @@ def test_convolve_damped_oscillator(compare_numba_vs_python):
     ):
         delta = np.zeros(wf_len, "float32")
         delta[t_offset] = amp
-        out = convolve_damped_oscillator(delta, tau, omega, phase)
+        out = compare_numba_vs_python(
+            convolve_damped_oscillator, delta, tau, omega, phase
+        )
 
         exp = np.zeros_like(delta)
         exp[t_offset:] = (
@@ -90,7 +92,9 @@ def test_convolve_damped_oscillator(compare_numba_vs_python):
     ):
         step = np.zeros(wf_len, "float64")
         step[t_offset + 1 :] = amp
-        out = convolve_damped_oscillator(step, tau, omega, phase)
+        out = compare_numba_vs_python(
+            convolve_damped_oscillator, step, tau, omega, phase
+        )
 
         exp = np.zeros_like(step)
         exp[t_offset:] = np.real(

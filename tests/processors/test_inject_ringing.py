@@ -22,7 +22,9 @@ def test_inject_damped_oscillation(compare_numba_vs_python):
         step = np.zeros(wf_len, "float64")
         step[t_offset:] = amp
 
-        out = inject_damped_oscillation(step, tau, omega, phase, frac)
+        out = compare_numba_vs_python(
+            inject_damped_oscillation, step, tau, omega, phase, frac
+        )
 
         exp = np.zeros_like(step)
         exp[t_offset:] = (
