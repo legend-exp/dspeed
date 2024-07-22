@@ -1478,7 +1478,7 @@ class ProcessorManager:
                                 f"could not find valid conversion for {param}; "
                                 f"CoordinateGrid is {grid}"
                             )
-                        param = param * grid.period**(pi[0][0]/pi[0][1])
+                        param = param * grid.period ** (pi[0][0] / pi[0][1])
                         param = param.to(ureg.dimensionless).magnitude
                 if np.issubdtype(dtype, np.integer):
                     param = dtype.type(np.round(param))
