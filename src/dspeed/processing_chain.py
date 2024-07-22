@@ -1465,15 +1465,21 @@ class ProcessorManager:
                 if isinstance(param, (Quantity, Unit)):
                     if ureg.is_compatible_with(ureg.dimensionless, param):
                         param = param.to(ureg.dimensionless).magnitude
-                    elif not isinstance(
-                        grid, CoordinateGrid
-                    ) or not ureg.is_compatible_with(grid.period.u, param):
+                    elif not isinstance(grid, CoordinateGrid):
                         raise ProcessingChainError(
                             f"could not find valid conversion for {param}; "
                             f"CoordinateGrid is {grid}"
                         )
                     else:
-                        param = (param / grid.period).to(ureg.dimensionless).magnitude
+                        # This lets us convert powers of unit
+                        pi = ureg.pi_theorem({0: grid.period, 1: param})
+                        if not pi:
+                            raise ProcessingChainError(
+                                f"could not find valid conversion for {param}; "
+                                f"CoordinateGrid is {grid}"
+                            )
+                        param = param * grid.period ** (pi[0][0] / pi[0][1])
+                        param = param.to(ureg.dimensionless).magnitude
                 if np.issubdtype(dtype, np.integer):
                     param = dtype.type(np.round(param))
                 else:
@@ -2128,10 +2134,6 @@ def build_processing_chain(
         # parse the arguments list for prereqs, if not included explicitly
         if "prereqs" not in node:
             prereqs = []
-            if "args" in node:
-                args = node["args"]
-            else:
-                args = [node["function"]]
 
             for arg in args:
                 if not isinstance(arg, str):

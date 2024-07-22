@@ -35,6 +35,8 @@ def inject_damped_oscillation(
         time constant of decay
     omega:
         angular frequency of oscillation
+    phase:
+        phase shift of oscillation
     frac
         fraction of amplitude in injected pole
     w_out

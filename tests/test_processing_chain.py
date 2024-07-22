@@ -152,6 +152,39 @@ def test_processor_variable_array_output(spms_raw_tbl):
     proc_chain.execute(0, 1)
 
 
+def test_proc_chain_unit_conversion(spms_raw_tbl):
+    dsp_config = {
+        "outputs": ["a_unitless", "a_ns", "a_us", "a_ghz"],
+        "processors": {
+            "a_unitless": {
+                "function": "fixed_time_pickoff",
+                "module": "dspeed.processors",
+                "args": ["waveform", 100, "'n'", "a_unitless"],
+            },
+            "a_ns": {
+                "function": "fixed_time_pickoff",
+                "module": "dspeed.processors",
+                "args": ["waveform", "1600*ns", "'n'", "a_ns"],
+            },
+            "a_us": {
+                "function": "fixed_time_pickoff",
+                "module": "dspeed.processors",
+                "args": ["waveform", "1.6*us", "'n'", "a_us"],
+            },
+            "a_ghz": {  # note this doesn't really make sense, but I want to test if it will convert inverse units
+                "function": "fixed_time_pickoff",
+                "module": "dspeed.processors",
+                "args": ["waveform", "6.25*GHz", "'n'", "a_ghz"],
+            },
+        },
+    }
+    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
+    proc_chain.execute(0, 1)
+    assert lh5_out["a_unitless"][0] == lh5_out["a_ns"][0]
+    assert lh5_out["a_unitless"][0] == lh5_out["a_us"][0]
+    assert lh5_out["a_unitless"][0] == lh5_out["a_ghz"][0]
+
+
 # Test that timing variables can be converted between multiple coordinate
 # grids correctly. Also tests slicing with a stride. Pickoff a time from
 # a windowed wf and a down-sampled waveform; they should be the same
