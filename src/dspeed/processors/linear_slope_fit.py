@@ -43,7 +43,7 @@ def linear_slope_fit(
         "bl_mean, bl_std, bl_slope, bl_intercept": {
             "function": "linear_slope_fit",
             "module": "dspeed.processors",
-            "args": ["wf_blsub[0:1650]", "bl_mean", "bl_std", "bl_slope", "bl_intercept"],
+            "args": ["wf_blsub[0:round(44.5*us, wf_blsub.period)]", "bl_mean", "bl_std", "bl_slope", "bl_intercept"],
             "unit": ["ADC", "ADC", "ADC", "ADC"],
         }
     """
@@ -89,7 +89,8 @@ def linear_slope_diff(
     w_in: np.ndarray, slope: float, intercept: float, mean: float, rms: float
 ) -> None:
     """
-    Calculate the mean, standard deviation, slope and y-intercept of waveform.
+    Calculate the mean and rms of the waveform after subtracting out the
+    provided slope and intercept.
 
     Uses Welford's method and linear regression.
 
@@ -97,26 +98,34 @@ def linear_slope_diff(
     ----------
     w_in
         the input waveform.
-    mean
-        the mean of the waveform.
-    stdev
-        the standard deviation of the waveform.
     slope
         the slope of the linear fit.
     intercept
         the intercept of the linear fit.
+    mean
+        the mean of the waveform after subtracting the slope/intercept.
+    stdev
+        the standard deviation of the waveform after subtracting the slope/intercept.
 
     JSON Configuration Example
     --------------------------
 
     .. code-block :: json
 
-        "bl_mean, bl_std, bl_slope, bl_intercept": {
-            "function": "linear_slope_fit",
-            "module": "dspeed.processors",
-            "args": ["wf_blsub[0:1650]", "bl_mean", "bl_std", "bl_slope", "bl_intercept"],
-            "unit": ["ADC", "ADC", "ADC", "ADC"],
+        "bl_slope_diff , bl_slope_rms": {
+          "description": "finds mean and rms relative to linear fit of the baseline section",
+          "function": "linear_slope_diff",
+          "module": "dspeed.processors",
+          "args": [
+            "wf_presum[0: round(44.5*us, wf_presum.period)]",
+            "bl_slope",
+            "bl_intercept",
+            "bl_slope_diff",
+            "bl_slope_rms"
+          ],
+          "unit": ["ADC", "ADC"]
         }
+
     """
     mean[0] = np.nan
     rms[0] = np.nan
