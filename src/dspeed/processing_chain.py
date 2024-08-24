@@ -28,7 +28,7 @@ from .units import unit_registry as ureg
 from .utils import ProcChainVarBase
 from .utils import numba_defaults_kwargs as nb_kwargs
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("dspeed")
 sto = lh5.LH5Store()
 
 # Filler value for variables to be automatically deduced later
