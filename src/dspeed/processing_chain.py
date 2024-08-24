@@ -825,7 +825,10 @@ class ProcessingChain:
                     if unit == ureg.dimensionless:
                         unit = None
                 elif lhs.unit is not None and rhs.unit is not None:
-                    unit = op_form.format(str(lhs.unit), str(rhs.unit))
+                    if type(node.op) in (ast.Mult, ast.Div, ast.FloorDiv):
+                        unit = op_form.format(str(lhs.unit), str(rhs.unit))
+                    else:
+                        unit = str(lhs.unit)
                 elif lhs.unit is not None:
                     unit = lhs.unit
                 else:
