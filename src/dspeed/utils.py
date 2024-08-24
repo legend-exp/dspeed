@@ -2,6 +2,90 @@ import os
 from abc import ABCMeta
 from collections.abc import MutableMapping
 from typing import Any, Iterator
+import numpy as np
+from numba.np.ufunc import sigparse
+
+
+class GUFuncWrapper:
+    """
+    A wrapper class to create a u-func like object from an arbitrary function.
+    This class is callable and is intended for use for processors that require
+    setup with persistent state information; these processors are generated
+    using the "factory" method and typically utilize "init_args"
+    
+    Example 1:
+    --------
+        ...set up some object `obj` that has a function we want to call on w_in
+        gufunc = gufunc_wrapper(
+            lambda w_in: obj.execute(w_in, args...),
+            "(n)->()",
+            "ff"
+        )
+    
+    Example 2:
+    ----------
+        fun is a vectorized python function, but we want to use ufunc interface
+        gufunc = gufunc_wrapper(
+            lambda w_in, a, w_out: fun(w_in, a, out=w_out, ...more kwargs),
+            "(n),()->(n)",
+            "fff",
+            vectorized=True,
+            copy_out=False
+        )
+    """
+    
+    def __init__(self, fun, signature, types, name=None, vectorized=False, copy_out=True):
+        """
+        Parameters
+        ----------
+        fun
+            python function to be wrapped
+        signature
+            gufunction signature (see https://numpy.org/doc/2.1/reference/c-api/generalized-ufuncs.html)
+        types
+            string of type chars, e.g. fi->f
+        name
+            name of function. By default use `fun.__name__` (this can be very
+            unhelpful, e.g. "<lambda>")
+        vectorized
+            if False, use np.vectorize to loop over function. Set to True
+            if `fun` is already vectorized
+        copy_out
+            set to False if function does in-place calculation for outputs.
+            Cannot be False if vectorized is also False
+        """
+        assert(vectorized or copy_out)
+
+        self.__name__ = name if name else fun.__name__
+        self.signature = signature
+        ins, outs = sigparse.parse_signature(signature)
+        self.nin = len(ins)
+        self.nout = len(outs)
+        self.nargs = self.nin+self.nout
+        self.types = [types]
+        self.ntypes = 1
+        self.copy_out = copy_out
+        if vectorized:
+            self.ufunc = fun
+        else:
+            otypes = types[-self.nout:] if self.nout>0 else None
+            self.ufunc = np.vectorize(fun, otypes=otypes, signature=self.signature)
+
+    def __call__(self, *args):
+        """Call wrapped function with "in place" outputs"""
+        
+        assert(len(args)==self.nargs)
+        
+        if self.copy_out and self.nout>0:
+            ins = args[:self.nin]
+            outs = args[-self.nout:]
+            #print([i.shape for i in ins], [o.shape for o in outs])
+            rets = self.ufunc(*ins)
+            if self.nout==1: rets = [rets]
+            for out,ret in zip(outs, rets):
+                out[...] = ret
+        else:
+            self.ufunc(*args)
 
 
 def getenv_bool(name: str, default: bool = False) -> bool:

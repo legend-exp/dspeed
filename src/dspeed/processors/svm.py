@@ -7,6 +7,7 @@ import numpy as np
 from numba import guvectorize
 
 from ..utils import numba_defaults_kwargs as nb_kwargs
+from ..utils import GUFuncWrapper
 
 
 def svm_predict(svm_file: str) -> Callable:
@@ -47,36 +48,18 @@ def svm_predict(svm_file: str) -> Callable:
         with open(svm_file, "rb") as f:
             svm = pickle.load(f)
 
-    @guvectorize(
-        [
-            "void(float32[:], float32[:])",
-            "void(float64[:], float64[:])",
-        ],
-        "(n),()",
-        **nb_kwargs(
-            forceobj=True,
-        ),
-    )
-    def svm_out(w_in: np.ndarray, label_out: float) -> None:
-        """
-        Parameters
-        ----------
-        w_in
-           The input waveform (has to be a max_min normalized discrete wavelet transform)
-        label_out
-           The predicted label by the trained SVM for the input waveform.
-        """
-        label_out[0] = np.nan
-
-        if svm is None:
-            return
-
-        if np.isnan(w_in).any():
-            return
+    def svm_proc(w_in):
+        if svm is None or np.isnan(w_in).any():
+            return np.nan
 
         if w_in.ndim == 1:
-            label_out[0] = svm.predict(w_in.reshape(1, -1))
+            return svm.predict(w_in.reshape(1, -1))
         else:
-            label_out[0] = svm.predict(w_in)
+            return svm.predict(w_in)        
 
-    return svm_out
+    return GUFuncWrapper(
+        svm_proc,
+        name=svm_file if isinstance(svm_file, str) else "svm_null",
+        signature='(n)->()',
+        types="f->f"
+    )
