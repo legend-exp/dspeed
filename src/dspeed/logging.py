@@ -34,8 +34,7 @@ def setup(level: int = logging.INFO, logger: logging.Logger = None) -> None:
     colors["DEBUG"] = "bold_cyan"
     handler.setFormatter(
         colorlog.ColoredFormatter(
-            "%(log_color)s%(name)s [%(levelname)s] %(message)s",
-            log_colors=colors
+            "%(log_color)s%(name)s [%(levelname)s] %(message)s", log_colors=colors
         )
     )
 

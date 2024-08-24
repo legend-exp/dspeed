@@ -4,9 +4,7 @@ import pickle
 from typing import Callable
 
 import numpy as np
-from numba import guvectorize
 
-from ..utils import numba_defaults_kwargs as nb_kwargs
 from ..utils import GUFuncWrapper
 
 
@@ -55,11 +53,11 @@ def svm_predict(svm_file: str) -> Callable:
         if w_in.ndim == 1:
             return svm.predict(w_in.reshape(1, -1))
         else:
-            return svm.predict(w_in)        
+            return svm.predict(w_in)
 
     return GUFuncWrapper(
         svm_proc,
         name=svm_file if isinstance(svm_file, str) else "svm_null",
-        signature='(n)->()',
-        types="f->f"
+        signature="(n)->()",
+        types="f->f",
     )

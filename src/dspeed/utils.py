@@ -2,6 +2,7 @@ import os
 from abc import ABCMeta
 from collections.abc import MutableMapping
 from typing import Any, Iterator
+
 import numpy as np
 from numba.np.ufunc import sigparse
 
@@ -12,7 +13,7 @@ class GUFuncWrapper:
     This class is callable and is intended for use for processors that require
     setup with persistent state information; these processors are generated
     using the "factory" method and typically utilize "init_args"
-    
+
     Example 1:
     --------
         ...set up some object `obj` that has a function we want to call on w_in
@@ -21,7 +22,7 @@ class GUFuncWrapper:
             "(n)->()",
             "ff"
         )
-    
+
     Example 2:
     ----------
         fun is a vectorized python function, but we want to use ufunc interface
@@ -33,8 +34,10 @@ class GUFuncWrapper:
             copy_out=False
         )
     """
-    
-    def __init__(self, fun, signature, types, name=None, vectorized=False, copy_out=True):
+
+    def __init__(
+        self, fun, signature, types, name=None, vectorized=False, copy_out=True
+    ):
         """
         Parameters
         ----------
@@ -54,35 +57,36 @@ class GUFuncWrapper:
             set to False if function does in-place calculation for outputs.
             Cannot be False if vectorized is also False
         """
-        assert(vectorized or copy_out)
+        assert vectorized or copy_out
 
         self.__name__ = name if name else fun.__name__
         self.signature = signature
         ins, outs = sigparse.parse_signature(signature)
         self.nin = len(ins)
         self.nout = len(outs)
-        self.nargs = self.nin+self.nout
+        self.nargs = self.nin + self.nout
         self.types = [types]
         self.ntypes = 1
         self.copy_out = copy_out
         if vectorized:
             self.ufunc = fun
         else:
-            otypes = types[-self.nout:] if self.nout>0 else None
+            otypes = types[-self.nout :] if self.nout > 0 else None
             self.ufunc = np.vectorize(fun, otypes=otypes, signature=self.signature)
 
     def __call__(self, *args):
         """Call wrapped function with "in place" outputs"""
-        
-        assert(len(args)==self.nargs)
-        
-        if self.copy_out and self.nout>0:
-            ins = args[:self.nin]
-            outs = args[-self.nout:]
-            #print([i.shape for i in ins], [o.shape for o in outs])
+
+        assert len(args) == self.nargs
+
+        if self.copy_out and self.nout > 0:
+            ins = args[: self.nin]
+            outs = args[-self.nout :]
+            # print([i.shape for i in ins], [o.shape for o in outs])
             rets = self.ufunc(*ins)
-            if self.nout==1: rets = [rets]
-            for out,ret in zip(outs, rets):
+            if self.nout == 1:
+                rets = [rets]
+            for out, ret in zip(outs, rets):
                 out[...] = ret
         else:
             self.ufunc(*args)
