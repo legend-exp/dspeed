@@ -15,8 +15,11 @@ class GUFuncWrapper:
     using the "factory" method and typically utilize "init_args"
 
     Example 1:
-    --------
-        ...set up some object `obj` that has a function we want to call on w_in
+    ----------
+    .. highlight::python
+    .. code-block:: python
+
+        set up some object `obj` that has a function we want to call on w_in
         gufunc = gufunc_wrapper(
             lambda w_in: obj.execute(w_in, args...),
             "(n)->()",
@@ -25,6 +28,9 @@ class GUFuncWrapper:
 
     Example 2:
     ----------
+    .. highlight::python
+    .. code-block:: python
+
         fun is a vectorized python function, but we want to use ufunc interface
         gufunc = gufunc_wrapper(
             lambda w_in, a, w_out: fun(w_in, a, out=w_out, ...more kwargs),
@@ -33,6 +39,7 @@ class GUFuncWrapper:
             vectorized=True,
             copy_out=False
         )
+
     """
 
     def __init__(
