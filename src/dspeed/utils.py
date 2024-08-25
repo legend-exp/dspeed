@@ -19,7 +19,7 @@ class GUFuncWrapper:
     .. highlight::python
     .. code-block:: python
 
-        set up some object `obj` that has a function we want to call on w_in
+        set up some object 'obj' that has a function we want to call on w_in
         gufunc = gufunc_wrapper(
             lambda w_in: obj.execute(w_in, args...),
             "(n)->()",
