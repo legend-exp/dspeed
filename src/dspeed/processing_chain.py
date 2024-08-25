@@ -28,7 +28,7 @@ from .units import unit_registry as ureg
 from .utils import ProcChainVarBase
 from .utils import numba_defaults_kwargs as nb_kwargs
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("dspeed")
 sto = lh5.LH5Store()
 
 # Filler value for variables to be automatically deduced later
@@ -825,7 +825,10 @@ class ProcessingChain:
                     if unit == ureg.dimensionless:
                         unit = None
                 elif lhs.unit is not None and rhs.unit is not None:
-                    unit = op_form.format(str(lhs.unit), str(rhs.unit))
+                    if type(node.op) in (ast.Mult, ast.Div, ast.FloorDiv):
+                        unit = op_form.format(str(lhs.unit), str(rhs.unit))
+                    else:
+                        unit = str(lhs.unit)
                 elif lhs.unit is not None:
                     unit = lhs.unit
                 else:
