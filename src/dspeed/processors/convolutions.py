@@ -5,6 +5,7 @@ from numba import guvectorize
 from scipy.signal import fftconvolve
 
 from ..errors import DSPFatal
+from ..utils import dspeed_guvectorize
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
@@ -69,15 +70,11 @@ def convolve_wf(
     w_out[:] = np.convolve(w_in, kernel, mode=mode)
 
 
-@guvectorize(
-    [
-        "void(float32[:], float32[:], char, float32[:])",
-        "void(float64[:], float64[:], char, float64[:])",
-    ],
+@dspeed_guvectorize(
     "(n),(m),(),(p)",
-    **nb_kwargs(
-        forceobj=True,
-    ),
+    ["ffbf", "ddbd"],
+    vectorized=True,
+    copy_out=True,
 )
 def fft_convolve_wf(
     w_in: np.ndarray, kernel: np.array, mode_in: np.int8, w_out: np.ndarray
@@ -103,7 +100,7 @@ def fft_convolve_wf(
     if np.isnan(kernel).any():
         return
 
-    if len(kernel) > len(w_in):
+    if kernel.shape[-1] > w_in.shape[-1]:
         raise DSPFatal("The filter is longer than the input waveform")
 
     if chr(mode_in) == "f":
@@ -115,6 +112,8 @@ def fft_convolve_wf(
     else:
         raise DSPFatal("Invalid mode")
 
+    if len(kernel.shape) < len(w_in.shape):
+        kernel = kernel.reshape((1, *kernel.shape))
     w_out[:] = fftconvolve(w_in, kernel, mode=mode)
 
 
