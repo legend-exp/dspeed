@@ -43,7 +43,14 @@ class GUFuncWrapper:
     """
 
     def __init__(
-        self, fun, signature, types, name=None, vectorized=False, copy_out=True
+        self,
+        fun,
+        signature,
+        types,
+        name=None,
+        vectorized=False,
+        copy_out=True,
+        doc_string=None,
     ):
         """
         Parameters
@@ -63,6 +70,9 @@ class GUFuncWrapper:
         copy_out
             set to False if function does in-place calculation for outputs.
             Cannot be False if vectorized is also False
+        doc_string
+            manually set doc string. If None, use docstring of fun if it
+            exists. Else use this docstring.
         """
         assert vectorized or copy_out
 
@@ -72,9 +82,14 @@ class GUFuncWrapper:
         self.nin = len(ins)
         self.nout = len(outs)
         self.nargs = self.nin + self.nout
-        self.types = [types]
+        self.types = [types] if isinstance(types, str) else types
         self.ntypes = 1
         self.copy_out = copy_out
+        if doc_string:
+            self.__doc__ = doc_string
+        elif fun.__doc__:
+            self.__doc__ = fun.__doc__
+
         if vectorized:
             self.ufunc = fun
         else:
@@ -97,6 +112,14 @@ class GUFuncWrapper:
                 out[...] = ret
         else:
             self.ufunc(*args)
+
+
+def dspeed_guvectorize(*args, **kwargs):
+    """
+    Decorator to create a callable object implementing the gufunc interface.
+    See arguments in GUFuncWrapper initializer
+    """
+    return lambda fun: GUFuncWrapper(fun, *args, **kwargs)
 
 
 def getenv_bool(name: str, default: bool = False) -> bool:
