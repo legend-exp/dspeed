@@ -622,6 +622,8 @@ class WaveformBrowser:
             n_wfs = self.n_drawn
         entries = (self.next_entry, self.next_entry + n_wfs)
         self.find_entry(range(*entries), append, safe=True)
+        if self.n_stored == 0:
+            raise IndexError("Could not find any more waveforms...")
         return entries
 
     def draw_next(

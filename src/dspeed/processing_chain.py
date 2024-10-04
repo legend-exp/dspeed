@@ -42,6 +42,12 @@ ast_ops_dict = {
     ast.Div: (np.divide, "{}/{}"),
     ast.FloorDiv: (np.floor_divide, "{}//{}"),
     ast.USub: (np.negative, "-{}"),
+    ast.Eq: (np.equal, "{}=={}"),
+    ast.NotEq: (np.not_equal, "{}!={}"),
+    ast.Lt: (np.less, "{}<{}"),
+    ast.LtE: (np.less_equal, "{}<={}"),
+    ast.Gt: (np.greater, "{}>{}"),
+    ast.GtE: (np.greater_equal, "{}>={}"),
 }
 
 
@@ -781,7 +787,7 @@ class ProcessingChain:
             if len(npparr.shape) == 1:
                 return npparr
             else:
-                ProcessingChainError("only 1D arrays are supported: " + expr)
+                raise ProcessingChainError("only 1D arrays are supported: " + expr)
 
         elif isinstance(node, ast.Constant):
             return node.value
@@ -888,6 +894,70 @@ class ProcessingChain:
             else:
                 out = op(operand)
 
+            return out
+
+        # define comparison operators (<, <=, >, >=, ==, !=)
+        elif isinstance(node, ast.Compare):
+            lhs = self._parse_expr(node.left, expr, dry_run, var_name_list)
+            if len(node.comparators) != 1:
+                raise ProcessingChainError("Compound comparisons are not supported.")
+            rhs = self._parse_expr(node.comparators[0], expr, dry_run, var_name_list)
+            if rhs is None or lhs is None:
+                return None
+            op, op_form = ast_ops_dict[type(node.ops[0])]
+
+            if not (isinstance(lhs, ProcChainVar) or isinstance(rhs, ProcChainVar)):
+                ret = op(lhs, rhs)
+                if isinstance(ret, Quantity) and ureg.is_compatible_with(
+                    ret.u, ureg.dimensionless
+                ):
+                    ret = ret.to(ureg.dimensionless).magnitude
+                return ret
+
+            name = "(" + op_form.format(str(lhs), str(rhs)) + ")"
+            if isinstance(lhs, ProcChainVar) and isinstance(rhs, ProcChainVar):
+                if is_in_pint(lhs.unit) and is_in_pint(rhs.unit):
+                    unit = op(Quantity(lhs.unit), Quantity(rhs.unit)).u
+                    if unit == ureg.dimensionless:
+                        unit = None
+                elif lhs.unit is not None and rhs.unit is not None:
+                    if type(node.op) in (ast.Mult, ast.Div, ast.FloorDiv):
+                        unit = op_form.format(str(lhs.unit), str(rhs.unit))
+                    else:
+                        unit = str(lhs.unit)
+                elif lhs.unit is not None:
+                    unit = lhs.unit
+                else:
+                    unit = rhs.unit
+                # If both vars are coordinates, this is probably not a coord.
+                # If one var is a coord, this is probably a coord
+                out = ProcChainVar(
+                    self,
+                    name,
+                    grid=None if lhs.is_coord and rhs.is_coord else auto,
+                    is_coord=(
+                        False if lhs.is_coord is True and rhs.is_coord is True else auto
+                    ),
+                    unit=unit,
+                )
+            elif isinstance(lhs, ProcChainVar):
+                out = ProcChainVar(
+                    self,
+                    name,
+                    unit=lhs.unit,
+                    is_coord=lhs.is_coord,
+                )
+            else:
+                out = ProcChainVar(
+                    self,
+                    name,
+                    unit=rhs.unit,
+                    is_coord=rhs.is_coord,
+                )
+
+            proc_man = ProcessorManager(self, op, [lhs, rhs, out])
+            self._proc_managers.append(proc_man)
+            log.debug(f"added processor: {proc_man}")
             return out
 
         elif isinstance(node, ast.Subscript):
@@ -2133,6 +2203,8 @@ def build_processing_chain(
                 else:
                     arg = arg.replace(db_var, str(db_node))
             args[i] = arg
+            if "args" not in node:
+                node["function"] = arg
 
         # parse the arguments list for prereqs, if not included explicitly
         if "prereqs" not in node:

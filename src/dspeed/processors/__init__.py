@@ -98,6 +98,7 @@ from .round_to_nearest import round_to_nearest
 from .saturation import saturation
 from .soft_pileup_corr import soft_pileup_corr, soft_pileup_corr_bl
 from .svm import svm_predict
+from .tf_model import tf_model
 from .time_over_threshold import time_over_threshold
 from .time_point_thresh import (
     bi_level_zero_crossing_time_points,
@@ -153,6 +154,7 @@ __all__ = [
     "soft_pileup_corr",
     "soft_pileup_corr_bl",
     "svm_predict",
+    "tf_model",
     "time_point_thresh",
     "interpolated_time_point_thresh",
     "multi_time_point_thresh",
