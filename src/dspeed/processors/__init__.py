@@ -154,6 +154,7 @@ __all__ = [
     "soft_pileup_corr",
     "soft_pileup_corr_bl",
     "svm_predict",
+    "tf_model",
     "time_point_thresh",
     "interpolated_time_point_thresh",
     "multi_time_point_thresh",

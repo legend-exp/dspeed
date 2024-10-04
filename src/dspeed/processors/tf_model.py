@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import numpy as np
+
 from ..utils import GUFuncWrapper
+
 
 def tf_model(filepath: str) -> GUFuncWrapper:
     """
     Initializer to load a tensorflow model to use in a ProcessingChain
-    
+
     Parameters
     ----------
     filepath
         name of keras file containing model
-    
-    
+
+
     JSON Configuration Example
     --------------------------
     .. code-block :: json
@@ -27,9 +29,9 @@ def tf_model(filepath: str) -> GUFuncWrapper:
 
     try:
         model = tf.keras.models.load_model(filepath)
-        
-        #TODO: form the signature from the model inputs and outputs
-        
+
+        # TODO: form the signature from the model inputs and outputs
+
         return GUFuncWrapper(
             lambda i: model(i).numpy().squeeze(),
             name=filepath,
@@ -37,7 +39,7 @@ def tf_model(filepath: str) -> GUFuncWrapper:
             types=["f->f", "d->d"],
             vectorized=True,
         )
-    except:
+    except OSError:
         return GUFuncWrapper(
             lambda i: np.nan,
             name="tfmodel_null",

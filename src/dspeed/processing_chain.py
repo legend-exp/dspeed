@@ -2203,7 +2203,7 @@ def build_processing_chain(
                 else:
                     arg = arg.replace(db_var, str(db_node))
             args[i] = arg
-            if not "args" in node:
+            if "args" not in node:
                 node["function"] = arg
 
         # parse the arguments list for prereqs, if not included explicitly
