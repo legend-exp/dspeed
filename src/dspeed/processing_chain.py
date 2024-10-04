@@ -787,7 +787,7 @@ class ProcessingChain:
             if len(npparr.shape) == 1:
                 return npparr
             else:
-                ProcessingChainError("only 1D arrays are supported: " + expr)
+                raise ProcessingChainError("only 1D arrays are supported: " + expr)
 
         elif isinstance(node, ast.Constant):
             return node.value
@@ -2203,6 +2203,8 @@ def build_processing_chain(
                 else:
                     arg = arg.replace(db_var, str(db_node))
             args[i] = arg
+            if not "args" in node:
+                node["function"] = arg
 
         # parse the arguments list for prereqs, if not included explicitly
         if "prereqs" not in node:
