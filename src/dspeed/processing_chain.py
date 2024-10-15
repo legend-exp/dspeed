@@ -1859,7 +1859,9 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
             np.copyto(self.raw_buf[start:end, ...], self.raw_var, "unsafe")
         else:
             np.copyto(
-                self.raw_buf[start:end, ...], self.raw_var[0 : end - start, ...], "unsafe"
+                self.raw_buf[start:end, ...],
+                self.raw_var[0 : end - start, ...],
+                "unsafe",
             )
 
     def __str__(self) -> str:
