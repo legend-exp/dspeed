@@ -1855,9 +1855,12 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
         )
 
     def write(self, start: int, end: int) -> None:
-        np.copyto(
-            self.raw_buf[start:end, ...], self.raw_var[0 : end - start, ...], "unsafe"
-        )
+        if self.var.is_const:
+            np.copyto(self.raw_buf[start:end, ...], self.raw_var, "unsafe")
+        else:
+            np.copyto(
+                self.raw_buf[start:end, ...], self.raw_var[0 : end - start, ...], "unsafe"
+            )
 
     def __str__(self) -> str:
         return f"{self.var} linked to lgdo.ArrayOfEqualSizedArrays(shape={self.io_array.nda.shape}, dtype={self.io_array.nda.dtype}, attrs={self.io_array.attrs})"

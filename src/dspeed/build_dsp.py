@@ -170,7 +170,7 @@ def build_dsp(
         # Main processing loop
         lh5_it = lh5.LH5Iterator(f_raw, tb, buffer_len=buffer_len)
         proc_chain = None
-        for lh5_in, start_row, n_rows in lh5_it:
+        for lh5_in, start_row in lh5_it:
             # Initialize
             if proc_chain is None:
                 proc_chain, lh5_it.field_mask, tb_out = build_processing_chain(
@@ -184,7 +184,7 @@ def build_dsp(
                         unit=" rows",
                     )
 
-            n_rows = min(tot_n_rows - start_row, n_rows)
+            n_rows = min(tot_n_rows - start_row, len(lh5_in))
             try:
                 proc_chain.execute(0, n_rows)
             except DSPFatal as e:
