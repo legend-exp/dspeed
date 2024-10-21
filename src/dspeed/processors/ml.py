@@ -1,3 +1,32 @@
+"""
+Module containing ml processors, the dsp config can be used to combine these into a neural
+network a simple example would be:
+
+.. code-block :: json
+
+    "layer_1": {
+        "function": "normalisation_layer",
+        "module": "dspeed.processors",
+        "args": ["wf_blsub", "db.mean", "db.variance", "layer_1"],
+        "unit": "ADC"
+    }
+
+    "layer_2": {
+        "function": "dense_layer_with_bias",
+        "module": "dspeed.processors",
+        "args": ["layer_1", "db.kernel", "db.bias", "'r'", "layer_2"],
+        "unit": "ADC"
+    }
+
+    "classifier": {
+        "function": "dense_layer_with_bias",
+        "module": "dspeed.processors",
+        "args": ["layer_2", "db.kernel", "db.bias","'s'", "classifier"],
+        "unit": "ADC"
+    }
+
+"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -345,11 +374,11 @@ def normalisation_layer(
 
     .. code-block :: json
 
-    "wf_normed": {
-        "function": "normalisation_layer",
-        "module": "dspeed.processors",
-        "args": ["wf_blsub", "db.mean", "db.variance", "wf_normed"],
-        "unit": "ADC"
-    }
+        "wf_normed": {
+            "function": "normalisation_layer",
+            "module": "dspeed.processors",
+            "args": ["wf_blsub", "db.mean", "db.variance", "wf_normed"],
+            "unit": "ADC"
+        }
     """
     x_out[:] = (x_in - means) / np.sqrt(variances)
