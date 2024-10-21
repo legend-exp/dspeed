@@ -1255,7 +1255,11 @@ class ProcessingChain:
         """
 
         try:
-            loaded_data = sto.read(path_in_file, path_to_file)[0].nda
+            loaded_data = sto.read(path_in_file, path_to_file)[0]
+            if isinstance(loaded_data, lgdo.types.Scalar):
+                loaded_data = loaded_data.value
+            else:
+                loaded_data = loaded_data.nda
         except ValueError:
             raise ProcessingChainError(f"LH5 file not found: {path_to_file}")
 
