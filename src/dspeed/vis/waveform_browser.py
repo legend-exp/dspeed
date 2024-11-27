@@ -173,7 +173,7 @@ class WaveformBrowser:
             )
 
         # Get the input buffer and read the first chunk
-        self.lh5_in, _ = self.lh5_it.read(0)
+        self.lh5_in = self.lh5_it.read(0)
 
         self.aux_vals = aux_values
         # Apply entry selection to aux_vals if needed
@@ -379,11 +379,11 @@ class WaveformBrowser:
 
         # Get our current position in the I/O buffers; update if needed
         i_tb = entry - self.lh5_it.current_i_entry
-        if not (self.lh5_it.n_rows > i_tb >= 0):
+        if not (len(self.lh5_out) > i_tb >= 0):
             self.lh5_it.read(entry)
 
             # Check if entry is out of range
-            if self.lh5_it.n_rows == 0:
+            if len(self.lh5_out) == 0:
                 if safe:
                     raise IndexError
                 else:
