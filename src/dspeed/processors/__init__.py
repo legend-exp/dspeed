@@ -78,6 +78,13 @@ from .kernels import moving_slope, step, t0_filter
 from .linear_slope_fit import linear_slope_diff, linear_slope_fit
 from .log_check import log_check
 from .min_max import min_max, min_max_norm
+from .ml import (
+    classification_layer_no_bias,
+    classification_layer_with_bias,
+    dense_layer_no_bias,
+    dense_layer_with_bias,
+    normalisation_layer,
+)
 from .moving_windows import (
     avg_current,
     moving_window_left,
@@ -179,4 +186,9 @@ __all__ = [
     "convolve_exp",
     "convolve_damped_oscillator",
     "inject_damped_oscillation",
+    "dense_layer_no_bias",
+    "dense_layer_with_bias",
+    "classification_layer_no_bias",
+    "classification_layer_with_bias",
+    "normalisation_layer",
 ]

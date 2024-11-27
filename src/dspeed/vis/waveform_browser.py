@@ -378,7 +378,7 @@ class WaveformBrowser:
             return
 
         # Get our current position in the I/O buffers; update if needed
-        i_tb = entry - self.lh5_it.current_entry
+        i_tb = entry - self.lh5_it.current_i_entry
         if not (len(self.lh5_out) > i_tb >= 0):
             self.lh5_it.read(entry)
 
