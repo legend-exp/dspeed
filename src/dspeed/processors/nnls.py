@@ -6,16 +6,23 @@ from numba import guvectorize
 from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
+
 @guvectorize(
     [
         "void(float32[:,::1], float32[::1], float32, float32, boolean, float32[::1])",
         "void(float64[:,::1], float64[::1], float64, float32, boolean, float64[::1])",
     ],
     "(m,n),(m),(),(),(),(n)",
+    nopython=True,
     **nb_kwargs,
 )
 def optimize_nnls(
-    a: np.ndarray, b: np.ndarray, maxiter: int, tol: float, allow_singularity:bool, x: np.ndarray
+    a: np.ndarray,
+    b: np.ndarray,
+    maxiter: int,
+    tol: float,
+    allow_singularity: bool,
+    x: np.ndarray,
 ) -> None:
     """Solve ``argmin_x || ax - b ||_2`` for ``x>=0``.
     Based on :func:`scipy.optimize.nnls` implementation. Which in turn is based on
@@ -34,7 +41,7 @@ def optimize_nnls(
         the projected residual ``(a.T @ (a x - b)`` entries. Increasing this
         value relaxes the solution constraints.
     allow_singularity: bool
-        If matrix is not solvable (e.g. because of non full rank caused by 
+        If matrix is not solvable (e.g. because of non full rank caused by
         float precision), no error is raised but all elements of the
         solution vector are set NaN
     x : ndarray
@@ -72,20 +79,24 @@ def optimize_nnls(
         arr_1d = arr.reshape((arr.shape[0] * arr.shape[1], 1))
         slice_1d = np.take(arr_1d, one_d_index)
         return slice_1d.reshape((len(rows), len(cols)))
-    
+
     def is_singular(matrix):
         """
-        Returns True if matrix det = 0 i.e. matrix is singular. 
-        """    
+        Returns True if matrix det = 0 i.e. matrix is singular.
+        """
         det = np.linalg.det(matrix)
         return abs(det) < np.finfo(np.float64).eps
 
     m, n = a.shape
 
-    if n != len(x) :
-        raise DSPFatal("n dimension of coefficient axis doesn't match solution vector length.")
-    if m != len(b) :
-        raise DSPFatal("m dimension of coefficient axis doesn't match right-hand vector length.")
+    if n != len(x):
+        raise DSPFatal(
+            "n dimension of coefficient axis doesn't match solution vector length."
+        )
+    if m != len(b):
+        raise DSPFatal(
+            "m dimension of coefficient axis doesn't match right-hand vector length."
+        )
 
     ata = np.transpose(a) @ a
     atb = b @ a  # Result is 1D - let NumPy figure it out
@@ -116,7 +127,7 @@ def optimize_nnls(
         if is_singular(mat) and allow_singularity:
             x[:] = np.nan
             return None
-            
+
         s[p] = np.linalg.solve(mat, atb[p])
 
         # Inner loop
@@ -132,7 +143,7 @@ def optimize_nnls(
             if is_singular(mat) and allow_singularity:
                 x[:] = np.nan
                 return None
-            
+
             s[p] = np.linalg.solve(mat, atb[p])
             s[~p] = 0
 
