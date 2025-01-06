@@ -119,3 +119,70 @@ def fixed_time_pickoff(w_in: np.ndarray, t_in: float, mode_in: np.int8, a_out: f
         )
     else:
         raise DSPFatal("Unrecognized interpolation mode")
+
+
+@guvectorize(
+    [
+        "void(float32[:], float32[:], char, float32[:])",
+        "void(float64[:], float64[:], char, float64[:])",
+    ],
+    "(n),(m),()->(m)",
+    **nb_kwargs(forceobj=True),
+)
+def multi_fixed_time_pickoff(
+    w_in: np.ndarray, t_in: float, mode_in: np.int8, a_out: float
+):
+    """Pick off the waveform value at the provided times.
+
+    For non-integral times, interpolate between samples using the method
+    selected using `mode_in`. For each provided index `t_in` if it is out of range,
+    return :any:`numpy.nan`.
+
+    Parameters
+    ----------
+    w_in
+        the input waveform.
+    t_in
+        the waveform indexes to pick off.
+    mode_in
+        character selecting which interpolation method to use. Note this
+        must be passed as a ``int8``, e.g. ``ord('i')``. Options:
+
+        * ``i`` -- integer `t_in`; equivalent to
+          :func:`~.dsp.processors.fixed_sample_pickoff`
+        * ``n`` -- nearest-neighbor interpolation; defined at all values,
+          but not continuous
+        * ``f`` -- floor, or value at previous neighbor; defined at all
+          values but not continuous
+        * ``c`` -- ceiling, or value at next neighbor; defined at all values,
+          but not continuous
+        * ``l`` -- linear interpolation; continuous at all values, but not
+          differentiable
+        * ``h`` -- Hermite cubic spline interpolation; continuous and
+          differentiable at all values but not twice-differentiable
+        * ``s`` -- natural cubic spline interpolation; continuous and
+          twice-differentiable at all values. This method is much slower
+          than the others because it utilizes the entire input waveform!
+    a_out
+        the output pick-off values.
+
+    Examples
+    --------
+    .. code-block :: json
+
+        "a_outs": {
+            "function": "multi_fixed_time_pickoff",
+            "module": "dspeed.processors",
+            "args": ["wf_trap", "tp_ins", "'h'", "a_outs"],
+            "unit": "ADC",
+        }
+    """
+    a_out[:] = np.nan
+
+    if np.isnan(w_in).any():
+        return
+
+    for i, t in enumerate(t_in):
+        temp = np.full(1, np.nan)
+        fixed_time_pickoff(w_in, t, mode_in, temp)
+        a_out[i] = temp[0]

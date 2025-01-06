@@ -68,7 +68,7 @@ from .convolutions import (
 )
 from .dwt import discrete_wavelet_transform
 from .energy_kernels import cusp_filter, dplms, zac_filter
-from .fixed_time_pickoff import fixed_time_pickoff
+from .fixed_time_pickoff import fixed_time_pickoff, multi_fixed_time_pickoff
 from .gaussian_filter1d import gaussian_filter1d
 from .get_multi_local_extrema import get_multi_local_extrema
 from .get_wf_centroid import get_wf_centroid
@@ -78,13 +78,6 @@ from .kernels import moving_slope, step, t0_filter
 from .linear_slope_fit import linear_slope_diff, linear_slope_fit
 from .log_check import log_check
 from .min_max import min_max, min_max_norm
-from .ml import (
-    classification_layer_no_bias,
-    classification_layer_with_bias,
-    dense_layer_no_bias,
-    dense_layer_with_bias,
-    normalisation_layer,
-)
 from .moving_windows import (
     avg_current,
     moving_window_left,
@@ -129,6 +122,7 @@ __all__ = [
     "zac_filter",
     "discrete_wavelet_transform",
     "fixed_time_pickoff",
+    "multi_fixed_time_pickoff",
     "gaussian_filter1d",
     "get_multi_local_extrema",
     "histogram",
@@ -186,9 +180,4 @@ __all__ = [
     "convolve_exp",
     "convolve_damped_oscillator",
     "inject_damped_oscillation",
-    "dense_layer_no_bias",
-    "dense_layer_with_bias",
-    "classification_layer_no_bias",
-    "classification_layer_with_bias",
-    "normalisation_layer",
 ]
