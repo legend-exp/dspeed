@@ -86,6 +86,7 @@ from .moving_windows import (
 )
 from .multi_a_filter import multi_a_filter
 from .multi_t_filter import multi_t_filter, remove_duplicates
+from .nnls import optimize_nnls
 from .optimize import optimize_1pz, optimize_2pz
 from .param_lookup import param_lookup
 from .peak_snr_threshold import peak_snr_threshold
@@ -141,6 +142,7 @@ __all__ = [
     "moving_window_right",
     "multi_a_filter",
     "multi_t_filter",
+    "optimize_nnls",
     "remove_duplicates",
     "optimize_1pz",
     "optimize_2pz",
