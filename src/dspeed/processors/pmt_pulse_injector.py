@@ -40,7 +40,7 @@ def inject_gumbel(
     # Start injecting the distribution at 2 beta below the centroid (t0).
     start = t0
     mu = t0 + (2 * beta)
-    end = mu + 8 * beta
+    end = mu + (8 * beta)
 
     # Ensure the range is within valid waveform boundaries.
     if start < 0:
@@ -57,10 +57,10 @@ def inject_gumbel(
 
 @guvectorize(
     [
-        "void(float32[:], float32, float32, float32, float32[:])",
-        "void(float64[:], float64, float64, float64, float64[:])",
+        "void(float32[:], float32, float32, float32, float32, float32, float32, float32[:])",
+        "void(float64[:], float64, float64, float64, float64, float64, float64, float64[:])",
     ],
-    "(n),(),(),()->(n)",
+    "(n),(),(),(),(),(),()->(n)",
     **nb_kwargs,
 )
 def inject_general_logistic(
