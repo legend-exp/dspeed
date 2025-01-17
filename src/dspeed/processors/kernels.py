@@ -51,7 +51,7 @@ def t0_filter(rise: int, fall: int, kernel: np.array) -> None:
         raise DSPFatal("The length of the output kernel must equal rise+fall")
 
     for i in range(int(rise)):
-        kernel[i] = 2 * (int(rise) - i) / (rise*(rise+1))
+        kernel[i] = 2 * (int(rise) - i) / (rise * (rise + 1))
     for i in range(int(rise), len(kernel), 1):
         kernel[i] = -1 / fall
 
