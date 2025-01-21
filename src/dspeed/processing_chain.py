@@ -11,8 +11,10 @@ import itertools as it
 import logging
 import re
 from abc import ABCMeta, abstractmethod
+from collections.abc import Collection, MutableMapping
 from copy import deepcopy
 from dataclasses import dataclass
+from numbers import Real
 from typing import Any
 
 import lgdo
@@ -68,7 +70,7 @@ class CoordinateGrid:
     """
 
     period: Quantity | Unit | str
-    offset: Quantity | ProcChainVar | float | int = 0
+    offset: Quantity | ProcChainVar | Real = 0
 
     def __post_init__(self) -> None:
         # Copy constructor and conversions
@@ -82,7 +84,7 @@ class CoordinateGrid:
                 )
             self.offset = self.period.offset
             self.period = self.period.period
-        elif isinstance(self.period, tuple):
+        elif isinstance(self.period, Collection) and not isinstance(self.period, str):
             self.period, self.offset = self.period
 
         if isinstance(self.period, str):
@@ -90,7 +92,7 @@ class CoordinateGrid:
         elif isinstance(self.period, Unit):
             self.period *= 1  # make Quantity
 
-        if isinstance(self.offset, (int, float)):
+        if isinstance(self.offset, Real):
             self.offset = self.offset * self.period
         assert isinstance(self.period, Quantity) and isinstance(
             self.offset, (Quantity, ProcChainVar)
@@ -223,8 +225,12 @@ class ProcChainVar(ProcChainVarBase):
             and not isinstance(value, CoordinateGrid)
             and value is not None
         ):
-            period, offset = value if isinstance(value, tuple) else value, 0
-            value = CoordinateGrid(period, offset)
+            if isinstance(value, str):
+                value = CoordinateGrid(value, 0)
+            elif isinstance(value, Collection):
+                value = CoordinateGrid(*value)
+            else:
+                value = CoordinateGrid(value, 0)
 
         elif name == "unit" and value is not None:
             value = value
@@ -476,7 +482,7 @@ class ProcessingChain:
     def set_constant(
         self,
         varname: str,
-        val: np.ndarray | int | float | Quantity,
+        val: np.ndarray | Real | Quantity,
         dtype: str | np.dtype = None,
         unit: str | Unit | Quantity = None,
     ) -> ProcChainVar:
@@ -686,7 +692,7 @@ class ProcessingChain:
         for _, param in enumerate(args):
             if isinstance(param, str):
                 param = self.get_variable(param)
-            if isinstance(param, dict):
+            if isinstance(param, MutableMapping):
                 kw_params.update(param)
             else:
                 params.append(param)
@@ -973,7 +979,7 @@ class ProcessingChain:
                     return ret
                 if isinstance(ret, Quantity):
                     ret = float(ret / val.period)
-                if isinstance(ret, float):
+                if isinstance(ret, Real):
                     round_ret = int(round(ret))
                     if abs(ret - round_ret) > 0.0001:
                         log.warning(
@@ -1049,7 +1055,7 @@ class ProcessingChain:
             if node.value.id in self.module_list:
                 mod = self.module_list[node.value.id]
                 attr = getattr(mod, node.attr)
-                if not isinstance(attr, (int, float)):
+                if not isinstance(attr, Real):
                     raise ProcessingChainError(
                         f"Attribute {node.attr} from {node.value} is not"
                         f"an int or float..."
@@ -1154,7 +1160,7 @@ class ProcessingChain:
     # round value
     def _round(
         var: ProcChainVar | Quantity,  # noqa: N805
-        to_nearest: int | float | Unit | Quantity | CoordinateGrid = 1,
+        to_nearest: Real | Unit | Quantity | CoordinateGrid = 1,
         dtype: str = None,
     ) -> float | Quantity | ProcChainVar:
         """Round a variable or value to nearest multiple of `to_nearest`.
@@ -1177,7 +1183,7 @@ class ProcessingChain:
             name = f"round({var.name}, {to_nearest})"
             dtype = np.dtype(dtype) if dtype is not None else var.dtype
             if var.is_coord:
-                if isinstance(to_nearest, (int, float)):
+                if isinstance(to_nearest, Real):
                     grid = CoordinateGrid(var.grid.period * to_nearest, var.grid.offset)
                 elif isinstance(to_nearest, (Unit, Quantity)):
                     grid = CoordinateGrid(to_nearest, var.grid.offset)
@@ -1296,7 +1302,7 @@ class ProcessorManager:
         assert (
             isinstance(proc_chain, ProcessingChain)
             and callable(func)
-            and isinstance(params, list)
+            and isinstance(params, Collection)
         )
 
         if kw_params is None:
@@ -1331,7 +1337,7 @@ class ProcessorManager:
                                            for {func.__name__}. Please supply a
                                            valid list of types."""
             )
-        if not isinstance(types, list):
+        if isinstance(types, str) or not isinstance(types, Collection):
             types = [types]
         found_types = [typestr.replace("->", "") for typestr in types]
 
@@ -2152,7 +2158,7 @@ def build_processing_chain(
             dsp_config = safe_load(f)
     elif dsp_config is None:
         dsp_config = {"outputs": [], "processors": {}}
-    elif isinstance(dsp_config, dict):
+    elif isinstance(dsp_config, MutableMapping):
         # We don't want to modify the input!
         dsp_config = deepcopy(dsp_config)
     else:
@@ -2390,7 +2396,7 @@ def build_processing_chain(
                     # see if string can be parsed by proc_chain
                     if isinstance(arg, str):
                         arg = proc_chain.get_variable(arg)
-                    if isinstance(arg, dict):
+                    if isinstance(arg, MutableMapping):
                         init_kwargs.update(arg)
                     else:
                         init_args.append(arg)
@@ -2412,7 +2418,7 @@ def build_processing_chain(
             for param in args:
                 if isinstance(param, str):
                     param = proc_chain.get_variable(param)
-                if isinstance(param, dict):
+                if isinstance(param, MutableMapping):
                     kw_params.update(param)
                     param = list(param.values())[0]
                 elif isinstance(param, str):
