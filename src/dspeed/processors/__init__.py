@@ -97,6 +97,7 @@ from .nnls import optimize_nnls
 from .optimize import optimize_1pz, optimize_2pz
 from .param_lookup import param_lookup
 from .peak_snr_threshold import peak_snr_threshold
+from .pmt_pulse_injector import inject_general_logistic, inject_gumbel
 from .pole_zero import double_pole_zero, pole_zero
 from .poly_fit import poly_diff, poly_exp_rms, poly_fit
 from .presum import presum
@@ -193,4 +194,6 @@ __all__ = [
     "classification_layer_no_bias",
     "classification_layer_with_bias",
     "normalisation_layer",
+    "inject_general_logistic",
+    "inject_gumbel",
 ]
