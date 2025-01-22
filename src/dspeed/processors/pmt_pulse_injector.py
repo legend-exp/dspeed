@@ -76,8 +76,10 @@ def inject_general_logistic(
     r"""Inject sigmoid pulse into existing waveform to simulate pileup.
 
     .. math::
+
         s(t) = \frac{A}{(1 + q \exp[-4 \log(99) (t - t_0 - t_r/2) / t_r])^{1/v}}
                 e^{-(t-t_0)/\tau}
+
     Parameters
     ----------
     wf_in
