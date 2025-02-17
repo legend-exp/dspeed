@@ -162,7 +162,8 @@ def build_dsp(
         log.info(f"Processing table {tb} with {tot_n_rows} rows")
         start = time.time()
         db_dict = database.get(chan_name) if database else None
-        if db_dict is not None: log.info(f"Found database for {chan_name}")
+        if db_dict is not None:
+            log.info(f"Found database for {chan_name}")
         tb_name = tb.replace("/raw", "/dsp")
 
         write_offset = 0

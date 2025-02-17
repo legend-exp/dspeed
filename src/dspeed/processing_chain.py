@@ -10,11 +10,11 @@ import importlib
 import itertools as it
 import logging
 import re
+import time
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
-import time
 
 import lgdo
 import numpy as np
