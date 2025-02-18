@@ -9,10 +9,10 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
 
 @guvectorize(
     [
-        "void(float32[:,::1], float32[::1], float32, float32, boolean, float32[::1])",
-        "void(float64[:,::1], float64[::1], float64, float32, boolean, float64[::1])",
+        "void(float32[:,::1], float32[::1], float32, float32, boolean, float32, float32[::1])",
+        "void(float64[:,::1], float64[::1], float64, float32, boolean, float32, float64[::1])",
     ],
-    "(m,n),(m),(),(),(),(n)",
+    "(m,n),(m),(),(),(),(),(n)",
     nopython=True,
     **nb_kwargs,
 )
@@ -22,6 +22,7 @@ def optimize_nnls(
     maxiter: int,
     tol: float,
     allow_singularity: bool,
+    min_value: float,
     x: np.ndarray,
 ) -> None:
     """Solve ``argmin_x || ax - b ||_2`` for ``x>=0``.
@@ -131,9 +132,9 @@ def optimize_nnls(
         s[p] = np.linalg.solve(mat, atb[p])
 
         # Inner loop
-        while (iter < maxiter) and (s[p].min() <= 0):
+        while (iter < maxiter) and (s[p].min() <= min_value):
             iter += 1
-            inds = p * (s <= 0)
+            inds = p * (s <= min_value)
             alpha = (x[inds] / (x[inds] - s[inds])).min()
             x *= 1 - alpha
             x += alpha * s
