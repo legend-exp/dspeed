@@ -197,7 +197,7 @@ def build_dsp(
                 name=tb_name,
                 lh5_file=f_dsp,
                 wo_mode="o" if write_mode == "u" else "a",
-                write_start=write_offset+entries[0],
+                write_start=write_offset + entries[0],
             )
 
             if log.getEffectiveLevel() >= logging.INFO:
