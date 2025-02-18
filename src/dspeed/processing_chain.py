@@ -10,6 +10,7 @@ import importlib
 import itertools as it
 import logging
 import re
+import time
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
@@ -1314,6 +1315,8 @@ class ProcessorManager:
         self.args = []
         # dict of kws -> raw values and buffers from params; we will fill this soon
         self.kwargs = {}
+        # store time taken by processor
+        self.time_total = 0
 
         # Get the signature and list of valid types for the function
         self.signature = func.signature if signature is None else signature
@@ -1568,7 +1571,9 @@ class ProcessorManager:
                 self.kwargs[arg_name] = param
 
     def execute(self) -> None:
+        start = time.time()
         self.processor(*self.args, **self.kwargs)
+        self.time_total += time.time() - start
 
     def __str__(self) -> str:
         return (
