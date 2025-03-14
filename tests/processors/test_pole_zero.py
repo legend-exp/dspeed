@@ -63,14 +63,16 @@ def test_double_pole_zero(compare_numba_vs_python):
     # ensure the DSPFatal is raised if the waveform is too short
     pulse_out = np.zeros(2, dtype=np.float64)
     with pytest.raises(DSPFatal):
-        double_pole_zero(np.ones(2), tau1, tau2, frac, pulse_out)
+        double_pole_zero(np.ones(2), tau1, tau2, frac, True, pulse_out)
 
     # ensure that if there is a nan in w_in, all nans are outputted
     w_in = np.ones(pulse_in.size)
     w_in[4] = np.nan
 
     assert np.all(
-        np.isnan(compare_numba_vs_python(double_pole_zero, w_in, tau1, tau2, frac))
+        np.isnan(
+            compare_numba_vs_python(double_pole_zero, w_in, tau1, tau2, frac, True)
+        )
     )
 
     # ensure that a valid input gives the expected output when comparing the pole-zero correction with the pole-zero processor
@@ -78,7 +80,7 @@ def test_double_pole_zero(compare_numba_vs_python):
     w_out_expected = np.insert(step, 0, np.zeros(tp0))
 
     assert np.allclose(
-        compare_numba_vs_python(double_pole_zero, pulse_in, tau1, tau2, frac),
+        compare_numba_vs_python(double_pole_zero, pulse_in, tau1, tau2, frac, True),
         w_out_expected,
         rtol=1e-7,
     )
@@ -89,7 +91,7 @@ def test_double_pole_zero(compare_numba_vs_python):
     tau2 = np.array([tau2], dtype=np.float32)[0]
     frac = np.array([frac], dtype=np.float32)[0]
     assert np.allclose(
-        compare_numba_vs_python(double_pole_zero, pulse_in, tau1, tau2, frac),
+        compare_numba_vs_python(double_pole_zero, pulse_in, tau1, tau2, frac, True),
         w_out_expected,
         rtol=1e-7,
     )
