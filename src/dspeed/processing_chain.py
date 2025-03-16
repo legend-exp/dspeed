@@ -1255,7 +1255,7 @@ class ProcessingChain:
         """
 
         try:
-            loaded_data = sto.read(path_in_file, path_to_file)[0]
+            loaded_data = sto.read(path_in_file, path_to_file)
             if isinstance(loaded_data, lgdo.types.Scalar):
                 loaded_data = loaded_data.value
             else:
