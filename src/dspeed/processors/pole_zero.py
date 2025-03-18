@@ -64,10 +64,10 @@ def pole_zero(w_in: np.ndarray, t_tau: float, w_out: np.ndarray) -> None:
 
 @guvectorize(
     [
-        "void(float32[:], float32, float32, float32, boolean, float32[:])",
-        "void(float64[:], float64, float64, float64, boolean, float64[:])",
+        "void(float32[:], float32, float32, float32, float32[:])",
+        "void(float64[:], float64, float64, float64, float64[:])",
     ],
-    "(n),(),(),(),()->(n)",
+    "(n),(),(),()->(n)",
     **nb_kwargs,
 )
 def double_pole_zero(
@@ -75,7 +75,6 @@ def double_pole_zero(
     t_tau1: float,
     t_tau2: float,
     frac: float,
-    check_nan: bool,
     w_out: np.ndarray,
 ) -> np.ndarray:
     r"""
@@ -92,9 +91,6 @@ def double_pole_zero(
         the time constant of the second exponential to be deconvolved.
     frac
         the fraction which the second exponential contributes.
-    check_nan
-        whether to perform the nan check on the output, when optimising this will be
-        false to allow minimiser to explore, but true when running
     w_out
         the pole-zero cancelled waveform.
 
@@ -179,6 +175,3 @@ def double_pole_zero(
         # Shuffle the buffer for the next iteration
         w_tmp[0] = w_tmp[1]
         w_tmp[1] = w_tmp[2]
-    # Check the output
-    if np.isnan(w_out).any() and check_nan:
-        raise DSPFatal("Double-pole-zero filter produced nans in output.")
