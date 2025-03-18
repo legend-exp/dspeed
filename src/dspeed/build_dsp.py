@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 
 import h5py
 import numpy as np
@@ -159,7 +160,11 @@ def build_dsp(
             tot_n_rows = n_max
 
         chan_name = tb.split("/")[0]
+        log.info(f"Processing table {tb} with {tot_n_rows} rows")
+        start = time.time()
         db_dict = database.get(chan_name) if database else None
+        if db_dict is not None:
+            log.info(f"Found database for {chan_name}")
         tb_name = tb.replace("/raw", "/dsp")
 
         write_offset = 0
@@ -209,3 +214,10 @@ def build_dsp(
 
         if log.getEffectiveLevel() >= logging.INFO:
             progress_bar.close()
+
+        log.info(f"Table {tb} processed in {time.time() - start:.2f} seconds")
+        if log.getEffectiveLevel() >= logging.DEBUG:
+            times = proc_chain.get_timing()
+            log.debug("Processor timing info: ")
+            for proc, t in times.items():
+                log.debug(f"{proc}: {t:.2f} s")

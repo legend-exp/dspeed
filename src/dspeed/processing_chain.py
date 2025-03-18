@@ -10,6 +10,7 @@ import importlib
 import itertools as it
 import logging
 import re
+import time
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
@@ -1151,6 +1152,10 @@ class ProcessingChain:
         else:
             return var.vector_len
 
+    def get_timing(self) -> dict[str, float]:
+        """Get the timing of each processor in the processing chain."""
+        return {str(proc): proc.time_total for proc in self._proc_managers}
+
     # round value
     def _round(
         var: ProcChainVar | Quantity,  # noqa: N805
@@ -1314,6 +1319,8 @@ class ProcessorManager:
         self.args = []
         # dict of kws -> raw values and buffers from params; we will fill this soon
         self.kwargs = {}
+        # store time taken by processor
+        self.time_total = 0
 
         # Get the signature and list of valid types for the function
         self.signature = func.signature if signature is None else signature
@@ -1568,7 +1575,9 @@ class ProcessorManager:
                 self.kwargs[arg_name] = param
 
     def execute(self) -> None:
+        start = time.time()
         self.processor(*self.args, **self.kwargs)
+        self.time_total += time.time() - start
 
     def __str__(self) -> str:
         return (
@@ -1683,6 +1692,7 @@ class UnitConversionManager(ProcessorManager):
             self.out_buffer,
         ]
         self.kwargs = {}
+        self.time_total = 0
 
 
 class IOManager(metaclass=ABCMeta):
