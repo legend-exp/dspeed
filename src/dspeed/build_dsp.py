@@ -216,3 +216,8 @@ def build_dsp(
             progress_bar.close()
 
         log.info(f"Table {tb} processed in {time.time() - start:.2f} seconds")
+        if log.getEffectiveLevel() >= logging.DEBUG:
+            times = proc_chain.get_timing()
+            log.debug("Processor timing info: ")
+            for proc, t in times.items():
+                log.debug(f"{proc}: {t:.2f} s")

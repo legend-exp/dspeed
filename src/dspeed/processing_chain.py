@@ -1152,6 +1152,10 @@ class ProcessingChain:
         else:
             return var.vector_len
 
+    def get_timing(self) -> dict[str, float]:
+        """Get the timing of each processor in the processing chain."""
+        return {str(proc): proc.time_total for proc in self._proc_managers}
+
     # round value
     def _round(
         var: ProcChainVar | Quantity,  # noqa: N805
