@@ -1688,6 +1688,7 @@ class UnitConversionManager(ProcessorManager):
             self.out_buffer,
         ]
         self.kwargs = {}
+        self.time_total = 0
 
 
 class IOManager(metaclass=ABCMeta):
