@@ -219,5 +219,7 @@ def build_dsp(
         if log.getEffectiveLevel() >= logging.DEBUG:
             times = proc_chain.get_timing()
             log.debug("Processor timing info: ")
-            for proc, t in times.items():
-                log.debug(f"{proc}: {t:.2f} s")
+            for proc, t in dict(
+                sorted(times.items(), key=lambda item: item[1], reverse=True)
+            ).items():
+                log.debug(f"{proc}: {t:.3f} s")
