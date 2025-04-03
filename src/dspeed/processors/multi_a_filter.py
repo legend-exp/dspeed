@@ -43,4 +43,6 @@ def multi_a_filter(w_in, vt_maxs_in, va_max_out):
         )
 
     nan_mask = np.isnan(vt_maxs_in)
+    if nan_mask.all():
+        return
     fixed_time_pickoff(w_in, vt_maxs_in[~nan_mask], ord("i"), va_max_out[~nan_mask])
