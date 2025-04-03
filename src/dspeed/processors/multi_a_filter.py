@@ -34,7 +34,6 @@ def multi_a_filter(w_in, vt_maxs_in, va_max_out):
     va_max_out[:] = np.nan
 
     # Check inputs
-
     if np.isnan(w_in).any():
         return
 
@@ -43,4 +42,5 @@ def multi_a_filter(w_in, vt_maxs_in, va_max_out):
             "The length of your return array must be smaller than the length of your waveform"
         )
 
-    fixed_time_pickoff(w_in, vt_maxs_in, ord("i"), va_max_out)
+    nan_mask = np.isnan(vt_maxs_in)
+    fixed_time_pickoff(w_in, vt_maxs_in[~nan_mask], ord("i"), va_max_out[~nan_mask])

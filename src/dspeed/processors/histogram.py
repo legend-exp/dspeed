@@ -60,17 +60,20 @@ def histogram(
     if np.isnan(w_in).any():
         return
 
+    wf_min = min(w_in)
+    wf_max = max(w_in)
+
     # create the bin borders
-    borders_out[0] = min(w_in)
+    borders_out[0] = wf_min
     delta = 0
 
     # number of bins
     bin_in = len(weights_out)
 
     # define the bin edges
-    delta = (max(w_in) - min(w_in)) / (bin_in)
+    delta = (wf_max - wf_min) / (bin_in)
     for i in range(0, bin_in, 1):
-        borders_out[i + 1] = min(w_in) + delta * (i + 1)
+        borders_out[i + 1] = wf_min + delta * (i + 1)
 
     # make the histogram
     for i in range(0, len(w_in), 1):
