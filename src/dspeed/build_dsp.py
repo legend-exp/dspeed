@@ -169,9 +169,9 @@ def build_dsp(
             write_offset = raw_store.read_n_rows(tb_name, f_dsp)
 
         # Main processing loop
-        lh5_it = lh5.LH5Iterator(f_raw, tb, buffer_len=buffer_len)
+        lh5_it = lh5.LH5Iterator(f_raw, tb, buffer_len=buffer_len, n_entries=tot_n_rows)
         proc_chain = None
-        for lh5_in, start_row, n_rows in lh5_it:
+        for lh5_in in lh5_it:
             # Initialize
             if proc_chain is None:
                 proc_chain, lh5_it.field_mask, tb_out = build_processing_chain(
@@ -185,28 +185,24 @@ def build_dsp(
                         unit=" rows",
                     )
 
-            n_rows = min(tot_n_rows - start_row, n_rows)
+            entries = lh5_it.current_global_entries
             try:
-                proc_chain.execute(0, n_rows)
+                proc_chain.execute(0, len(lh5_in))
             except DSPFatal as e:
                 # Update the wf_range to reflect the file position
-                e.wf_range = f"{e.wf_range[0]+start_row}-{e.wf_range[1]+start_row}"
+                e.wf_range = f"{entries[0]}-{entries[-1]}"
                 raise e
 
             raw_store.write(
                 obj=tb_out,
                 name=tb_name,
                 lh5_file=f_dsp,
-                n_rows=n_rows,
                 wo_mode="o" if write_mode == "u" else "a",
-                write_start=write_offset + start_row,
+                write_start=write_offset + entries[0],
             )
 
             if log.getEffectiveLevel() >= logging.INFO:
-                progress_bar.update(n_rows)
-
-            if start_row + n_rows >= tot_n_rows:
-                break
+                progress_bar.update(len(lh5_in))
 
         if log.getEffectiveLevel() >= logging.INFO:
             progress_bar.close()
