@@ -331,3 +331,29 @@ def test_output_attrs(geds_raw_tbl):
     proc_chain, _, lh5_out = build_processing_chain(geds_raw_tbl, dsp_config)
     proc_chain.execute(0, 1)
     assert lh5_out["wf_blsub"].attrs["test_attr"] == "This is a test"
+
+
+def test_database_params(geds_raw_tbl):
+    dsp_config = {
+        "outputs": ["test"],
+        "processors": {
+            "dbabc": "waveform[0]*0",
+            "redberry": "dbabc+1",
+            "test": {
+                "function": "db.a + dbabc + redberry + db.b*db.c",
+                "defaults": {
+                    "db.a": 1,
+                    "db.b": 2,
+                    "db.c": 3
+                }
+            }
+        }
+    }
+                
+    proc_chain, _, lh5_out = build_processing_chain(geds_raw_tbl, dsp_config)
+    proc_chain.execute(0, 1)
+    assert lh5_out["test"][0] == 8
+
+    proc_chain, _, lh5_out = build_processing_chain(geds_raw_tbl, dsp_config, db_dict = {"a":2, "c":0})
+    proc_chain.execute(0, 1)
+    assert lh5_out["test"][0] == 3
