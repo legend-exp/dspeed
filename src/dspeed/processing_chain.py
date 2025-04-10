@@ -2171,7 +2171,7 @@ def build_processing_chain(
 
     # prepare the processor list
     multi_out_procs = {}
-    db_parser = re.compile(r"db.[\w_.]+")
+    db_parser = re.compile(r"(?![^\w_.])db\.[\w_.]+")
     for key, node in processors.items():
         # if we have multiple outputs, add each to the processesors list
         keys = [k for k in re.split(",| ", key) if k != ""]
