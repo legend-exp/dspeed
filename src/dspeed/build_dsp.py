@@ -172,12 +172,22 @@ def build_dsp(
         if write_mode == "a" and lh5.ls(f_dsp, tb_name):
             write_offset = raw_store.read_n_rows(tb_name, f_dsp)
 
+        loading_time = 0
+        write_time = 0
+        start = time.time()
         # Main processing loop
         lh5_it = lh5.LH5Iterator(f_raw, tb, buffer_len=buffer_len)
         proc_chain = None
+        curr = time.time()
+        loading_time += curr - start
+        processing_time = 0
+
         for lh5_in, start_row, n_rows in lh5_it:
+            loading_time += time.time() - curr
             # Initialize
+
             if proc_chain is None:
+                proc_chain_start = time.time()
                 proc_chain, lh5_it.field_mask, tb_out = build_processing_chain(
                     lh5_in, dsp_config, db_dict, outputs, block_width
                 )
@@ -188,7 +198,11 @@ def build_dsp(
                         delay=2,
                         unit=" rows",
                     )
+                log.info(
+                    f"Table: {tb} processing chain built in {time.time() - proc_chain_start:.2f} seconds"
+                )
 
+            processing_time_start = time.time()
             n_rows = min(tot_n_rows - start_row, n_rows)
             try:
                 proc_chain.execute(0, n_rows)
@@ -196,7 +210,8 @@ def build_dsp(
                 # Update the wf_range to reflect the file position
                 e.wf_range = f"{e.wf_range[0]+start_row}-{e.wf_range[1]+start_row}"
                 raise e
-
+            processing_time += time.time() - processing_time_start
+            write_start = time.time()
             raw_store.write(
                 obj=tb_out,
                 name=tb_name,
@@ -205,17 +220,21 @@ def build_dsp(
                 wo_mode="o" if write_mode == "u" else "a",
                 write_start=write_offset + start_row,
             )
-
+            write_time += time.time() - write_start
             if log.getEffectiveLevel() >= logging.INFO:
                 progress_bar.update(n_rows)
 
             if start_row + n_rows >= tot_n_rows:
                 break
-
+            curr = time.time()
         if log.getEffectiveLevel() >= logging.INFO:
             progress_bar.close()
 
         log.info(f"Table {tb} processed in {time.time() - start:.2f} seconds")
+        log.debug(f"Table {tb} loading time: {loading_time:.2f} seconds")
+        log.debug(f"Table {tb} write time: {write_time:.2f} seconds")
+        log.debug(f"Table {tb} processing time: {processing_time:.2f} seconds")
+
         if log.getEffectiveLevel() >= logging.DEBUG:
             times = proc_chain.get_timing()
             log.debug("Processor timing info: ")

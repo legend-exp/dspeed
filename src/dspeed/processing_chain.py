@@ -11,6 +11,7 @@ import itertools as it
 import logging
 import re
 import time
+import traceback
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
@@ -1260,7 +1261,7 @@ class ProcessingChain:
         """
 
         try:
-            loaded_data = sto.read(path_in_file, path_to_file)[0]
+            loaded_data = lh5.read(path_in_file, path_to_file)
             if isinstance(loaded_data, lgdo.types.Scalar):
                 loaded_data = loaded_data.value
             else:
@@ -1576,7 +1577,12 @@ class ProcessorManager:
 
     def execute(self) -> None:
         start = time.time()
-        self.processor(*self.args, **self.kwargs)
+        try:
+            self.processor(*self.args, **self.kwargs)
+        except Exception as e:
+            log.error(f"Error processing {str(self)}: {e}")
+            traceback.print_exc()
+            raise e
         self.time_total += time.time() - start
 
     def __str__(self) -> str:
