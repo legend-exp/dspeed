@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from collections.abc import Collection, Mapping
 
 import h5py
 import numpy as np
@@ -24,15 +25,15 @@ log = logging.getLogger("dspeed")
 def build_dsp(
     f_raw: str,
     f_dsp: str,
-    dsp_config: str | dict = None,
-    lh5_tables: list[str] | str = None,
-    database: str | dict = None,
-    outputs: list[str] = None,
+    dsp_config: str | Mapping = None,
+    lh5_tables: Collection[str] | str = None,
+    database: str | Mapping = None,
+    outputs: Collection[str] = None,
     n_max: int = np.inf,
     write_mode: str = None,
     buffer_len: int = 3200,
     block_width: int = 16,
-    chan_config: dict[str, str] = None,
+    chan_config: Mapping[str, str] = None,
 ) -> None:
     """Convert raw-tier LH5 data into dsp-tier LH5 data by running a sequence
     of processors via the :class:`~.processing_chain.ProcessingChain`.
@@ -111,7 +112,7 @@ def build_dsp(
         lh5_tables = lh5.ls(f_raw)
     elif isinstance(lh5_tables, str):
         lh5_tables = lh5.ls(f_raw, lh5_tables)
-    elif isinstance(lh5_tables, list):
+    elif isinstance(lh5_tables, Collection):
         lh5_tables = [tab for tab_wc in lh5_tables for tab in lh5.ls(f_raw, tab_wc)]
     elif not (
         hasattr(lh5_tables, "__iter__")
@@ -139,7 +140,7 @@ def build_dsp(
         with open(lh5.utils.expand_path(database)) as db_file:
             database = safe_load(db_file)
 
-    if database and not isinstance(database, dict):
+    if database and not isinstance(database, Mapping):
         raise ValueError("input database is not a valid JSON or YAML file or dict")
 
     if write_mode is None and os.path.isfile(f_dsp):

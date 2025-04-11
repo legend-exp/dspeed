@@ -62,7 +62,7 @@ def linear_slope_fit(
         # the mean and standard deviation
         temp = w_in[i] - mean
         mean += temp / (i + 1)
-        stdev += temp * (w_in[i] - mean)
+        stdev += temp * temp
 
         # linear regression
         sum_x += i
