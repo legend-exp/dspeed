@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from collections.abc import Collection, Mapping
 
 import h5py
@@ -160,7 +161,11 @@ def build_dsp(
             tot_n_rows = n_max
 
         chan_name = tb.split("/")[0]
+        log.info(f"Processing table {tb} with {tot_n_rows} rows")
+        start = time.time()
         db_dict = database.get(chan_name) if database else None
+        if db_dict is not None:
+            log.info(f"Found database for {chan_name}")
         tb_name = tb.replace("/raw", "/dsp")
 
         write_offset = 0
@@ -168,12 +173,22 @@ def build_dsp(
         if write_mode == "a" and lh5.ls(f_dsp, tb_name):
             write_offset = raw_store.read_n_rows(tb_name, f_dsp)
 
+        loading_time = 0
+        write_time = 0
+        start = time.time()
         # Main processing loop
         lh5_it = lh5.LH5Iterator(f_raw, tb, buffer_len=buffer_len, n_entries=tot_n_rows)
         proc_chain = None
+        curr = time.time()
+        loading_time += curr - start
+        processing_time = 0
+
         for lh5_in in lh5_it:
+            loading_time += time.time() - curr
             # Initialize
+
             if proc_chain is None:
+                proc_chain_start = time.time()
                 proc_chain, lh5_it.field_mask, tb_out = build_processing_chain(
                     lh5_in, dsp_config, db_dict, outputs, block_width
                 )
@@ -184,15 +199,20 @@ def build_dsp(
                         delay=2,
                         unit=" rows",
                     )
+                log.info(
+                    f"Table: {tb} processing chain built in {time.time() - proc_chain_start:.2f} seconds"
+                )
 
             entries = lh5_it.current_global_entries
+            processing_time_start = time.time()
             try:
                 proc_chain.execute(0, len(lh5_in))
             except DSPFatal as e:
                 # Update the wf_range to reflect the file position
                 e.wf_range = f"{entries[0]}-{entries[-1]}"
                 raise e
-
+            processing_time += time.time() - processing_time_start
+            write_start = time.time()
             raw_store.write(
                 obj=tb_out,
                 name=tb_name,
@@ -200,9 +220,23 @@ def build_dsp(
                 wo_mode="o" if write_mode == "u" else "a",
                 write_start=write_offset + entries[0],
             )
-
+            write_time += time.time() - write_start
             if log.getEffectiveLevel() >= logging.INFO:
                 progress_bar.update(len(lh5_in))
 
+            curr = time.time()
         if log.getEffectiveLevel() >= logging.INFO:
             progress_bar.close()
+
+        log.info(f"Table {tb} processed in {time.time() - start:.2f} seconds")
+        log.debug(f"Table {tb} loading time: {loading_time:.2f} seconds")
+        log.debug(f"Table {tb} write time: {write_time:.2f} seconds")
+        log.debug(f"Table {tb} processing time: {processing_time:.2f} seconds")
+
+        if log.getEffectiveLevel() >= logging.DEBUG:
+            times = proc_chain.get_timing()
+            log.debug("Processor timing info: ")
+            for proc, t in dict(
+                sorted(times.items(), key=lambda item: item[1], reverse=True)
+            ).items():
+                log.debug(f"{proc}: {t:.3f} s")
