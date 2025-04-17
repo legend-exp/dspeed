@@ -13,7 +13,7 @@ import re
 import time
 import traceback
 from abc import ABCMeta, abstractmethod
-from collections.abc import Collection, MutableMapping
+from collections.abc import Collection, Mapping, MutableMapping
 from copy import deepcopy
 from dataclasses import dataclass
 from numbers import Real
@@ -713,7 +713,10 @@ class ProcessingChain:
         if stop is None:
             stop = self._buffer_len
         for i in range(start, stop, self._block_width):
-            self._execute_procs(i, min(i + self._block_width, stop))
+            try:
+                self._execute_procs(i, min(i + self._block_width, stop))
+            except IndexError:
+                break
 
     def get_variable(
         self, expr: str, get_names_only: bool = False, expr_only: bool = False
@@ -1812,6 +1815,8 @@ class LGDOArrayIOManager(IOManager):
             )
 
     def read(self, start: int, end: int) -> None:
+        if start >= len(self.io_array):
+            raise IndexError
         end = min(end, len(self.io_array))
         self.raw_var[0 : end - start, ...] = self.io_array[start:end, ...]
 
@@ -1872,6 +1877,8 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
             )
 
     def read(self, start: int, end: int) -> None:
+        if start >= len(self.io_array):
+            raise IndexError
         end = min(end, len(self.io_array))
         self.raw_var[0 : end - start, ...] = self.io_array[start:end, ...]
 
@@ -1973,6 +1980,8 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             prev_cl = cl
 
     def read(self, start: int, end: int) -> None:
+        if start >= len(self.io_vov):
+            raise IndexError
         end = min(end, len(self.io_vov))
         self.raw_var = 0 if np.issubdtype(self.raw_var.dtype, np.integer) else np.nan
         LGDOVectorOfVectorsIOManager._vov2nda(
@@ -2059,10 +2068,14 @@ class LGDOWaveformIOManager(IOManager):
         self.io_wf.dt_units = dt_units
 
     def read(self, start: int, end: int) -> None:
+        if start >= len(self.io_wf):
+            raise IndexError
+        end = min(end, len(self.io_wf))
         self.wf_var[0 : end - start, ...] = self.io_wf.values[start:end, ...]
         self.t0_var[0 : end - start, ...] = self.io_wf.t0[start:end, ...]
 
     def write(self, start: int, end: int) -> None:
+        self.io_wf.resize(end)
         self.io_wf.values[start:end, ...] = self.wf_var[0 : end - start, ...]
         if self.variable_t0:
             self.io_wf.t0[start:end, ...] = self.t0_var[0 : end - start, ...]
@@ -2077,10 +2090,17 @@ class LGDOWaveformIOManager(IOManager):
 
 
 def build_processing_chain(
-    lh5_in: lgdo.Table,
     dsp_config: dict | str,
+    lh5_in: str | Collection[str] | lh5.LH5Iterator | lgdo.Table = None,
+    lh5_group: str | Collection[str] = None,
+    base_path: str = "",
     db_dict: dict = None,
     outputs: list[str] = None,
+    entry_list: Collection[int] = None,
+    entry_mask: Collection[bool] = None,
+    i_start: int = 0,
+    n_entries: int = None,
+    buffer_len: int = 3200,
     block_width: int = 16,
 ) -> tuple[ProcessingChain, list[str], lgdo.Table]:
     """Produces a :class:`ProcessingChain` object and an LH5
@@ -2089,10 +2109,6 @@ def build_processing_chain(
 
     Parameters
     ----------
-    lh5_in
-        HDF5 table from which raw data is read. At least one row of entries
-        should be read in prior to calling this!
-
     dsp_config
         A dictionary or YAML/JSON filename containing the recipes for computing DSP
         parameter from raw parameters. The format is as follows:
@@ -2100,6 +2116,9 @@ def build_processing_chain(
         .. code-block:: json
 
             {
+               "inputs" : [
+                 { "file": "fname", "group": "gname" },
+                ]
                "outputs" : [ "par1", "par2" ]
                "processors" : {
                   "name1, name2" : {
@@ -2111,9 +2130,14 @@ def build_processing_chain(
                     "unit" : ["u1", "u2"]
                     "defaults" : {"arg1": "defval1"}
                   }
-               }
+                }
             }
 
+
+        - ``inputs`` (optional) -- list of files/lh5 table names to read input data from.
+          these will be friended to any input data provided to build_processing_chain.
+          - ``file`` -- file path
+          - ``group`` -- lh5 table group name
         - ``outputs`` -- list of output parameters (strings) to compute by
           default. See `outputs` argument
         - ``processors`` -- configuration dictionary
@@ -2141,16 +2165,38 @@ def build_processing_chain(
             - ``defaults`` -- dictionary. Default value to be used for
               arguments read from the database
 
+    lh5_in
+        input data. Can use:
+        - name of file to read from (or list of names of files to be friended together).
+          Must also provide lh5_group arg
+        - LH5Iterator object
+        - lgdo.Table object. Note this is not compatible with using ``inputs`` in the
+          config file, and will change the output types.
+    lh5_group
+        name of groups containing lh5 tables. If a list of file names was
+        provided, this must be list of equal length
+    base_path
+        base path in which to find files. This will be prepended to files provided
+        by ``lh5_in`` and with ``inputs``
     db_dict
         A nested :class:`dict` pointing to values for database arguments. As
         instance, if a processor uses the argument ``db.trap.risetime``, it
         will look up ``db_dict['trap']['risetime']`` and use the found value.
         If no value is found, use the default defined in `dsp_config`.
-
     outputs
         List of parameters to put in the output LH5 table. If ``None``,
         use the parameters in the ``"outputs"`` list from `dsp_config`.
-
+    entry_list
+        list of entry numbers to read. If a nested list is provided,
+        expect one top-level list for each file, containing a list of
+        local entries. If a list of ints is provided, use global entries.
+    entry_mask
+        mask of entries to read. If a list of arrays is provided, expect
+        one for each file. Ignore if a selection list is provided.
+    i_start
+        index of first entry to start at when iterating
+    n_entries
+        number of entries to read before terminating iteration
     block_width
         number of entries to process at once. To optimize performance,
         a multiple of 16 is preferred, but if performance is not an issue
@@ -2160,11 +2206,34 @@ def build_processing_chain(
     -------
     (proc_chain, field_mask, lh5_out)
         - `proc_chain` -- :class:`ProcessingChain` object that is executed
-        - `field_mask` -- list of input fields that are used
+        - `lh5_it` -- LH5Iterator built form lh5_in and inputs. If lh5_in is
+          an LGDO table, return the table
         - `lh5_out` -- output :class:`~lgdo.table.Table` containing processed
           values
     """
-    proc_chain = ProcessingChain(block_width, lh5_in.size)
+    db_parser = re.compile(r"(?![^\w_.])db\.[\w_.]+")
+
+    lh5_it = None
+    inputs = []
+    if isinstance(lh5_in, str):
+        lh5_in = [lh5_in]
+    if isinstance(lh5_group, str):
+        lh5_group = [lh5_group]
+
+    if isinstance(lh5_in, lh5.LH5Iterator):
+        lh5_it = lh5_in
+
+    elif issubclass(type(lh5_in), lgdo.types.LGDO):
+        lh5_it = lh5_in
+
+    elif isinstance(lh5_in, Collection):
+        if lh5_group is None:
+            raise ValueError(
+                "must provide lh5_group unless you pass lh5_in as an LGDO object"
+            )
+        if len(lh5_in) != len(lh5_group):
+            raise ValueError("lh5_in and lh5_group must have same size")
+        inputs += list(zip(lh5_in, lh5_group))
 
     if isinstance(dsp_config, str):
         with open(lh5.utils.expand_path(dsp_config)) as f:
@@ -2177,6 +2246,50 @@ def build_processing_chain(
     else:
         raise ValueError("dsp_config must be a dict, json/yaml file, or None")
 
+    config_inputs = dsp_config.get("inputs", [])
+    if isinstance(config_inputs, Mapping):
+        inputs += [(config_inputs["file"], config_inputs["group"])]
+    elif isinstance(config_inputs, Collection):
+        inputs += [(ci["file"], ci["group"]) for ci in config_inputs]
+
+    for file, group in inputs:
+        # check if file points to a db override
+        if db_parser.fullmatch(file):
+            try:
+                db_node = db_dict
+                for db_key in file.split(".")[1:]:
+                    db_node = db_node[db_key]
+                log.debug(f"database lookup: found {db_node} for {file}")
+            except (KeyError, TypeError):
+                raise ProcessingChainError(f"did not find {file} in database.")
+
+        # check if group points to a db override
+        if db_parser.fullmatch(group):
+            try:
+                db_node = db_dict
+                for db_key in file.split(".")[1:]:
+                    db_node = db_node[db_key]
+                log.debug(f"database lookup: found {db_node} for {group}")
+            except (KeyError, TypeError):
+                raise ProcessingChainError(f"did not find {group} in database.")
+
+        # Create an iterator for this file/group and friend it with our existing it
+        lh5_it = lh5.LH5Iterator(
+            file,
+            group,
+            base_path=base_path,
+            entry_list=entry_list,
+            entry_mask=entry_mask,
+            i_start=i_start,
+            n_entries=n_entries,
+            buffer_len=buffer_len,
+            friend=lh5_it,
+        )
+
+    if isinstance(lh5_it, lh5.LH5Iterator):
+        lh5_it.read(0)
+    proc_chain = ProcessingChain(block_width, buffer_len)
+
     if outputs is None:
         outputs = dsp_config["outputs"]
 
@@ -2184,7 +2297,6 @@ def build_processing_chain(
 
     # prepare the processor list
     multi_out_procs = {}
-    db_parser = re.compile(r"(?![^\w_.])db\.[\w_.]+")
     for key, node in processors.items():
         # if we have multiple outputs, add each to the processesors list
         keys = [k for k in re.split(",| ", key) if k != ""]
@@ -2302,15 +2414,13 @@ def build_processing_chain(
     log.debug(f"copied output parameters: {copy_par_list}")
     log.debug(f"processed output parameters: {out_par_list}")
 
-    # Now add all of the input buffers from lh5_in (and also the clk time)
+    # Now add all of the input buffers from lh5_it
     for input_par in input_par_list:
-        buf_in = lh5_in.get(input_par)
-        if buf_in is None:
-            log.warning(
-                f"I don't know what to do with '{input_par}'. Building output without it!"
-            )
+        tb = lh5_it.lh5_buffer if isinstance(lh5_it, lh5.LH5Iterator) else lh5_it
+        if input_par not in tb:
+            log.warning(f"'{input_par}' not found in input files or dsp config.")
         try:
-            proc_chain.link_input_buffer(input_par, buf_in)
+            proc_chain.link_input_buffer(input_par, tb[input_par])
         except Exception as e:
             raise ProcessingChainError(
                 f"Exception raised while linking input buffer '{input_par}'."
@@ -2479,17 +2589,19 @@ def build_processing_chain(
             ) from e
 
     # build the output buffers
-    lh5_out = lgdo.Table(size=proc_chain._buffer_len)
+    lh5_out = lgdo.Table(size=buffer_len)
 
     # add inputs that are directly copied
     for copy_par in copy_par_list:
-        buf_in = lh5_in.get(copy_par)
-        if buf_in is None:
+        tb = lh5_it.lh5_buffer if isinstance(lh5_it, lh5.LH5Iterator) else lh5_it
+        if copy_par not in tb:
             log.warning(
-                f"Did not find {copy_par} in either input file or parameter list. Building output without it!"
+                f"'{copy_par}' not found in input files or dsp config. Building output without it!"
             )
         else:
-            lh5_out.add_field(copy_par, buf_in)
+            if len(tb) < len(lh5_out):
+                lh5_out.resize(len(tb))
+            lh5_out.add_field(copy_par, tb[copy_par])
 
     # finally, add the output buffers to lh5_out and the proc chain
     for out_par in out_par_list:
@@ -2499,6 +2611,7 @@ def build_processing_chain(
             if isinstance(recipe, str):
                 recipe = processors[recipe]
             buf_out.attrs.update(recipe.get("lh5_attrs", {}))
+            buf_out.resize(len(lh5_out))
             lh5_out.add_field(out_par, buf_out)
         except Exception as e:
             raise ProcessingChainError(
@@ -2506,4 +2619,7 @@ def build_processing_chain(
             ) from e
 
     field_mask = input_par_list + copy_par_list
-    return (proc_chain, field_mask, lh5_out)
+    if isinstance(lh5_it, lh5.LH5Iterator):
+        lh5_it.reset_field_mask(field_mask)
+
+    return (proc_chain, lh5_it, lh5_out)

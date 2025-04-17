@@ -266,8 +266,8 @@ class WaveformBrowser:
             outputs = [o for o in outputs if o not in self.aux_vals]
 
         self.proc_chain, field_mask, self.lh5_out = build_processing_chain(
-            self.lh5_in,
             dsp_config,
+            self.lh5_in,
             db_dict=database,
             outputs=outputs,
             block_width=block_width,

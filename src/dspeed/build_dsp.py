@@ -177,8 +177,24 @@ def build_dsp(
         write_time = 0
         start = time.time()
         # Main processing loop
-        lh5_it = lh5.LH5Iterator(f_raw, tb, buffer_len=buffer_len, n_entries=tot_n_rows)
-        proc_chain = None
+        proc_chain, lh5_it, tb_out = build_processing_chain(
+            dsp_config,
+            f_raw,
+            tb,
+            db_dict=db_dict,
+            outputs=outputs,
+            buffer_len=buffer_len,
+            block_width=block_width,
+        )
+        lh5_it.n_entries = tot_n_rows
+        if log.getEffectiveLevel() >= logging.INFO:
+            progress_bar = tqdm(
+                desc=f"Processing table {tb}",
+                total=tot_n_rows,
+                delay=2,
+                unit=" rows",
+            )
+
         curr = time.time()
         loading_time += curr - start
         processing_time = 0
@@ -186,29 +202,12 @@ def build_dsp(
         for lh5_in in lh5_it:
             loading_time += time.time() - curr
             # Initialize
-
-            if proc_chain is None:
-                proc_chain_start = time.time()
-                proc_chain, lh5_it.field_mask, tb_out = build_processing_chain(
-                    lh5_in, dsp_config, db_dict, outputs, block_width
-                )
-                if log.getEffectiveLevel() >= logging.INFO:
-                    progress_bar = tqdm(
-                        desc=f"Processing table {tb}",
-                        total=tot_n_rows,
-                        delay=2,
-                        unit=" rows",
-                    )
-                log.info(
-                    f"Table: {tb} processing chain built in {time.time() - proc_chain_start:.2f} seconds"
-                )
-
-            entries = lh5_it.current_global_entries
             processing_time_start = time.time()
             try:
                 proc_chain.execute(0, len(lh5_in))
             except DSPFatal as e:
                 # Update the wf_range to reflect the file position
+                entries = lh5_it.current_global_entries
                 e.wf_range = f"{entries[0]}-{entries[-1]}"
                 raise e
             processing_time += time.time() - processing_time_start
@@ -218,7 +217,7 @@ def build_dsp(
                 name=tb_name,
                 lh5_file=f_dsp,
                 wo_mode="o" if write_mode == "u" else "a",
-                write_start=write_offset + entries[0],
+                write_start=write_offset + lh5_it.current_i_entry,
             )
             write_time += time.time() - write_start
             if log.getEffectiveLevel() >= logging.INFO:
