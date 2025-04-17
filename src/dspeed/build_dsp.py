@@ -177,13 +177,13 @@ def build_dsp(
         write_time = 0
         start = time.time()
         # Main processing loop
-        lh5_it = lh5.LH5Iterator(f_raw, tb, buffer_len=buffer_len)
+        lh5_it = lh5.LH5Iterator(f_raw, tb, buffer_len=buffer_len, n_entries=tot_n_rows)
         proc_chain = None
         curr = time.time()
         loading_time += curr - start
         processing_time = 0
 
-        for lh5_in, start_row, n_rows in lh5_it:
+        for lh5_in in lh5_it:
             loading_time += time.time() - curr
             # Initialize
 
@@ -203,13 +203,13 @@ def build_dsp(
                     f"Table: {tb} processing chain built in {time.time() - proc_chain_start:.2f} seconds"
                 )
 
+            entries = lh5_it.current_global_entries
             processing_time_start = time.time()
-            n_rows = min(tot_n_rows - start_row, n_rows)
             try:
-                proc_chain.execute(0, n_rows)
+                proc_chain.execute(0, len(lh5_in))
             except DSPFatal as e:
                 # Update the wf_range to reflect the file position
-                e.wf_range = f"{e.wf_range[0]+start_row}-{e.wf_range[1]+start_row}"
+                e.wf_range = f"{entries[0]}-{entries[-1]}"
                 raise e
             processing_time += time.time() - processing_time_start
             write_start = time.time()
@@ -217,16 +217,13 @@ def build_dsp(
                 obj=tb_out,
                 name=tb_name,
                 lh5_file=f_dsp,
-                n_rows=n_rows,
                 wo_mode="o" if write_mode == "u" else "a",
-                write_start=write_offset + start_row,
+                write_start=write_offset + entries[0],
             )
             write_time += time.time() - write_start
             if log.getEffectiveLevel() >= logging.INFO:
-                progress_bar.update(n_rows)
+                progress_bar.update(len(lh5_in))
 
-            if start_row + n_rows >= tot_n_rows:
-                break
             curr = time.time()
         if log.getEffectiveLevel() >= logging.INFO:
             progress_bar.close()
