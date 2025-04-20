@@ -166,6 +166,7 @@ class NumbaDefaults(MutableMapping):
     def __init__(self) -> None:
         self.cache: bool = getenv_bool("DSPEED_CACHE", default=True)
         self.boundscheck: bool = getenv_bool("DSPEED_BOUNDSCHECK")
+        self.target: str = os.getenv("DSPEED_TARGET", default="cpu")
 
     def __getitem__(self, item: str) -> Any:
         return self.__dict__[item]
