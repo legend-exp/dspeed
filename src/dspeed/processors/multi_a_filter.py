@@ -13,7 +13,7 @@ from .fixed_time_pickoff import fixed_time_pickoff
     ],
     "(n),(m),(m)",
     **nb_kwargs,
-    forceobj=True
+    forceobj=True,
 )
 def multi_a_filter(w_in, vt_maxs_in, va_max_out):
     """Finds the maximums in a waveform and returns the amplitude of the wave
