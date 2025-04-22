@@ -65,10 +65,10 @@ def wiener_filter(file_name_array: list[str]) -> np.ndarray:
 
     # Read in the data
 
-    superpulse, _ = sto.read("spms/processed/superpulse", file_name)
+    superpulse = lh5.read("spms/processed/superpulse", file_name)
     superpulse = superpulse.nda
 
-    noise_wf, _ = sto.read("spms/processed/noise_wf", file_name)
+    noise_wf = lh5.read("spms/processed/noise_wf", file_name)
     noise_wf = noise_wf.nda
 
     # Now check that the data are valid

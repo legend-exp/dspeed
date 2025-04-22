@@ -8,7 +8,10 @@ from __future__ import annotations
 import logging
 import os
 import time
+import traceback
 from collections.abc import Collection, Mapping
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -20,6 +23,41 @@ from .errors import DSPFatal
 from .processing_chain import build_processing_chain
 
 log = logging.getLogger("dspeed")
+
+
+def _process_table(
+    tb,
+    dsp_config,
+    f_raw,
+    f_dsp,
+    database,
+    outputs,
+    n_max,
+    buffer_len,
+    block_width,
+):
+    log.debug(f"Processing table: {tb} with DSP config file {dsp_config}")
+    try:
+        # Create a separate build_dsp call for each table
+        build_dsp(
+            f_raw,
+            f_dsp,
+            dsp_config,
+            [tb],
+            database,
+            outputs,
+            n_max,
+            "r",
+            buffer_len,
+            block_width,
+            n_processes=1,  # No nested parallelism
+        )
+        log.info(f"Successfully processed table: {tb}")
+        return tb, True
+    except Exception as e:
+        log.error(f"Error processing table {tb}: {e}")
+        traceback.print_exc()
+        return tb, False
 
 
 def build_dsp(
@@ -34,6 +72,7 @@ def build_dsp(
     buffer_len: int = 3200,
     block_width: int = 16,
     chan_config: Mapping[str, str] = None,
+    n_processes: int = 1,
 ) -> None:
     """Convert raw-tier LH5 data into dsp-tier LH5 data by running a sequence
     of processors via the :class:`~.processing_chain.ProcessingChain`.
@@ -82,23 +121,75 @@ def build_dsp(
                 os.remove(f_dsp)
             write_mode = "a"
 
-        for tb, dsp_config in chan_config.items():
-            log.debug(f"processing table: {tb} with DSP config file {dsp_config}")
-            try:
-                build_dsp(
-                    f_raw,
-                    f_dsp,
-                    dsp_config,
-                    [tb],
-                    database,
-                    outputs,
-                    n_max,
-                    write_mode,
-                    buffer_len,
-                    block_width,
+        if n_processes > 1:
+            log.info(
+                f"Processing {len(chan_config)} tables in parallel with {n_processes} processes"
+            )
+            # Set up the process pool
+            with ProcessPoolExecutor(
+                max_workers=n_processes,
+            ) as executor:
+
+                # Submit all tasks
+                futures = [
+                    executor.submit(
+                        _process_table,
+                        tb,
+                        dsp_cfg,
+                        f_raw,
+                        f"{f_dsp}.{tb.replace('/', '_')}",  # write to separate files to avoid hdf5 file lock
+                        database,
+                        outputs,
+                        n_max,
+                        buffer_len,
+                        block_width,
+                    )
+                    for tb, dsp_cfg in chan_config.items()
+                ]
+
+                # Process results as they complete
+                for future in as_completed(futures):
+                    future.result()
+
+            # Merge the temporary files into the final output file
+            raw_store = lh5.LH5Store()
+            for tb in chan_config.keys():
+                temp_file = f"{f_dsp}.{tb.replace('/', '_')}"
+                tot_n_rows = raw_store.read_n_rows(tb, f_raw)
+                lh5_it = lh5.LH5Iterator(
+                    temp_file,
+                    tb.replace("/raw", "/dsp"),
+                    buffer_len=buffer_len,
+                    n_entries=tot_n_rows,
                 )
-            except RuntimeError:
-                log.debug(f"table {tb} not found")
+                for lh5_in in lh5_it:
+                    entries = lh5_it.current_global_entries
+                    raw_store.write(
+                        obj=lh5_in,
+                        name=tb.replace("/raw", "/dsp"),
+                        lh5_file=f_dsp,
+                        wo_mode="a",
+                    )
+                # Remove the temporary files
+                Path(temp_file).unlink(missing_ok=True)
+        else:
+            for tb, dsp_config in chan_config.items():
+                log.debug(f"processing table: {tb} with DSP config file {dsp_config}")
+                try:
+                    build_dsp(
+                        f_raw,
+                        f_dsp,
+                        dsp_config,
+                        [tb],
+                        database,
+                        outputs,
+                        n_max,
+                        write_mode,
+                        buffer_len,
+                        block_width,
+                    )
+                except RuntimeError:
+                    log.debug(f"Table {tb} not found")
         return
 
     raw_store = lh5.LH5Store()
@@ -152,6 +243,25 @@ def build_dsp(
     if write_mode == "r":
         if os.path.isfile(f_dsp):
             os.remove(f_dsp)
+
+    if len(lh5_tables) > 1 and n_processes > 1:
+        # Create a recursive call to build_dsp with chan_config
+        tab_config = {tb: dsp_config for tb in lh5_tables}
+        build_dsp(
+            f_raw,
+            f_dsp,
+            None,
+            None,
+            database,
+            outputs,
+            n_max,
+            write_mode if write_mode != "r" else "a",
+            buffer_len,
+            block_width,
+            chan_config=tab_config,
+            n_processes=n_processes,
+        )
+        return
 
     # loop over tables to run DSP on
     for tb in lh5_tables:
