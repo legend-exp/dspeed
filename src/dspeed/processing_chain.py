@@ -1928,6 +1928,9 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             io_vov.attrs["units"] = str(unit)
 
         self.io_vov = io_vov
+        self.io_vov.flattened_data.resize(
+            len(self.io_vov) * np.prod(var.buffer.shape[1:]), trim=True
+        )
         self.var = var
         self.raw_var = var.get_buffer(unit)
         self.len_var = var.vector_len.get_buffer()
@@ -1985,9 +1988,9 @@ class LGDOVectorOfVectorsIOManager(IOManager):
 
     def write(self, start: int, end: int) -> None:
         self.io_vov.resize(end)
-        min_cap = int(self.io_vov.cumulative_length[start] + np.sum(self.len_var))
-        if self.io_vov.flattened_data.get_capacity() < min_cap:
-            self.io_vov.flattened_data.reserve_capacity(min_cap)
+        self.io_vov.flattened_data.resize(
+            int(self.io_vov.cumulative_length[start] + np.sum(self.len_var))
+        )
         self.io_vov._set_vector_unsafe(
             start, self.raw_var[: end - start], self.len_var[: end - start]
         )
