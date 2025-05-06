@@ -121,10 +121,10 @@ def optimize_1pz(
 
 @guvectorize(
     [
-        "void(float32[:], float32, float32, float32, float32, float32, float32, float32, float32[:], float32[:], float32[:])",
-        "void(float64[:], float64, float64, float64, float64, float64, float64, float64, float64[:], float64[:], float64[:])",
+        "void(float32[:], float32, float32, float32, float32, float32, float32, float32, float32, float32[:], float32[:], float32[:])",
+        "void(float64[:], float64, float64, float64, float64, float64, float64, float64, float64, float64[:], float64[:], float64[:])",
     ],
-    "(n),(),(),(),(),(),(),()->(),(),()",
+    "(n),(),(),(),(),(),(),(),()->(),(),()",
     **nb_kwargs,
     forceobj=True,
 )
@@ -133,7 +133,8 @@ def optimize_2pz(
     a_baseline_in: float,
     t_beg_in: int,
     t_end_in: int,
-    upper_bound: float,
+    tau_upper_bound: float,
+    frac_upper_bound: float,
     p0_in: float,
     p1_in: float,
     p2_in: float,
@@ -156,8 +157,10 @@ def optimize_2pz(
     t_end_in
         the upper bound's index for the time range over
         which to optimize the pole-zero cancellation.
-    upper_bound
+    tau_upper_bound
         the upper bound for the fit for the two time constants.
+    frac_upper_bound
+        the upper bound for the fit for the frac.
     p0_in
         the initial guess of the optimal, longer time constant.
     p1_in
@@ -216,7 +219,7 @@ def optimize_2pz(
         Model(double_pole_zero, w_in, a_baseline_in, int(t_beg_in), int(t_end_in)),
         [p0_in, p1_in, p2_in],
     )
-    m.limits = [(0, upper_bound), (0, upper_bound), (0, 0.5)]
+    m.limits = [(0, tau_upper_bound), (0, tau_upper_bound), (0, frac_upper_bound)]
     m.print_level = -1
     m.strategy = 1
     m.errordef = Minuit.LEAST_SQUARES
