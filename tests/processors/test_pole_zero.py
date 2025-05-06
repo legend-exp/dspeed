@@ -14,8 +14,8 @@ def test_pole_zero(compare_numba_vs_python):
     tau = 30000
     ts = np.arange(0, 8192, dtype=np.float64)
     amplitude = 17500
-    pulse_in = np.zeros(len(ts)+20, dtype=np.float32)
-    pulse_in[20:] = amplitude*np.exp(-ts / tau, dtype=np.float32)
+    pulse_in = np.zeros(len(ts) + 20, dtype=np.float32)
+    pulse_in[20:] = amplitude * np.exp(-ts / tau, dtype=np.float32)
 
     # ensure that if there is a nan in w_in, all nans are outputted
     w_in = np.ones(pulse_in.size)
@@ -28,15 +28,15 @@ def test_pole_zero(compare_numba_vs_python):
     w_out_expected = np.insert(step, 0, np.zeros(20))
 
     # Check that it works at float32 precision
-    pulse_in = np.zeros(len(ts)+20, dtype=np.float32)
-    pulse_in[20:] = amplitude*np.exp(-ts / tau)
+    pulse_in = np.zeros(len(ts) + 20, dtype=np.float32)
+    pulse_in[20:] = amplitude * np.exp(-ts / tau)
     result = compare_numba_vs_python(pole_zero, pulse_in, tau)
     assert result.dtype == np.float32
     assert np.allclose(result, w_out_expected, rtol=1e-06)
 
     # Check that it works at float64 precision
-    pulse_in = np.zeros(len(ts)+20, dtype=np.float64)
-    pulse_in[20:] = amplitude*np.exp(-ts / tau)
+    pulse_in = np.zeros(len(ts) + 20, dtype=np.float64)
+    pulse_in[20:] = amplitude * np.exp(-ts / tau)
     result = compare_numba_vs_python(pole_zero, pulse_in, tau)
     assert result.dtype == np.float64
     assert np.allclose(result, w_out_expected, rtol=1e-07)
@@ -55,8 +55,9 @@ def test_double_pole_zero(compare_numba_vs_python):
     tau2 = 30000
     frac = 0.98
     ts = np.arange(0, wf_len - tp0, dtype=np.float64)
-    ys = amplitude * (1 - frac) * np.exp(-ts / tau1) \
-        + amplitude * frac * np.exp(-ts / tau2)
+    ys = amplitude * (1 - frac) * np.exp(-ts / tau1) + amplitude * frac * np.exp(
+        -ts / tau2
+    )
 
     # ensure the DSPFatal is raised if the waveform is too short
     pulse_out = np.zeros(2, dtype=np.float64)
@@ -85,7 +86,5 @@ def test_double_pole_zero(compare_numba_vs_python):
     pulse_in = np.zeros(wf_len, dtype=np.float32)
     pulse_in[tp0:] = ys
     result = compare_numba_vs_python(double_pole_zero, pulse_in, tau1, tau2, frac)
-    i_max = np.argmax(np.abs(result - w_out_expected))
-    print(i_max, result[i_max-5:i_max+5]-w_out_expected[i_max-5:i_max+5])
     assert result.dtype == np.float32
     assert np.allclose(result, w_out_expected, rtol=1e-6)
