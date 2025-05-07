@@ -9,10 +9,10 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
 
 @guvectorize(
     [
-        "void(float32[:,::1], float32[::1], float32, float32, boolean, float32, float32[::1])",
-        "void(float64[:,::1], float64[::1], float64, float32, boolean, float32, float64[::1])",
+        "void(float32[:,::1], float32[::1], float32, float32, boolean, float32, float32, float32[::1])",
+        "void(float64[:,::1], float64[::1], float64, float32, boolean, float32, float32, float64[::1])",
     ],
-    "(m,n),(m),(),(),(),(),(n)",
+    "(m,n),(m),(),(),(),(),(),(n)",
     nopython=True,
     **nb_kwargs,
 )
@@ -23,6 +23,7 @@ def optimize_nnls(
     tol: float,
     allow_singularity: bool,
     min_value: float,
+    lmb: float,
     x: np.ndarray,
 ) -> None:
     """Solve ``argmin_x || ax - b ||_2`` for ``x>=0``.
@@ -45,6 +46,10 @@ def optimize_nnls(
         If matrix is not solvable (e.g. because of non full rank caused by
         float precision), no error is raised but all elements of the
         solution vector are set NaN
+    min_value: float 
+        Threshold for noise reduction
+    lmb : float
+        L1 penalty to enforce sparsity in the solution. 
     x : ndarray
         Solution vector.
 
@@ -58,7 +63,7 @@ def optimize_nnls(
             "module": "dspeed.processors",
             "args": ["db.coefficient_matrix",
                 "wf_blsub",
-                "1000", "1e-6", "True"
+                "1000", "1e-6", "True", 0.3, 3e4,
                 "nnls_solution"],
         }
     """
