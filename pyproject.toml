@@ -42,7 +42,7 @@ dependencies=[
     "legend-pydataobj>=1.5.0a1",
     "matplotlib",
     "numba!=0.53.*,!=0.54.*",
-    "numpy<2",
+    "numpy",
     "parse",
     "pint",
     "pyarrow",
