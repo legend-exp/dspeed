@@ -105,7 +105,7 @@ def optimize_nnls(
         )
 
     ata = np.transpose(a) @ a
-    atb = b @ a  # Result is 1D - let NumPy figure it out
+    atb = b @ a  - lmb # Result is 1D - let NumPy figure it out
 
     # Initialize vars
     x[:] = np.zeros(n, dtype=np.float64)
