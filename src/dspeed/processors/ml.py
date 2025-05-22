@@ -90,6 +90,7 @@ def softmax(x_in: np.ndarray, x_out: np.ndarray) -> None:
     ],
     "(n),(n,m),()->(m)",
     **nb_kwargs,
+    forceobj=True,
 )
 def dense_layer_no_bias(
     x_in: np.ndarray, kernel: np.ndarray, activation_func: np.int8, x_out: np.ndarray
@@ -152,6 +153,7 @@ def dense_layer_no_bias(
     ],
     "(n),(n,m),(m),()->(m)",
     **nb_kwargs,
+    forceobj=True,
 )
 def dense_layer_with_bias(
     x_in: np.ndarray,
@@ -220,6 +222,7 @@ def dense_layer_with_bias(
     ],
     "(n),(n),()->()",
     **nb_kwargs,
+    forceobj=True,
 )
 def classification_layer_no_bias(
     x_in: np.ndarray, kernel: np.ndarray, activation_func: np.int8, x_out: float
@@ -282,6 +285,7 @@ def classification_layer_no_bias(
     ],
     "(n),(n),(),()->()",
     **nb_kwargs,
+    forceobj=True,
 )
 def classification_layer_with_bias(
     x_in: np.ndarray,
@@ -350,6 +354,7 @@ def classification_layer_with_bias(
     ],
     "(n),(n),(n)->(n)",
     **nb_kwargs,
+    forceobj=True,
 )
 def normalisation_layer(
     x_in: np.ndarray, means: np.ndarray, variances: np.ndarray, x_out: np.ndarray

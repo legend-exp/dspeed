@@ -3,7 +3,7 @@ from pathlib import Path
 
 import lgdo
 import pytest
-from lgdo.lh5 import LH5Store, ls
+from lgdo.lh5 import ls, read
 
 from dspeed import build_dsp
 
@@ -83,7 +83,6 @@ def test_build_dsp_spms_channelwise(dsp_test_file_spm):
         "ch0/dsp/trigger_pos",
     ]
 
-    store = LH5Store()
-    lh5_obj, n_rows = store.read("/ch0/dsp/energies", dsp_test_file_spm)
+    lh5_obj = read("/ch0/dsp/energies", dsp_test_file_spm)
     assert isinstance(lh5_obj, lgdo.VectorOfVectors)
     assert len(lh5_obj) == 5

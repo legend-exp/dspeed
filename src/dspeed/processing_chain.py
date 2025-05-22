@@ -10,6 +10,8 @@ import importlib
 import itertools as it
 import logging
 import re
+import time
+import traceback
 from abc import ABCMeta, abstractmethod
 from collections.abc import Collection, MutableMapping
 from copy import deepcopy
@@ -711,7 +713,7 @@ class ProcessingChain:
         if stop is None:
             stop = self._buffer_len
         for i in range(start, stop, self._block_width):
-            self._execute_procs(i, min(i + self._block_width, self._buffer_len))
+            self._execute_procs(i, min(i + self._block_width, stop))
 
     def get_variable(
         self, expr: str, get_names_only: bool = False, expr_only: bool = False
@@ -1157,6 +1159,10 @@ class ProcessingChain:
         else:
             return var.vector_len
 
+    def get_timing(self) -> dict[str, float]:
+        """Get the timing of each processor in the processing chain."""
+        return {str(proc): proc.time_total for proc in self._proc_managers}
+
     # round value
     def _round(
         var: ProcChainVar | Quantity,  # noqa: N805
@@ -1261,7 +1267,7 @@ class ProcessingChain:
         """
 
         try:
-            loaded_data = sto.read(path_in_file, path_to_file)[0]
+            loaded_data = sto.read(path_in_file, path_to_file)
             if isinstance(loaded_data, lgdo.types.Scalar):
                 loaded_data = loaded_data.value
             else:
@@ -1320,6 +1326,8 @@ class ProcessorManager:
         self.args = []
         # dict of kws -> raw values and buffers from params; we will fill this soon
         self.kwargs = {}
+        # store time taken by processor
+        self.time_total = 0
 
         # Get the signature and list of valid types for the function
         self.signature = func.signature if signature is None else signature
@@ -1574,7 +1582,14 @@ class ProcessorManager:
                 self.kwargs[arg_name] = param
 
     def execute(self) -> None:
-        self.processor(*self.args, **self.kwargs)
+        start = time.time()
+        try:
+            self.processor(*self.args, **self.kwargs)
+        except Exception as e:
+            log.error(f"Error processing {str(self)}: {e}")
+            traceback.print_exc()
+            raise e
+        self.time_total += time.time() - start
 
     def __str__(self) -> str:
         return (
@@ -1689,6 +1704,7 @@ class UnitConversionManager(ProcessorManager):
             self.out_buffer,
         ]
         self.kwargs = {}
+        self.time_total = 0
 
 
 class IOManager(metaclass=ABCMeta):
@@ -1782,7 +1798,6 @@ class LGDOArrayIOManager(IOManager):
             io_array.attrs["units"] = str(unit)
 
         self.io_array = io_array
-        self.raw_buf = io_array.nda
         self.var = var
         self.raw_var = var.get_buffer(unit)
 
@@ -1792,22 +1807,20 @@ class LGDOArrayIOManager(IOManager):
         ):
             raise ProcessingChainError(
                 f"LGDO object "
-                f"{self.io_buf.form_datatype()} is "
+                f"{self.io_array.form_datatype()} is "
                 f"incompatible with {str(self.var)}"
             )
 
     def read(self, start: int, end: int) -> None:
-        np.copyto(
-            self.raw_var[0 : end - start, ...], self.raw_buf[start:end, ...], "unsafe"
-        )
+        end = min(end, len(self.io_array))
+        self.raw_var[0 : end - start, ...] = self.io_array[start:end, ...]
 
     def write(self, start: int, end: int) -> None:
-        np.copyto(
-            self.raw_buf[start:end, ...], self.raw_var[0 : end - start, ...], "unsafe"
-        )
+        self.io_array.resize(end)
+        self.io_array[start:end, ...] = self.raw_var[0 : end - start, ...]
 
     def __str__(self) -> str:
-        return f"{self.var} linked to lgdo.Array(shape={self.io_array.nda.shape}, dtype={self.io_array.nda.dtype}, attrs={self.io_array.attrs})"
+        return f"{self.var} linked to lgdo.Array(shape={self.io_array.shape}, dtype={self.io_array.dtype}, attrs={self.io_array.attrs})"
 
 
 class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
@@ -1845,7 +1858,6 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
             io_array.attrs["units"] = str(unit)
 
         self.io_array = io_array
-        self.raw_buf = io_array.nda
         self.var = var
         self.raw_var = var.get_buffer(unit)
 
@@ -1860,17 +1872,18 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
             )
 
     def read(self, start: int, end: int) -> None:
-        np.copyto(
-            self.raw_var[0 : end - start, ...], self.raw_buf[start:end, ...], "unsafe"
-        )
+        end = min(end, len(self.io_array))
+        self.raw_var[0 : end - start, ...] = self.io_array[start:end, ...]
 
     def write(self, start: int, end: int) -> None:
-        np.copyto(
-            self.raw_buf[start:end, ...], self.raw_var[0 : end - start, ...], "unsafe"
-        )
+        self.io_array.resize(end)
+        if self.var.is_const:
+            self.io_array[start:end, ...] = self.raw_var[...]
+        else:
+            self.io_array[start:end, ...] = self.raw_var[0 : end - start, ...]
 
     def __str__(self) -> str:
-        return f"{self.var} linked to lgdo.ArrayOfEqualSizedArrays(shape={self.io_array.nda.shape}, dtype={self.io_array.nda.dtype}, attrs={self.io_array.attrs})"
+        return f"{self.var} linked to lgdo.ArrayOfEqualSizedArrays(shape={self.io_array.shape}, dtype={self.io_array.dtype}, attrs={self.io_array.attrs})"
 
 
 class LGDOVectorOfVectorsIOManager(IOManager):
@@ -1915,8 +1928,9 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             io_vov.attrs["units"] = str(unit)
 
         self.io_vov = io_vov
-        self.raw_buf = io_vov.flattened_data
-        self.cumlen_buf = io_vov.cumulative_length
+        self.io_vov.flattened_data.resize(
+            len(self.io_vov) * np.prod(var.buffer.shape[1:]), trim=True
+        )
         self.var = var
         self.raw_var = var.get_buffer(unit)
         self.len_var = var.vector_len.get_buffer()
@@ -1924,7 +1938,7 @@ class LGDOVectorOfVectorsIOManager(IOManager):
         if self.raw_var.dtype != self.io_vov.dtype:
             raise ProcessingChainError(
                 f"LGDO object "
-                f"{self.io_buf.form_datatype()} is "
+                f"{self.io_vov.flattened_data.form_datatype()} is "
                 f"incompatible with {str(self.var)}"
             )
 
@@ -1962,16 +1976,21 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             prev_cl = cl
 
     def read(self, start: int, end: int) -> None:
+        end = min(end, len(self.io_vov))
         self.raw_var = 0 if np.issubdtype(self.raw_var.dtype, np.integer) else np.nan
         LGDOVectorOfVectorsIOManager._vov2nda(
-            self.raw_buf,
-            self.cumlen_buf,
-            self.cumlen_buf[start - 1] if start > 0 else 0,
+            self.io_vov.flattened_data,
+            self.io_vov.cumulative_length,
+            self.io_vov.cumulative_length[start - 1] if start > 0 else 0,
             self.len_var,
             self.raw_var,
         )
 
     def write(self, start: int, end: int) -> None:
+        self.io_vov.resize(end)
+        self.io_vov.flattened_data.resize(
+            int(self.io_vov.cumulative_length[start] + np.sum(self.len_var))
+        )
         self.io_vov._set_vector_unsafe(
             start, self.raw_var[: end - start], self.len_var[: end - start]
         )
@@ -1986,10 +2005,7 @@ class LGDOWaveformIOManager(IOManager):
             variable, ProcChainVar
         )
 
-        self.wf_table = wf_table
-        self.wf_buf = wf_table.values.nda
-        self.t0_buf = wf_table.t0.nda
-        self.dt_buf = wf_table.dt.nda
+        self.io_wf = wf_table
 
         dt_units = wf_table.dt_units
         t0_units = wf_table.t0_units
@@ -2007,12 +2023,12 @@ class LGDOWaveformIOManager(IOManager):
             and t0_units in ureg
         ):
             grid = CoordinateGrid(
-                ureg.Quantity(self.dt_buf[0], dt_units),
+                ureg.Quantity(self.io_wf.dt[0], dt_units),
                 ProcChainVar(
                     variable.proc_chain,
                     variable.name + "_dt",
                     shape=(),
-                    dtype=self.t0_buf.dtype,
+                    dtype=self.io_wf.t0.dtype,
                     grid=None,
                     unit=dt_units,
                     is_coord=True,
@@ -2023,8 +2039,8 @@ class LGDOWaveformIOManager(IOManager):
 
         self.var = variable
         self.var.update_auto(
-            shape=self.wf_buf.shape[1:],
-            dtype=self.wf_buf.dtype,
+            shape=self.io_wf.values.shape[1:],
+            dtype=self.io_wf.values.dtype,
             grid=grid,
             unit=wf_table.values_units,
             is_coord=False,
@@ -2039,27 +2055,27 @@ class LGDOWaveformIOManager(IOManager):
         self.t0_var = self.var.grid.get_offset(t0_units)
         self.variable_t0 = isinstance(self.t0_var, np.ndarray)
         if not self.variable_t0:
-            self.t0_buf[:] = self.t0_var
-        self.wf_table.t0_units = t0_units
+            self.io_wf.t0[:] = self.t0_var
+        self.io_wf.t0_units = t0_units
 
-        self.dt_buf[:] = self.var.grid.get_period(dt_units)
-        self.wf_table.dt_units = dt_units
+        self.io_wf.dt[:] = self.var.grid.get_period(dt_units)
+        self.io_wf.dt_units = dt_units
 
     def read(self, start: int, end: int) -> None:
-        self.wf_var[0 : end - start, ...] = self.wf_buf[start:end, ...]
-        self.t0_var[0 : end - start, ...] = self.t0_buf[start:end, ...]
+        self.wf_var[0 : end - start, ...] = self.io_wf.values[start:end, ...]
+        self.t0_var[0 : end - start, ...] = self.io_wf.t0[start:end, ...]
 
     def write(self, start: int, end: int) -> None:
-        self.wf_buf[start:end, ...] = self.wf_var[0 : end - start, ...]
+        self.io_wf.values[start:end, ...] = self.wf_var[0 : end - start, ...]
         if self.variable_t0:
-            self.t0_buf[start:end, ...] = self.t0_var[0 : end - start, ...]
+            self.io_wf.t0[start:end, ...] = self.t0_var[0 : end - start, ...]
 
     def __str__(self) -> str:
         return (
             f"{self.var} linked to lgdo.WaveformTable("
-            f"values(shape={self.wf_table.values.nda.shape}, dtype={self.wf_table.values.nda.dtype}, attrs={self.wf_table.values.attrs}), "
-            f"dt(shape={self.wf_table.dt.nda.shape}, dtype={self.wf_table.dt.nda.dtype}, attrs={self.wf_table.dt.attrs}), "
-            f"t0(shape={self.wf_table.t0.nda.shape}, dtype={self.wf_table.t0.nda.dtype}, attrs={self.wf_table.t0.attrs}))"
+            f"values(shape={self.io_wf.values.shape}, dtype={self.io_wf.values.dtype}, attrs={self.io_wf.values.attrs}), "
+            f"dt(shape={self.io_wf.dt.shape}, dtype={self.io_wf.dt.dtype}, attrs={self.io_wf.dt.attrs}), "
+            f"t0(shape={self.io_wf.t0.shape}, dtype={self.io_wf.t0.dtype}, attrs={self.io_wf.t0.attrs}))"
         )
 
 

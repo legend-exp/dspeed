@@ -62,7 +62,10 @@ def linear_slope_fit(
         # the mean and standard deviation
         temp = w_in[i] - mean
         mean += temp / (i + 1)
-        stdev += temp * temp
+        stdev += temp * (
+            w_in[i] - mean
+        )  # Welford's method is difference between updated mean and old mean
+        # (x_i -mean_i) * (x_i - mean_i-1)
 
         # linear regression
         sum_x += i

@@ -32,9 +32,6 @@ def test_list_parsing(lgnd_test_data, tmptestdir):
     )
     assert os.path.exists(dsp_file)
 
-    st = lh5.LH5Store()
-    df = st.read("geds/dsp/", dsp_file, n_rows=5, field_mask=["wf_out"])[0].view_as(
-        "pd"
-    )
+    df = lh5.read_as("geds/dsp/", dsp_file, "pd", n_rows=5, field_mask=["wf_out"])
 
     assert np.all(df["wf_out"][:] == np.array([7, 9, 11, 13, 15]))
