@@ -10,8 +10,10 @@ import os
 import re
 import time
 from collections.abc import Collection, Mapping
-from copy import deepcopy
+from concurrent.futures import ProcessPoolExecutor
 from fnmatch import fnmatch
+from functools import partial
+from itertools import chain
 
 from lgdo import LGDO, Struct, Table, lh5
 from tqdm.auto import tqdm
@@ -38,6 +40,7 @@ def build_dsp(
     n_entries: int | None = None,
     buffer_len: int = 3200,
     block_width: int = 16,
+    processes: int = None,
     chan_config: str | Mapping[str, str] = None,
 ) -> None:
     """Convert raw-tier LH5 data into dsp-tier LH5 data by running a sequence
@@ -123,7 +126,6 @@ def build_dsp(
         will process all channels beginning with 2, except for 2000000, with config3.
     """
     db_parser = re.compile(r"(?![^\w_.])db\.[\w_.]+")
-    raw_store = lh5.LH5Store(keep_open=True)
 
     if isinstance(lh5_tables, str):
         lh5_tables = [lh5_tables]
@@ -214,7 +216,10 @@ def build_dsp(
     # Setup output
     if dsp_out is None:
         # Output to tables
-        dsp_st = Struct()
+        if lh5_tables == [""]:
+            dsp_st = Table()
+        else:
+            dsp_st = Struct()
     else:
         # Output to file
         if write_mode is None and os.path.isfile(dsp_out):
@@ -228,6 +233,14 @@ def build_dsp(
                 os.remove(dsp_out)
 
         dsp_st = lh5.LH5Store(keep_open=True)
+
+    # Initialize processing
+    if processes and isinstance(raw_in, (lh5.LH5Iterator, str)):
+        pool = ProcessPoolExecutor(max_workers=processes)
+    else:
+        pool = None
+    dsp_names = []
+    async_results = []
 
     # loop over tables to run DSP on
     for tb in lh5_tables:
@@ -317,7 +330,7 @@ def build_dsp(
                 )
             else:
                 lh5_in.join(
-                    raw_store.read(group, file, n_rows=len(lh5_in)),
+                    lh5.read(group, file, n_rows=len(lh5_in)),
                     prefix=prefix,
                     suffix=suffix,
                 )
@@ -328,117 +341,157 @@ def build_dsp(
         if outputs is None:
             outputs = this_config["outputs"]
 
-        # resize inputs, get table and iterable versions
-        if n_entries is None:
-            tot_n_rows = len(lh5_in)
-        else:
-            tot_n_rows = min(n_entries, len(lh5_in))
-
+        # start processing
         if isinstance(lh5_in, lh5.LH5Iterator):
-            lh5_it = lh5_in
-            lh5_it.n_entries = tot_n_rows
-            tb_in = next(iter(lh5_in))
+            if n_entries is not None:
+                lh5_in.n_entries = n_entries
+            dsp_result = lh5_in.map(
+                _build_dsp,
+                processes=pool,
+                chunks=1,
+                aggregate=Table.append,
+                begin=partial(
+                    _initialize_channel,
+                    processors,
+                    db_dict,
+                    outputs,
+                    buffer_len,
+                    block_width,
+                ),
+                terminate=_finish_channel,
+            )
         else:
-            tb_in = lh5_in
-            lh5_in.resize(tot_n_rows)
-            lh5_it = [lh5_in]
-
-        # Setup timers
-        log.info(f"Processing table {tb} with {tot_n_rows} rows")
-        loading_time = 0
-        write_time = 0
-        start = time.time()
-
-        # Setup processing chain
-        proc_chain, field_mask, tb_out = build_processing_chain(
-            processors,
-            tb_in,
-            db_dict=db_dict,
-            outputs=outputs,
-            buffer_len=buffer_len,
-            block_width=block_width,
-        )
-
-        if isinstance(lh5_it, lh5.LH5Iterator):
-            lh5_it.reset_field_mask(field_mask)
-
-        if log.getEffectiveLevel() >= logging.INFO:
-            progress_bar = tqdm(
-                desc=f"Processing table {tb}",
-                total=tot_n_rows,
-                delay=2,
-                unit=" rows",
+            if n_entries is not None:
+                lh5_in.resize(n_entries)
+            _initialize_channel(
+                processors, db_dict, outputs, buffer_len, block_width, lh5_in
             )
+            dsp_result = _build_dsp(lh5_in)
+            _finish_channel(lh5_in)
 
-        curr = time.time()
-        loading_time += curr - start
-        processing_time = 0
-
+        # if not multiprocessing, record results; otherwise add them to our list of asynchronous results
         dsp_name = tb.replace("raw", "dsp")
-        if isinstance(dsp_st, Struct):
-            tb_fill = deepcopy(tb_out)
-            tb_fill.resize(0)
-            if dsp_name != "":
-                groups = dsp_name.split("/")
-                tb_name = groups.pop(-1)
-                node = dsp_st
-                for gr in groups:
-                    node = node.setdefault(gr, Struct())
-                node[tb_name] = tb_fill
-            else:
-                dsp_st = tb_fill
+        if not pool:
+            _record_result(dsp_result, dsp_st, dsp_name, dsp_out, write_mode, i_start)
+        else:
+            dsp_names.append(dsp_name)
+            async_results.append(dsp_result)
 
-        # Main processing loop
-        for tb_in in lh5_it:
-            # Process block of waveforms
-            loading_time += time.time() - curr
-            processing_time_start = time.time()
-            i_entry = (
-                lh5_it.current_i_entry if isinstance(lh5_it, lh5.LH5Iterator) else 0
-            )
-            try:
-                proc_chain.execute(0, len(tb_in))
-            except DSPFatal as e:
-                # Update the wf_range to reflect the file position
-                e.wf_range = f"{i_entry}-{i_entry+len(tb_in)}"
-                raise e
-            processing_time += time.time() - processing_time_start
-
-            # Record output
-            write_start = time.time()
-            if isinstance(dsp_st, lh5.LH5Store):
-                dsp_st.write(
-                    obj=tb_out,
-                    name=dsp_name,
-                    lh5_file=dsp_out,
-                    wo_mode="o" if write_mode == "u" else "a",
-                    write_start=i_start + i_entry,
-                )
-            else:
-                tb_fill.append(tb_out)
-
-            write_time += time.time() - write_start
-            if log.getEffectiveLevel() >= logging.INFO:
-                progress_bar.update(len(tb_in))
-
-            curr = time.time()
-
-        # Wrap up
-        if log.getEffectiveLevel() >= logging.INFO:
-            progress_bar.close()
-
-        log.info(f"Table {tb} processed in {time.time() - start:.2f} seconds")
-        log.debug(f"Table {tb} loading time: {loading_time:.2f} seconds")
-        log.debug(f"Table {tb} write time: {write_time:.2f} seconds")
-        log.debug(f"Table {tb} processing time: {processing_time:.2f} seconds")
-
-        if log.getEffectiveLevel() >= logging.DEBUG:
-            times = proc_chain.get_timing()
-            log.debug("Processor timing info: ")
-            for proc, t in dict(
-                sorted(times.items(), key=lambda item: item[1], reverse=True)
-            ).items():
-                log.debug(f"{proc}: {t:.3f} s")
+    # if multiprocessing, record results now
+    if pool:
+        pool.shutdown(wait=False)
+        for dsp_name, dsp_tb in zip(dsp_names, chain(*async_results)):
+            _record_result(dsp_tb, dsp_st, dsp_name, dsp_out, write_mode, i_start)
 
     if isinstance(dsp_st, Struct):
         return dsp_st
+
+
+def _initialize_channel(processors, db_dict, outputs, buffer_len, block_width, lh5_it):
+    """Initialize a processing chain for the current table"""
+    global t0
+    t0 = time.time()
+
+    n_rows = len(lh5_it)
+    if isinstance(lh5_it, lh5.LH5Iterator):
+        tb_name = lh5_it.groups[0]
+        tb_in = lh5_it.read(0)
+    else:
+        tb_name = "raw"
+        tb_in = lh5_it
+    log.info(f"Processing table {tb_name} with {n_rows} rows")
+
+    # Setup processing chain
+    global proc_chain, field_mask, tb_out
+    proc_chain, field_mask, tb_out = build_processing_chain(
+        processors,
+        tb_in,
+        db_dict=db_dict,
+        outputs=outputs,
+        buffer_len=buffer_len,
+        block_width=block_width,
+    )
+
+    if isinstance(lh5_it, lh5.LH5Iterator):
+        lh5_it.reset_field_mask(field_mask)
+
+    global progress_bar
+    if log.getEffectiveLevel() >= logging.INFO:
+        progress_bar = tqdm(
+            desc=f"Processing table {tb_name}",
+            total=n_rows,
+            delay=2,
+            unit=" rows",
+        )
+
+    global timing_info
+    timing_info = {"Disk read": 0, "build_processing_chain": time.time() - t0}
+
+    global t_iter
+    t_iter = time.time()
+
+
+def _finish_channel(lh5_it):
+    global t0  # noqa: F824
+    tb_name = lh5_it.groups[0] if isinstance(lh5_it, lh5.LH5Iterator) else "raw"
+    log.info(f"Table {tb_name} processed in {time.time() - t0:.2f} s")
+
+    global timing_info, proc_chain  # noqa: F824
+    timing_info.update(proc_chain.get_timing())
+    for name, t in timing_info.items():
+        log.debug(f"- {name}: {t} s")
+
+    global progress_bar  # noqa: F824
+    if log.getEffectiveLevel() >= logging.INFO:
+        progress_bar.close()
+
+
+def _build_dsp(tb_in, lh5_it=None):
+    global timing_info, t_iter  # noqa: F824
+    timing_info["Disk read"] += time.time() - t_iter
+
+    i_entry = lh5_it.current_i_entry if isinstance(lh5_it, lh5.LH5Iterator) else 0
+    try:
+        proc_chain.execute(0, len(tb_in))
+    except DSPFatal as e:
+        # Update the wf_range to reflect the file position
+        e.wf_range = f"{i_entry}-{i_entry+len(tb_in)}"
+        raise e
+
+    if log.getEffectiveLevel() >= logging.INFO:
+        progress_bar.update(len(tb_in))
+
+    t_iter = time.time()
+
+    # copy and return result
+    tb_out.resize(len(tb_in))
+    return tb_out
+
+
+def _record_result(dsp_tb, dsp_st, dsp_name, dsp_out, write_mode, i_start):
+    # combine tables from each processing chunk
+    t0 = time.time()
+
+    if dsp_name == "":
+        dsp_name = "dsp"
+    # write to file/update struct
+    if isinstance(dsp_st, lh5.LH5Store):
+        # if name has nesting, build a struct
+        gp_name = dsp_name.split("/", 1)
+        if len(gp_name) == 2:
+            dsp_tb = Struct({gp_name[1]: dsp_tb})
+        gp_name = gp_name[0]
+
+        dsp_st.write(
+            dsp_tb,
+            name=gp_name,
+            lh5_file=dsp_out,
+            wo_mode="o" if write_mode == "u" else "a",
+            write_start=i_start,
+        )
+
+        log.info(f"Wrote table {dsp_name} (write took {time.time() - t0} s).")
+    elif isinstance(dsp_st, Table):
+        dsp_st.update(dsp_tb)
+    elif isinstance(dsp_st, Struct):
+        dsp_st.update({dsp_name: dsp_tb})

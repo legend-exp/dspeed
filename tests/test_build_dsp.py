@@ -179,3 +179,27 @@ def test_build_dsp_spms_channelwise(dsp_test_file_spm):
     lh5_obj = lh5.read("/ch0/dsp/energies", dsp_test_file_spm)
     assert isinstance(lh5_obj, VectorOfVectors)
     assert len(lh5_obj) == 5
+
+
+def test_build_dsp_multiprocessing(lgnd_test_data, dsp_test_file_spm):
+    chan_config = {
+        "ch0/raw": f"{config_dir}/sipm-dsp-config.json",
+        "ch1/raw": f"{config_dir}/sipm-dsp-config.json",
+        "ch2/raw": f"{config_dir}/sipm-dsp-config.json",
+    }
+
+    dsp_out = build_dsp(
+        lgnd_test_data.get_path("lh5/L200-comm-20211130-phy-spms.lh5"),
+        n_entries=5,
+        lh5_tables=chan_config.keys(),
+        chan_config=chan_config,
+        write_mode="r",
+        processes=2,
+    )
+
+    lh5_obj = lh5.read("/ch0", dsp_test_file_spm)
+    assert dsp_out["ch0"] == lh5_obj
+    lh5_obj = lh5.read("/ch1", dsp_test_file_spm)
+    assert dsp_out["ch1"] == lh5_obj
+    lh5_obj = lh5.read("/ch2", dsp_test_file_spm)
+    assert dsp_out["ch2"] == lh5_obj
