@@ -46,7 +46,7 @@ def inl_correction(w_in: np.ndarray, inl: np.ndarray, w_out: np.ndarray) -> None
 
     w_out[:] = np.nan
 
-    if np.isnan(w_in).any() or np.isnan(inl).any():
+    if np.isnan(inl).any():
         return
 
     for i in range(len(w_in)):
