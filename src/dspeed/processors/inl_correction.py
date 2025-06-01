@@ -9,15 +9,13 @@ from dspeed.utils import numba_defaults_kwargs as nb_kwargs
 
 @guvectorize(
     [
-        "void(float32[:], float32[:], float32, float32[:])",
-        "void(float64[:], float64[:], float64, float64[:])",
+        "void(int32[:], float32[:], float32[:])",
+        "void(int32[:], float64[:], float64[:])",
     ],
-    "(n),(p),(),(n)",
+    "(n),(p),(n)",
     **nb_kwargs,
 )
-def inl_correction(
-    w_in: np.ndarray, inl: np.ndarray, factor: float, w_out: np.ndarray
-) -> None:
+def inl_correction(w_in: np.ndarray, inl: np.ndarray, w_out: np.ndarray) -> None:
     """INL correction.
 
     Note
@@ -30,8 +28,6 @@ def inl_correction(
         the input waveform.
     inl
         inl correction array.
-    factor
-        factor to apply inl correction.
     w_out
         corrected waveform.
 
@@ -43,7 +39,7 @@ def inl_correction(
       "wf_corr": {
           "function": "inl_correction",
           "module": "dspeed.processors",
-          "args": ["w_in", "inl", "factor", "w_out"],
+          "args": ["w_in", "inl", "w_out"],
           "unit": "ADC"
        }
     """
@@ -53,13 +49,10 @@ def inl_correction(
     if np.isnan(w_in).any() or np.isnan(inl).any():
         return
 
-    if np.isnan(factor):
-        raise DSPFatal("INL factor is nan")
-
     for i in range(len(w_in)):
-        adc_code = int(w_in[i])
+        adc_code = w_in[i]
         if 0 <= adc_code < len(inl):
-            w_out[i] = w_in[i] + factor * inl[adc_code]
+            w_out[i] = w_in[i] + inl[adc_code]
         else:
             raise DSPFatal(
                 f"ADC code {adc_code} out of range for INL array of length {len(inl)}"
