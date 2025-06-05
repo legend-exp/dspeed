@@ -1,38 +1,38 @@
 outputs:
- -tp_min
- -tp_max
- -wf_min
- -wf_max
- -bl_mean
- -bl_std
- -bl_slope
- -bl_intercept
- -pz_slope
- -pz_std
- -pz_mean
- -trapTmax
- -tp_0_est
- -tp_0_atrap
- -tp_10
- -tp_20
- -tp_50
- -tp_80
- -tp_90
- -tp_99
- -tp_100
- -tp_01
- -tp_95
- -A_max
- -QDrift
- -dt_eff
- -tp_aoe_max
- -tp_aoe_samp
- -trapEmax
- -trapEftp
- -cuspEmax
- -zacEmax
- -zacEftp
- -cuspEftp
+- tp_min
+- tp_max
+- wf_min
+- wf_max
+- bl_mean
+- bl_std
+- bl_slope
+- bl_intercept
+- pz_slope
+- pz_std
+- pz_mean
+- trapTmax
+- tp_0_est
+- tp_0_atrap
+- tp_10
+- tp_20
+- tp_50
+- tp_80
+- tp_90
+- tp_99
+- tp_100
+- tp_01
+- tp_95
+- A_max
+- QDrift
+- dt_eff
+- tp_aoe_max
+- tp_aoe_samp
+- trapEmax
+- trapEftp
+- cuspEmax
+- zacEmax
+- zacEftp
+- cuspEftp
 processors:
   tp_min, tp_max, wf_min, wf_max:
      function: dspeed.processors.min_max
@@ -58,7 +58,10 @@ processors:
     unit: [ADC, ADC, ADC, ADC]
   t0_kernel:
     function: dspeed.processors.t0_filter
-    args: [128*ns, 2*us, "t0_kernel(round(128*ns+2*us, wf_pz.period), 'f')"]
+    args:
+    - 128*ns/wf_pz.period
+    - 2*us/wf_pz.period
+    - t0_kernel(round((128*ns+2*us)/wf_pz.period), 'f')
     coord_grid: wf_pz
     unit: ADC
   wf_t0_filter:
@@ -122,10 +125,10 @@ processors:
   cusp_kernel:
     function: dspeed.processors.cusp_filter
     args:
-      - db.cusp.sigma
-      - round(db.cusp.flat, wf_blsub.period)
-      - db.pz.tau
-      - cusp_kernel(len(wf_blsub)-round(33.6*us - 4.8*us, wf_blsub.period), 'f')
+      - db.cusp.sigma/wf_blsub.period
+      - round(db.cusp.flat/wf_blsub.period)
+      - db.pz.tau/wf_blsub.period
+      - cusp_kernel(round(len(wf_blsub)-(33.6*us/wf_blsub.period)-(4.8*us/wf_blsub.period)), 'f')
     defaults:
       db.cusp.sigma: 20*us
       db.cusp.flat: 3*us
@@ -135,10 +138,10 @@ processors:
   wf_cusp:
     function: dspeed.processors.fft_convolve_wf
     args:
-      - wf_blsub[:len(wf_blsub)-round(33.6*us, wf_blsub.period)]
+      - wf_blsub[:len(wf_blsub)-round(33.6*us/wf_blsub.period)]
       - cusp_kernel
       - "'v'"
-      - wf_cusp(round(4.8*us, wf_blsub.period) + 1, 'f')
+      - wf_cusp(round(4.8*us/wf_blsub.period) + 1, 'f')
     unit: ADC
   cuspEmax:
     function: numpy.amax
@@ -256,7 +259,4 @@ processors:
     function: dspeed.processors.min_max
     args: [curr_av, aoe_t_min, tp_aoe_max, A_min, A_max]
     unit: [ns, ns, ADC/sample, ADC/sample]
-  tp_aoe_samp:
-    function: dspeed.processors.add
-    args: [tp_0_est, tp_aoe_max/16, tp_aoe_samp]
-    unit: ns
+  tp_aoe_samp: tp_0_est + tp_aoe_max/16
