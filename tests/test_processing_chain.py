@@ -301,9 +301,24 @@ def test_proc_chain_where(spms_raw_tbl):
         np.where(wf<0, 0, wf) == lh5_out["test2"].values[0]
     )
 
+
+def test_proc_chain_isnan():
+    dsp_config = {
+        "outputs": ["test_nan", "test_finite"],
+        "processors": {
+            "test_nan": "isnan(input)",
+            "test_finite": "isfinite(input)",
+        }
+    }
+
+    tb = lgdo.Table({"input": lgdo.Array(np.array([1., 0., np.inf, -np.inf, np.nan]))})
+    proc_chain, _, lh5_out = build_processing_chain(tb, dsp_config)
+    proc_chain.execute()
     assert np.all(
-        np.rint(spms_raw_tbl["waveform"].values[0] / 4) * 4
-        == lh5_out["waveform_round"].values[0]
+        np.array([False, False, False, False, True]) == lh5_out["test_nan"].nda
+    )
+    assert np.all(
+        np.array([True, True, False, False, False]) == lh5_out["test_finite"].nda
     )
 
 

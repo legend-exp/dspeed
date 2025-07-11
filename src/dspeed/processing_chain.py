@@ -1276,6 +1276,48 @@ class ProcessingChain:
             log.debug(f"added processor: {proc_man}")
             return out
 
+    def _isnan(var: ProcChainVar | Real | None):
+        """Is value NaN"""
+        if var is None:
+            return None
+        elif not isinstance(var, ProcChainVar):
+            return np.isnan(var)
+        else:
+            out = ProcChainVar(
+                var.proc_chain,
+                f"isnan({var})",
+                var.shape,
+                "bool",
+                var.grid,
+                var.unit,
+                var.is_coord,
+            )
+            proc_man = ProcessorManager(var.proc_chain, np.isnan, [var, out])
+            var.proc_chain._proc_managers.append(proc_man)
+            log.debug(f"added processor: {proc_man}")
+            return out
+
+    def _isfinite(var: ProcChainVar | Real | None):
+        """Is value finite (i.e. not NaN or infinite)"""
+        if var is None:
+            return None
+        elif not isinstance(var, ProcChainVar):
+            return np.isfinite(var)
+        else:
+            out = ProcChainVar(
+                var.proc_chain,
+                f"isfinite({var})",
+                var.shape,
+                "bool",
+                var.grid,
+                var.unit,
+                var.is_coord,
+            )
+            proc_man = ProcessorManager(var.proc_chain, np.isfinite, [var, out])
+            var.proc_chain._proc_managers.append(proc_man)
+            log.debug(f"added processor: {proc_man}")
+            return out
+
 
     # choose a or b
     def _where(condition: ProcChainVar, a: ProcChainVar | Real | Quantity, b: ProcChainVar | Real | Quantity) -> ProcChainVar:
@@ -1386,6 +1428,8 @@ class ProcessingChain:
     # dict of functions that can be parsed by get_variable
     func_list = {
         "len": _length,
+        "isfinite": _isfinite,
+        "isnan": _isnan,
         "round": partial(_round, "round"),
         "floor": partial(_round, "floor"),
         "ceil":  partial(_round, "ceil"),
