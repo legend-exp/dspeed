@@ -59,146 +59,101 @@ several advantages:
    to use functions that operate in place as much as possible!
 """
 
-from .bl_subtract import bl_subtract
-from .convolutions import (
-    convolve_damped_oscillator,
-    convolve_exp,
-    convolve_wf,
-    fft_convolve_wf,
-)
-from .dwt import discrete_wavelet_transform
-from .energy_kernels import cusp_filter, dplms, zac_filter
-from .fixed_time_pickoff import fixed_time_pickoff
-from .gaussian_filter1d import gaussian_filter1d
-from .get_multi_local_extrema import get_multi_local_extrema
-from .get_wf_centroid import get_wf_centroid
-from .histogram import histogram, histogram_stats
-from .inject_ringing import inject_damped_oscillation
-from .kernels import moving_slope, step, t0_filter
-from .linear_slope_fit import linear_slope_diff, linear_slope_fit
-from .log_check import log_check
-from .min_max import min_max, min_max_norm
-from .ml import (
-    classification_layer_no_bias,
-    classification_layer_with_bias,
-    dense_layer_no_bias,
-    dense_layer_with_bias,
-    normalisation_layer,
-)
-from .moving_windows import (
-    avg_current,
-    moving_window_left,
-    moving_window_multi,
-    moving_window_right,
-)
-from .multi_a_filter import multi_a_filter
-from .multi_t_filter import multi_t_filter, remove_duplicates
-from .nnls import optimize_nnls
-from .optimize import optimize_1pz, optimize_2pz
-from .param_lookup import param_lookup
-from .peak_snr_threshold import peak_snr_threshold
-from .pmt_pulse_injector import inject_general_logistic, inject_gumbel
-from .pole_zero import double_pole_zero, pole_zero
-from .poly_fit import poly_diff, poly_exp_rms, poly_fit
-from .presum import presum
-from .pulse_injector import inject_exp_pulse, inject_sig_pulse
-from .rc_cr2 import rc_cr2
-from .round_to_nearest import round_to_nearest, floor_to_nearest, ceil_to_nearest, trunc_to_nearest
-from .saturation import saturation
-from .soft_pileup_corr import soft_pileup_corr, soft_pileup_corr_bl
-from .svm import svm_predict
-from .tf_model import tf_model
-from .time_over_threshold import time_over_threshold
-from .time_point_thresh import (
-    bi_level_zero_crossing_time_points,
-    interpolated_time_point_thresh,
-    multi_time_point_thresh,
-    time_point_thresh,
-)
-from .transfer_function_convolver import transfer_function_convolver
-from .trap_filters import asym_trap_filter, trap_filter, trap_norm, trap_pickoff
-from .upsampler import interpolating_upsampler, upsampler
-from .wf_alignment import wf_alignment
-from .where import where
-from .wiener_filter import wiener_filter
-from .windower import windower
+from importlib import import_module
 
-__all__ = [
-    "bl_subtract",
-    "convolve_wf",
-    "fft_convolve_wf",
-    "cusp_filter",
-    "t0_filter",
-    "zac_filter",
-    "discrete_wavelet_transform",
-    "fixed_time_pickoff",
-    "gaussian_filter1d",
-    "get_multi_local_extrema",
-    "histogram",
-    "histogram_stats",
-    "linear_slope_fit",
-    "linear_slope_diff",
-    "poly_diff",
-    "poly_fit",
-    "poly_exp_rms",
-    "log_check",
-    "min_max",
-    "min_max_norm",
-    "avg_current",
-    "moving_window_left",
-    "moving_window_multi",
-    "moving_window_right",
-    "multi_a_filter",
-    "multi_t_filter",
-    "optimize_nnls",
-    "remove_duplicates",
-    "optimize_1pz",
-    "optimize_2pz",
-    "param_lookup",
-    "double_pole_zero",
-    "pole_zero",
-    "presum",
-    "inject_exp_pulse",
-    "inject_sig_pulse",
-    "saturation",
-    "peak_snr_threshold",
-    "soft_pileup_corr",
-    "soft_pileup_corr_bl",
-    "svm_predict",
-    "tf_model",
-    "time_point_thresh",
-    "interpolated_time_point_thresh",
-    "multi_time_point_thresh",
-    "asym_trap_filter",
-    "trap_filter",
-    "trap_norm",
-    "trap_pickoff",
-    "upsampler",
-    "interpolating_upsampler",
-    "wiener_filter",
-    "windower",
-    "time_over_threshold",
-    "dplms",
-    "moving_slope",
-    "step",
-    "get_wf_centroid",
-    "wf_alignment",
-    "round_to_nearest",
-    "floor_to_nearest",
-    "ceil_to_nearest",
-    "trunc_to_nearest",
-    "transfer_function_convolver",
-    "rc_cr2",
-    "bi_level_zero_crossing_time_points",
-    "convolve_exp",
-    "convolve_damped_oscillator",
-    "inject_damped_oscillation",
-    "dense_layer_no_bias",
-    "dense_layer_with_bias",
-    "classification_layer_no_bias",
-    "classification_layer_with_bias",
-    "normalisation_layer",
-    "inject_general_logistic",
-    "inject_gumbel",
-    "where",
-]
+# Mapping from function to name of module in which it is defined
+# To add a new function to processors, it must be added here!
+_modules = {
+    "bl_subtract": "bl_subtract",
+    "convolve_damped_oscillator": "convolutions",
+    "convolve_exp": "convolutions",
+    "convolve_wf": "convolutions",
+    "fft_convolve_wf": "convolutions",
+    "discrete_wavelet_transform": "dwt",
+    "cusp_filter": "energy_kernels",
+    "dplms": "energy_kernels",
+    "zac_filter": "energy_kernels",
+    "fixed_time_pickoff": "fixed_time_pickoff",
+    "gaussian_filter1d": "gaussian_filter1d",
+    "get_multi_local_extrema": "get_multi_local_extrema",
+    "get_wf_centroid": "get_wf_centroid",
+    "histogram": "histogram",
+    "histogram_stats": "histogram",
+    "inject_damped_oscillation": "inject_ringing",
+    "moving_slope": "kernels",
+    "step": "kernels",
+    "t0_filter": "kernels",
+    "linear_slope_fit": "linear_slope_fit",
+    "linear_slope_diff": "linear_slope_fit",
+    "log_check": "log_check",
+    "min_max": "min_max",
+    "min_max_norm": "min_max",
+    "classification_layer_no_bias": "ml",
+    "classification_layer_with_bias": "ml",
+    "dense_layer_no_bias": "ml",
+    "dense_layer_with_bias": "ml",
+    "normalisation_layer": "ml",
+    "avg_current": "moving_windows",
+    "moving_window_left": "moving_windows",
+    "moving_window_multi": "moving_windows",
+    "moving_window_right": "moving_windows",
+    "multi_a_filter": "multi_a_filter",
+    "multi_t_filter": "multi_t_filter",
+    "remove_duplicates": "multi_t_filter",
+    "optimize_nnls": "nnls",
+    "optimize_1pz": "optimize",
+    "optimize_2pz": "optimize",
+    "param_lookup": "param_lookup",
+    "peak_snr_threshold": "peak_snr_threshold",
+    "inject_general_logistic": "pmt_pulse_injector",
+    "inject_gumbel": "pmt_pulse_injector",
+    "pole_zero": "pole_zero",
+    "double_pole_zero": "pole_zero",
+    "poly_diff": "poly_fit",
+    "poly_exp_rms": "poly_fit",
+    "poly_fit": "poly_fit",
+    "presum": "presum",
+    "inject_exp_pulse": "pulse_injector",
+    "inject_sig_pulse": "pulse_injector",
+    "rc_cr2": "rc_cr2",
+    "round_to_nearest": "round_to_nearest",
+    "floor_to_nearest": "round_to_nearest",
+    "ceil_to_nearest": "round_to_nearest",
+    "trunc_to_nearest": "round_to_nearest",
+    "saturation": "saturation",
+    "soft_pileup_corr": "soft_pileup_corr",
+    "soft_pileup_corr_bl": "soft_pileup_corr",
+    "svm_predict": "svm",
+    "tf_model": "tf_model",
+    "time_over_threshold": "time_over_threshold",
+    "bi_level_zero_crossing_time_points": "time_point_thresh",
+    "interpolated_time_point_thresh": "time_point_thresh",
+    "multi_time_point_thresh": "time_point_thresh",
+    "time_point_thresh": "time_point_thresh",
+    "transfer_function_convolver": "transfer_function_convolver",
+    "asym_trap_filter": "trap_filters",
+    "trap_filter": "trap_filters",
+    "trap_norm": "trap_filters",
+    "trap_pickoff": "trap_filters",
+    "interpolating_upsampler": "upsampler",
+    "upsampler": "upsampler",
+    "wf_alignment": "wf_alignment",
+    "where": "where",
+    "wiener_filter": "wiener_filter",
+    "windower": "windower",
+}
+
+__all__ = list(_modules)
+
+# Lazy loader
+def __getattr__(name):
+    if name in _modules:
+        mod_name = _modules[name]
+        mod = import_module(f".{mod_name}", __name__)
+        funs = { f:getattr(mod, f) for f, m in _modules.items() if m == mod_name }
+        globals().update(funs)
+        return funs[name]
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
+def __dir__():
+    return __all__ + list(globals().keys())
