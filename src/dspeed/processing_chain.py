@@ -1051,6 +1051,13 @@ class ProcessingChain:
             out._buffer = [(out_buf, val._buffer[0][1])] if out.is_coord else out_buf
             return out
 
+        # a if condition else b
+        elif isinstance(node, ast.IfExp):
+            condition = self._parse_expr(node.test, expr, dry_run, var_name_list)
+            a = self._parse_expr(node.body, expr, dry_run, var_name_list)
+            b = self._parse_expr(node.orelse, expr, dry_run, var_name_list)
+            return ProcessingChain._where(condition, a, b)
+
         # for name.attribute
         elif isinstance(node, ast.Attribute):
             # If we are looking for an attribute of a module (e.g. np.pi)
@@ -1254,6 +1261,90 @@ class ProcessingChain:
             log.debug(f"added processor: {proc_man}")
             return out
 
+
+    # choose a or b
+    def _where(condition: ProcChainVar, a: ProcChainVar | Real | Quantity, b: ProcChainVar | Real | Quantity) -> ProcChainVar:
+        """Select value from ``a`` or ``b`` depending on if ``condition`` is ``True`` or ``False``. Used
+        for the ``where`` function or ``a if b else c`` pattern."""
+
+        if condition is None:
+            return None
+
+        if not (isinstance(condition, ProcChainVar) and condition.dtype == '?'):
+            raise ProcessingChainError(f"{condition} must be a boolean variable")
+        
+        proc_chain = condition.proc_chain
+        name = f"where({condition}, {a}, {b})"
+        if isinstance(a, ProcChainVar) and isinstance(b, ProcChainVar):
+            if a.period != b.period:
+                raise
+            if a.is_coord != b.is_coord:
+                raise
+
+            if a.offset == b.offset:
+                grid = a.grid
+            else:
+                grid = new_grid
+            
+            unit = a.unit if a.unit else b.unit
+            if a.unit == b.unit or not b.unit:
+                unit = a.unit
+            elif not a.unit:
+                unit = b.unit
+            else:
+                raise
+
+        elif isinstance(a, ProcChainVar) or isinstance(b, ProcChainVar):
+            if isinstance(a, ProcChainVar):
+                var = a
+                const = b
+            else:
+                var = b
+                const = a
+
+            grid = var.grid
+            is_coord = var.is_coord
+
+            if not var.unit:
+                unit = None
+            elif not isinstance(const, Quantity) or var.unit == const.u:
+                unit = var.unit
+            elif is_in_pint(var.unit) and is_in_pint(const.u):
+                unit = var.unit
+                if isinstance(a, ProcChainVar):
+                    a = float(const/var.unit)
+                else:
+                    b = float(const/var.unit)
+            else:
+                raise
+
+        else:
+            grid = None
+            is_coord = False
+            if isinstance(a, Quantity) and isinstance(b, Quantity):
+                unit = a.u
+                b = float(b/a.u)
+            elif isinstance(a, Quantity):
+                unit = a.u
+            elif isinstance(b, Quantity):
+                unit = b.u
+            else:
+                unit = None
+
+        out = ProcChainVar(
+            proc_chain,
+            name,
+            auto,
+            auto,
+            grid,
+            unit,
+            is_coord,
+        )
+        proc_man = ProcessorManager(proc_chain, processors.where, [condition, a, b, out])
+        proc_chain._proc_managers.append(proc_man)
+        log.debug(f"added processor: {proc_man}")
+        return out
+
     def _loadlh5(path_to_file, path_in_file: str) -> np.array:  # noqa: N805
         """
         Load data from an LH5 file.
@@ -1282,6 +1373,7 @@ class ProcessingChain:
         "len": _length,
         "round": _round,
         "astype": _astype,
+        "where": _where,
         "loadlh5": _loadlh5,
     }
     module_list = {"np": np, "numpy": np}

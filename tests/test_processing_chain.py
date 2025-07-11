@@ -262,6 +262,26 @@ def test_proc_chain_round(spms_raw_tbl):
 
     proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
     proc_chain.execute(0, 1)
+
+def test_proc_chain_where(spms_raw_tbl):
+    dsp_config = {
+        "outputs": ["test1", "test2"],
+        "processors": {
+            "test1": "where(waveform<0, 0, waveform)",
+            "test2": "0 if waveform<0 else waveform",
+        }
+    }
+
+    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
+    proc_chain.execute(0, 1)
+    wf = spms_raw_tbl["waveform"].values[0]
+    assert np.all(
+        np.where(wf<0, 0, wf) == lh5_out["test1"].values[0]
+    )
+    assert np.all(
+        np.where(wf<0, 0, wf) == lh5_out["test2"].values[0]
+    )
+
     assert np.all(
         np.rint(spms_raw_tbl["waveform"].values[0] / 4) * 4
         == lh5_out["waveform_round"].values[0]
