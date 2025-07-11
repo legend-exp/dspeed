@@ -1254,7 +1254,7 @@ class ProcessingChain:
         if not isinstance(var, ProcChainVar):
             raise ProcessingChainError(f"cannot call astype() on {var}")
         else:
-            name = f"{var.name}.astype(`{dtype.char}`)"
+            name = f"{var}.astype(`{dtype.char}`)"
             out = ProcChainVar(
                 var.proc_chain,
                 name,

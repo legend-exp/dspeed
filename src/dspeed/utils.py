@@ -1,7 +1,7 @@
 import os
 from abc import ABCMeta
-from collections.abc import MutableMapping
-from typing import Any, Iterator
+from collections.abc import Callable, Collection, Iterator, MutableMapping
+from typing import Any
 
 import numpy as np
 from numba.np.ufunc import sigparse
@@ -19,8 +19,8 @@ class GUFuncWrapper:
     .. highlight::python
     .. code-block:: python
 
-        set up some object 'obj' that has a function we want to call on w_in
-        gufunc = gufunc_wrapper(
+        # set up some object 'obj' that has a function we want to call on w_in
+        gufunc = GUFuncWrapper(
             lambda w_in: obj.execute(w_in, args...),
             "(n)->()",
             "ff"
@@ -31,8 +31,8 @@ class GUFuncWrapper:
     .. highlight::python
     .. code-block:: python
 
-        fun is a vectorized python function, but we want to use ufunc interface
-        gufunc = gufunc_wrapper(
+        # fun is a vectorized python function, but we want to use ufunc interface
+        gufunc = GUFuncWrapper(
             lambda w_in, a, w_out: fun(w_in, a, out=w_out, ...more kwargs),
             "(n),()->(n)",
             "fff",
@@ -44,13 +44,13 @@ class GUFuncWrapper:
 
     def __init__(
         self,
-        fun,
-        signature,
-        types,
-        name=None,
-        vectorized=False,
-        copy_out=True,
-        doc_string=None,
+        fun: Callable,
+        signature: str,
+        types: str | Collection[str],
+        name: str | None = None,
+        vectorized: bool = False,
+        copy_out: bool = True,
+        doc_string: str = None,
     ):
         """
         Parameters
