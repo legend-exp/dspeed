@@ -16,6 +16,7 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Collection, MutableMapping
 from copy import deepcopy
 from dataclasses import dataclass
+from functools import partial
 from numbers import Real
 from typing import Any
 
@@ -27,7 +28,7 @@ from pint import Quantity, Unit
 from yaml import dump, safe_load
 
 from .errors import DSPFatal, ProcessingChainError
-from .processors.round_to_nearest import round_to_nearest
+from . import processors
 from .units import unit_registry as ureg
 from .utils import ProcChainVarBase
 from .utils import numba_defaults_kwargs as nb_kwargs
@@ -1172,6 +1173,7 @@ class ProcessingChain:
 
     # round value
     def _round(
+        mode: str,
         var: ProcChainVar | Quantity,  # noqa: N805
         to_nearest: Real | Unit | Quantity | CoordinateGrid = 1,
         dtype: str = None,
@@ -1181,19 +1183,32 @@ class ProcessingChain:
         a new ProcChainVar with a period of to_nearest, and the underlying
         values and offset rounded. If var is a ProcChainVar and to_nearest
         is an int or a float, keep the unit and just round the underlying
-        value.
+        value. Can change mode to "floor", "ceil", or "trunc"
 
         Example usage:
         round(tp_0, wf.grid) - convert tp_0 to nearest array index of wf
         round(5*us, wf.period) - 5 us in wf clock ticks
         """
+        if mode == "round":
+            fun = processors.round_to_nearest
+        elif mode == "floor":
+            fun = processors.floor_to_nearest
+        elif mode == "ceil":
+            fun = processors.ceil_to_nearest
+        elif mode == "trunc":
+            fun = processors.trunc_to_nearest
+        else:
+            raise ProcessingChainError("Mode must be round, floor, ceil or trunc")
 
         if var is None:
             return None
         if not isinstance(var, ProcChainVar):
-            return round(float(var / to_nearest)) * to_nearest
+            if isinstance(var, Quantity):
+                return fun(var.m, float(to_nearest/var.u))
+            else:
+                return fun(var, to_nearest)
         else:
-            name = f"round({var.name}, {to_nearest})"
+            name = f"{mode}({var}, {to_nearest})"
             dtype = np.dtype(dtype) if dtype is not None else var.dtype
             if var.is_coord:
                 if isinstance(to_nearest, Real):
@@ -1212,7 +1227,7 @@ class ProcessingChain:
                     var.unit,
                     var.is_coord,
                 )
-                conversion_manager = UnitConversionManager(var, grid, round=True)
+                conversion_manager = UnitConversionManager(var, grid, mode=mode)
                 out._buffer = conversion_manager.out_buffer
                 var.proc_chain._proc_managers.append(conversion_manager)
                 log.debug(f"added conversion: {conversion_manager}")
@@ -1227,7 +1242,7 @@ class ProcessingChain:
                     var.is_coord,
                 )
 
-                var.proc_chain.add_processor(round_to_nearest, var, to_nearest, out)
+                var.proc_chain.add_processor(fun, var, to_nearest, out)
 
             return out
 
@@ -1371,7 +1386,10 @@ class ProcessingChain:
     # dict of functions that can be parsed by get_variable
     func_list = {
         "len": _length,
-        "round": _round,
+        "round": partial(_round, "round"),
+        "floor": partial(_round, "floor"),
+        "ceil":  partial(_round, "ceil"),
+        "trunc": partial(_round, "trunc"),
         "astype": _astype,
         "where": _where,
         "loadlh5": _loadlh5,
@@ -1697,54 +1715,30 @@ class ProcessorManager:
 
 class UnitConversionManager(ProcessorManager):
     """A special processor manager for handling converting variables between unit systems."""
-
-    @vectorize(
-        [f"{t}({t}, f8, f8, f8)" for t in ["f4", "f8"]],
-        **nb_kwargs,
-    )
-    def convert(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
-        return (buf_in + offset_in) * period_ratio - offset_out
-
-    @vectorize(
-        [
-            f"{t}({t}, f8, f8, f8)"
-            for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
-        ],
-        **nb_kwargs,
-    )
-    def convert_int(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
-        tmp = (buf_in + offset_in) * period_ratio - offset_out
-        ret = np.rint(tmp)
-        if np.abs(tmp - ret) < 1.0e-5:
-            return ret
-        else:
-            raise DSPFatal("Cannot convert to integer. Use round or astype")
-
-    @vectorize(
-        [
-            f"{t}({t}, f8, f8, f8)"
-            for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8", "f4", "f8"]
-        ],
-        **nb_kwargs,
-    )
-    def convert_round(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
-        return np.rint((buf_in + offset_in) * period_ratio - offset_out)
-
     def __init__(
         self,
         var: ProcChainVar,
         unit: str | Unit | Quantity | CoordinateGrid,
-        round=False,
+        mode=None,
     ) -> None:
         # reference back to our processing chain
         self.proc_chain = var.proc_chain
         # callable function used to process data
-        if round:
-            self.processor = UnitConversionManager.convert_round
+        from .processors.unit_conversion import convert, convert_int, convert_round, convert_floor, convert_ceil, convert_trunc
+        if mode == "round":
+            self.processor = convert_round
+        elif mode == "floor":
+            self.processor = convert_floor
+        elif mode == "ceil":
+            self.processor = convert_ceil
+        elif mode == "trunc":
+            self.processor = convert_trunc
+        elif mode is not None:
+            raise ProcessingChainError("Mode must be round, floor, ceil or trunc")
         elif issubclass(var.dtype.type, np.floating):
-            self.processor = UnitConversionManager.convert
+            self.processor = convert
         else:
-            self.processor = UnitConversionManager.convert_int
+            self.processor = convert_int
 
         to_offset = 0
         if isinstance(unit, CoordinateGrid):

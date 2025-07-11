@@ -256,12 +256,31 @@ def test_proc_chain_coordinate_grid(spms_raw_tbl):
 
 def test_proc_chain_round(spms_raw_tbl):
     dsp_config = {
-        "outputs": ["waveform_round"],
-        "processors": {"waveform_round": "round(waveform, 4)"},
+        "outputs": ["w_round", "w_floor", "w_ceil", "w_trunc"],
+        "processors": {
+            "w_round": "round(waveform, 4)",
+            "w_floor": "floor(waveform, 4)",
+            "w_ceil":  "ceil(waveform, 4)",
+            "w_trunc": "trunc(waveform, 4)",
+        }
     }
 
     proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
     proc_chain.execute(0, 1)
+    wf = spms_raw_tbl["waveform"].values[0]
+    assert np.all(
+        np.rint(wf / 4) * 4 == lh5_out["w_round"].values[0]
+    )
+    assert np.all(
+        np.floor(wf / 4) * 4 == lh5_out["w_floor"].values[0]
+    )
+    assert np.all(
+        np.ceil(wf / 4) * 4 == lh5_out["w_ceil"].values[0]
+    )
+    assert np.all(
+        np.trunc(wf / 4) * 4 == lh5_out["w_trunc"].values[0]
+    )
+
 
 def test_proc_chain_where(spms_raw_tbl):
     dsp_config = {
