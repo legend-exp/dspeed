@@ -59,6 +59,7 @@ several advantages:
    to use functions that operate in place as much as possible!
 """
 
+<<<<<<< HEAD
 from importlib import import_module
 
 # Mapping from function to name of module in which it is defined
@@ -80,6 +81,7 @@ _modules = {
     "histogram": "histogram",
     "histogram_stats": "histogram",
     "inject_damped_oscillation": "inject_ringing",
+    "inl_correction": "inl_correction",
     "moving_slope": "kernels",
     "step": "kernels",
     "t0_filter": "kernels",
