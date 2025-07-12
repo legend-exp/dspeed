@@ -59,7 +59,6 @@ several advantages:
    to use functions that operate in place as much as possible!
 """
 
-<<<<<<< HEAD
 from importlib import import_module
 
 # Mapping from function to name of module in which it is defined
