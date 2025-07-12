@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from numba import guvectorize, vectorize
+from numba import vectorize
 
 from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
@@ -10,6 +10,7 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
 # in ProcessingChain. Convert timing values knowing the offset
 # in each coordinate frame, and the ratio of periods
 
+
 @vectorize(
     [f"{t}({t}, f8, f8, f8)" for t in ["f4", "f8"]],
     **nb_kwargs,
@@ -17,11 +18,9 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
 def convert(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
     return (buf_in + offset_in) * period_ratio - offset_out
 
+
 @vectorize(
-    [
-        f"{t}({t}, f8, f8, f8)"
-        for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
-    ],
+    [f"{t}({t}, f8, f8, f8)" for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]],
     **nb_kwargs,
 )
 def convert_int(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
@@ -31,6 +30,7 @@ def convert_int(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
         return ret
     else:
         raise DSPFatal("Cannot convert to integer. Use round or astype")
+
 
 @vectorize(
     [
@@ -42,6 +42,7 @@ def convert_int(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
 def convert_round(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
     return np.rint((buf_in + offset_in) * period_ratio - offset_out)
 
+
 @vectorize(
     [
         f"{t}({t}, f8, f8, f8)"
@@ -51,6 +52,7 @@ def convert_round(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
 )
 def convert_floor(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
     return np.floor((buf_in + offset_in) * period_ratio - offset_out)
+
 
 @vectorize(
     [
@@ -62,6 +64,7 @@ def convert_floor(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
 def convert_ceil(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
     return np.ceil((buf_in + offset_in) * period_ratio - offset_out)
 
+
 @vectorize(
     [
         f"{t}({t}, f8, f8, f8)"
@@ -71,4 +74,3 @@ def convert_ceil(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
 )
 def convert_trunc(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
     return np.trunc((buf_in + offset_in) * period_ratio - offset_out)
-
