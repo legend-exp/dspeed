@@ -731,12 +731,25 @@ class ProcessingChain:
           following expressions:
 
           - ``len(expr)``: return the length of the array found with `expr`
-          - ``round(expr)``: return the value found with `expr` to the
-            nearest integer
+          - ``astype(expr, dtype)``: cast `expr` to `dtype`
+          - ``round(expr, to_nearest = 1)``: return the value found with 
+              `expr` rounded to the nearest multiple of `to_nearest`
+          - ``floor(expr, to_nearest = 1)``: return the value found with 
+              `expr` rounded to last multiple of `to_nearest` smaller
+          - ``ceil(expr, to_nearest = 1)``: return the value found with 
+              `expr` rounded to first multiple of `to_nearest` larger
+          - ``trunc(expr, to_nearest = 1)``: return the value found with 
+              `expr` rounded to first multiple of `to_nearest` towards zero
+          - ``where(condition, a, b)``: if `condition` is `True` return the
+              value held in `a`, else `b`
+          - ``isnan(expr)``: return `True` if `expr` is `NaN`
+          - ``isfinite(expr)``: return `True`` if not `NaN` `inf` or `-inf`
           - ``varname(shape, type)``: allocate a new buffer with the
             specified shape and type, using ``varname``. This is used if
             the automatic type and shape deduction for allocating variables
             fails
+          - ``loadlh5(file, group)``: load LH5 object held in `group` of lh5
+              file. Returned object will be treated as a const.
 
         - Unary and binary operators :obj:`+`, :obj:`-`, :obj:`*`, :obj:`/`,
           :obj:`//` are available. If a variable name is included in the
@@ -749,6 +762,8 @@ class ProcessingChain:
           pointing from keyword to the parsed `expr`. This is used for
           `kwargs`. If `expr_only` is ``True``, raise an exception if we see
           this.
+        - ``a if b else c``: see `where`; return value held in `a` if `b`
+          is `True`, else `c`
 
         If `get_names_only` is set to ``True``, do not fetch or allocate new
         arrays, instead return a list of variable names found in the expression.
