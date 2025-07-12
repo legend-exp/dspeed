@@ -5,6 +5,7 @@ from numba import guvectorize
 
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
+
 # wrapper for numpy.where following gufunc protocol
 @guvectorize(
     [

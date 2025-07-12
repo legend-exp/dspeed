@@ -145,15 +145,17 @@ _modules = {
 
 __all__ = list(_modules)
 
+
 # Lazy loader
 def __getattr__(name):
     if name in _modules:
         mod_name = _modules[name]
         mod = import_module(f".{mod_name}", __name__)
-        funs = { f:getattr(mod, f) for f, m in _modules.items() if m == mod_name }
+        funs = {f: getattr(mod, f) for f, m in _modules.items() if m == mod_name}
         globals().update(funs)
         return funs[name]
     raise AttributeError(f"module {__name__} has no attribute {name}")
+
 
 def __dir__():
     return __all__ + list(globals().keys())

@@ -50,6 +50,7 @@ def round_to_nearest(val: np.ndarray, to_nearest: int | float, out: np.ndarray) 
     else:
         out[:] = to_nearest * round(val / to_nearest)
 
+
 @guvectorize(
     [
         f"void({t}, {t}, {t}[:])"
@@ -138,6 +139,7 @@ def ceil_to_nearest(val: np.ndarray, to_nearest: int | float, out: np.ndarray) -
         out[:] = np.nan
     else:
         out[:] = to_nearest * np.ceil(val / to_nearest)
+
 
 @guvectorize(
     [
