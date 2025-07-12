@@ -1338,14 +1338,20 @@ class ProcessingChain:
         name = f"where({condition}, {a}, {b})"
         if isinstance(a, ProcChainVar) and isinstance(b, ProcChainVar):
             if a.period != b.period:
-                raise
+                raise ProcessingChainError(
+                    f"Cannot select between {a} and {b} with different periods"
+                )
             if a.is_coord != b.is_coord:
-                raise
+                raise ProcessingChainError(
+                    f"Cannot select between {a} and {b} with different is_coord"
+                )
 
             if a.offset == b.offset:
                 grid = a.grid
             else:
-                grid = new_grid
+                grid = CoordinateGrid(
+                    self._where(condition, a.offset, b.offset), a.period
+                )
 
             unit = a.unit if a.unit else b.unit
             if a.unit == b.unit or not b.unit:
@@ -1353,7 +1359,7 @@ class ProcessingChain:
             elif not a.unit:
                 unit = b.unit
             else:
-                raise
+                raise ProcessingChainError(f"{a} and {b} do not have compatible units")
 
         elif isinstance(a, ProcChainVar) or isinstance(b, ProcChainVar):
             if isinstance(a, ProcChainVar):
@@ -1377,7 +1383,7 @@ class ProcessingChain:
                 else:
                     b = float(const / var.unit)
             else:
-                raise
+                raise ProcessingChainError(f"{a} and {b} do not have compatible units")
 
         else:
             grid = None
