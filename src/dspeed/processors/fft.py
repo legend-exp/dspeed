@@ -10,7 +10,8 @@ from dspeed.utils import numba_defaults_kwargs as nb_kwargs
 @guvectorize(
     ["void(float32[:], complex64[:])", "void(float64[:], complex128[:])"],
     "(n),(m)",
-    **nb_kwargs(forceobj=True) )
+    **nb_kwargs(forceobj=True),
+)
 def fft(w_in, dft_out):
     """Perform a discrete fourier transform from a real waveform to a complex
     fourier spectrum
@@ -32,20 +33,21 @@ def fft(w_in, dft_out):
             "args": ["wf", "dft(len(wf)//2+1, period=1/wf.period/len(wf)"],
         }
     """
-    if not len(w_in)//2+1 == len(dft_out):
+    if not len(w_in) // 2 + 1 == len(dft_out):
         raise DSPFatal(f"Size of fft must be len(w_in)//2+1 = {len(w_in)//2+1}")
 
     dft_out[:] = np.nan
     if np.isnan(w_in).any():
         return
 
-    np.fft.rfft(w_in, out = dft_out)
+    np.fft.rfft(w_in, out=dft_out)
 
 
 @guvectorize(
     ["void(complex64[:], float32[:])", "void(complex128[:], float64[:])"],
     "(n),(m)",
-    **nb_kwargs(forceobj=True) )
+    **nb_kwargs(forceobj=True),
+)
 def ifft(dft_in, w_out):
     """Perform an inverse discrete fourier transform from a complex discrete
     fourier spectrum to a real waveform to a complex
@@ -67,28 +69,27 @@ def ifft(dft_in, w_out):
             "args": ["dft", "waveform((len(dft)-1)*2, period=2/dft.period/len(dft)"],
         }
     """
-    if not (len(dft_in)-1)*2 == len(w_out):
+    if not (len(dft_in) - 1) * 2 == len(w_out):
         raise DSPFatal(f"Size of wf must be (len(dft_in)-1)*2 = {(len(dft_in)-1)*2}")
 
     w_out[:] = np.nan
     if np.isnan(dft_in).any():
         return
 
-    np.fft.irfft(dft_in, out = w_out)
+    np.fft.irfft(dft_in, out=w_out)
 
 
-@vectorize(
-    ["float64(complex128, uint32)", "float32(complex64, uint32)"],
-    **nb_kwargs
-)
+@vectorize(["float64(complex128, uint32)", "float32(complex64, uint32)"], **nb_kwargs)
 def abs2norm(x, norm):
     """Helper for psd"""
-    return (x.real*x.real + x.imag*x.imag)/norm
+    return (x.real * x.real + x.imag * x.imag) / norm
+
 
 @guvectorize(
     ["void(float32[:], float32[:])", "void(float64[:], float64[:])"],
     "(n),(m)",
-    **nb_kwargs(forceobj=True) )
+    **nb_kwargs(forceobj=True),
+)
 def psd(w_in, psd_out):
     """Perform a discrete fourier transform from a real waveform and
     extract the power spectral density
@@ -110,7 +111,7 @@ def psd(w_in, psd_out):
             "args": ["wf", "psd(len(wf)//2+1, period=1/wf.period/len(wf)"],
         }
     """
-    if not len(w_in)//2+1 == len(psd_out):
+    if not len(w_in) // 2 + 1 == len(psd_out):
         raise DSPFatal(f"Size of psd must be len(w_in)//2+1 = {len(w_in)//2+1}")
 
     psd_out[:] = np.nan
