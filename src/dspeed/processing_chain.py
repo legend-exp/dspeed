@@ -732,13 +732,13 @@ class ProcessingChain:
 
           - ``len(expr)``: return the length of the array found with `expr`
           - ``astype(expr, dtype)``: cast `expr` to `dtype`
-          - ``round(expr, to_nearest = 1)``: return the value found with 
+          - ``round(expr, to_nearest = 1)``: return the value found with
               `expr` rounded to the nearest multiple of `to_nearest`
-          - ``floor(expr, to_nearest = 1)``: return the value found with 
+          - ``floor(expr, to_nearest = 1)``: return the value found with
               `expr` rounded to last multiple of `to_nearest` smaller
-          - ``ceil(expr, to_nearest = 1)``: return the value found with 
+          - ``ceil(expr, to_nearest = 1)``: return the value found with
               `expr` rounded to first multiple of `to_nearest` larger
-          - ``trunc(expr, to_nearest = 1)``: return the value found with 
+          - ``trunc(expr, to_nearest = 1)``: return the value found with
               `expr` rounded to first multiple of `to_nearest` towards zero
           - ``where(condition, a, b)``: if `condition` is `True` return the
               value held in `a`, else `b`
