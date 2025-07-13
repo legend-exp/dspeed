@@ -99,13 +99,8 @@ class GUFuncWrapper:
             if self.nout > 0:
                 self.ufunc = np.vectorize(fun, otypes=otypes, signature=self.signature)
             else:
-                # vectorize requires an output, so we'll give it an output
-                def fun_return(*args):
-                    fun(*args)
-                    return True
-
                 self.ufunc = np.vectorize(
-                    lambda *args: fun, otypes="?", signature=self.signature + "->()"
+                    fun, otypes="?", signature=self.signature + "->()"
                 )
 
     def __call__(self, *args):
