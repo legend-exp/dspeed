@@ -1,7 +1,5 @@
 import copy
-import inspect
 import os
-import re
 import shutil
 import uuid
 from getpass import getuser
@@ -84,7 +82,7 @@ def compare_numba_vs_python():
         if func.signature:
             sig = func.signature
         else:
-            sig = ",".join(["()"]*func.nin) + "->" + ",".join(["()"]*func.nout)
+            sig = ",".join(["()"] * func.nin) + "->" + ",".join(["()"] * func.nout)
 
         if len(inputs) == func.nargs:
             # outputs passed as inputs; required when size of output
@@ -96,8 +94,10 @@ def compare_numba_vs_python():
             outputs_numba = [copy.deepcopy(arg) for arg in inputs]
 
             # unwrapped python outputs
-            #func_unwrapped = np.vectorize(inspect.unwrap(func), signature=func.signature)
-            func_unwrapped = GUFuncWrapper(func, sig, ''.join([np.array(ar).dtype.char for ar in outputs_numba]))
+            # func_unwrapped = np.vectorize(inspect.unwrap(func), signature=func.signature)
+            func_unwrapped = GUFuncWrapper(
+                func, sig, "".join([np.array(ar).dtype.char for ar in outputs_numba])
+            )
             func_unwrapped(*inputs)
             outputs_python = [copy.deepcopy(arg) for arg in inputs]
 
@@ -110,7 +110,11 @@ def compare_numba_vs_python():
                 outputs_numba = [outputs_numba]
 
             # unwrapped python outputs
-            types = ''.join([np.array(ar).dtype.char for ar in outputs_numba]) + "->" + ''.join([np.array(ar).dtype.char for ar in outputs_numba])
+            types = (
+                "".join([np.array(ar).dtype.char for ar in outputs_numba])
+                + "->"
+                + "".join([np.array(ar).dtype.char for ar in outputs_numba])
+            )
             func_unwrapped = GUFuncWrapper(func, sig, types)
 
             # now outputs must be passed as args. Scalars must be
@@ -118,8 +122,8 @@ def compare_numba_vs_python():
             outputs_python = []
             scalars = []
             for i, ar in enumerate(outputs_numba):
-                if len(ar.shape)==0:
-                    outputs_python.append(np.zeros_like(ar).reshape((1)))
+                if len(ar.shape) == 0:
+                    outputs_python.append(np.zeros_like(ar).reshape(1))
                     scalars.append(i)
                 else:
                     outputs_python.append(np.zeros_like(ar))
@@ -134,9 +138,12 @@ def compare_numba_vs_python():
 
         # assert that numba and python are the same up to floating point
         # precision, setting nans to be equal
-        assert all(np.allclose(o_nb, o_py, equal_nan=True) for o_nb, o_py in zip(outputs_numba, outputs_python))
+        assert all(
+            np.allclose(o_nb, o_py, equal_nan=True)
+            for o_nb, o_py in zip(outputs_numba, outputs_python)
+        )
 
         # return value for comparison with expected solution
-        return outputs_numba if len(outputs_numba)>1 else outputs_numba[0]
+        return outputs_numba if len(outputs_numba) > 1 else outputs_numba[0]
 
     return numba_vs_python

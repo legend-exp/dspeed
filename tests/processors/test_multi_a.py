@@ -25,10 +25,7 @@ def test_multi_a_filter(compare_numba_vs_python):
         multi_a_filter(w_in, maxs_in, np.zeros(21))
 
     # test vt_max_len is 0
-    assert (
-        len(compare_numba_vs_python(multi_a_filter, w_in, np.array([])))
-        == 0
-    )
+    assert len(compare_numba_vs_python(multi_a_filter, w_in, np.array([]))) == 0
 
     # test all nan
     assert np.isnan(
@@ -36,21 +33,14 @@ def test_multi_a_filter(compare_numba_vs_python):
     ).all()
 
     # test output
-    assert (
-        compare_numba_vs_python(multi_a_filter, w_in, np.array([10]))[0]
-        == 1
-    )
+    assert compare_numba_vs_python(multi_a_filter, w_in, np.array([10]))[0] == 1
 
     # test output with remaining nans
-    out = compare_numba_vs_python(
-        multi_a_filter, w_in, np.array([10, np.nan, np.nan])
-    )
+    out = compare_numba_vs_python(multi_a_filter, w_in, np.array([10, np.nan, np.nan]))
     assert out[0] == 1
     assert np.isnan(out[1:]).all()
 
     # test output with 1 nan
-    out = compare_numba_vs_python(
-        multi_a_filter, w_in, np.array([10, np.nan, 12])
-    )
+    out = compare_numba_vs_python(multi_a_filter, w_in, np.array([10, np.nan, 12]))
     assert out[0] == 1 and out[2] == 1
     assert np.isnan(out[1])

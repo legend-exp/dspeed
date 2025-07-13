@@ -93,7 +93,9 @@ def test_interpolated_time_point_thresh(compare_numba_vs_python):
     w_in = np.concatenate([np.arange(-1, 5, 1), np.arange(-1, 5, 1)], dtype="float")
     w_in[4] = np.nan
     assert np.isnan(
-        compare_numba_vs_python(interpolated_time_point_thresh, w_in, 1.0, 11.0, 0, np.int8(105))
+        compare_numba_vs_python(
+            interpolated_time_point_thresh, w_in, 1.0, 11.0, 0, np.int8(105)
+        )
     )
 
     # test for nan if nan is passed to a_threshold
@@ -115,76 +117,98 @@ def test_interpolated_time_point_thresh(compare_numba_vs_python):
     # test for nan if t_start out of range
     w_in = np.concatenate([np.arange(-1, 5, 1), np.arange(-1, 5, 1)], dtype="float")
     assert np.isnan(
-        compare_numba_vs_python(interpolated_time_point_thresh, w_in, 1.0, 12, 0, np.int8(105))
+        compare_numba_vs_python(
+            interpolated_time_point_thresh, w_in, 1.0, 12, 0, np.int8(105)
+        )
     )
 
     # test walk backward mode 'i'
     w_in = np.concatenate([np.arange(-1, 5, 1), np.arange(-1, 5, 1)], dtype="float")
     assert (
-        compare_numba_vs_python(interpolated_time_point_thresh, w_in, 1, 11, 0, np.int8(105))
+        compare_numba_vs_python(
+            interpolated_time_point_thresh, w_in, 1, 11, 0, np.int8(105)
+        )
         == 7.0
     )
 
     # test walk forward mode 'i'
     w_in = np.concatenate([np.arange(-1, 5, 1), np.arange(-1, 5, 1)], dtype="float")
     assert (
-        compare_numba_vs_python(interpolated_time_point_thresh, w_in, 3, 0, 1, np.int8(105))
+        compare_numba_vs_python(
+            interpolated_time_point_thresh, w_in, 3, 0, 1, np.int8(105)
+        )
         == 4.0
     )
 
     # test walk backward mode 'f'
     w_in = np.concatenate([np.arange(-1, 5, 1), np.arange(-1, 5, 1)], dtype="float")
     assert (
-        compare_numba_vs_python(interpolated_time_point_thresh, w_in, 1, 11, 0, np.int8(102))
+        compare_numba_vs_python(
+            interpolated_time_point_thresh, w_in, 1, 11, 0, np.int8(102)
+        )
         == 8.0
     )
 
     # test walk forward mode 'f'
     w_in = np.concatenate([np.arange(-1, 5, 1), np.arange(-1, 5, 1)], dtype="float")
     assert (
-        compare_numba_vs_python(interpolated_time_point_thresh, w_in, 3, 0, 1, np.int8(102))
+        compare_numba_vs_python(
+            interpolated_time_point_thresh, w_in, 3, 0, 1, np.int8(102)
+        )
         == 5.0
     )
 
     # test walk backward mode 'f'
     w_in = np.concatenate([np.arange(-1, 5, 1), np.arange(-1, 5, 1)], dtype="float")
     assert (
-        compare_numba_vs_python(interpolated_time_point_thresh, w_in, 1, 11, 0, np.int8(99))
+        compare_numba_vs_python(
+            interpolated_time_point_thresh, w_in, 1, 11, 0, np.int8(99)
+        )
         == 7.0
     )
 
     # test walk forward mode 'f'
     w_in = np.concatenate([np.arange(-1, 5, 1), np.arange(-1, 5, 1)], dtype="float")
     assert (
-        compare_numba_vs_python(interpolated_time_point_thresh, w_in, 3, 0, 1, np.int8(99))
+        compare_numba_vs_python(
+            interpolated_time_point_thresh, w_in, 3, 0, 1, np.int8(99)
+        )
         == 4.0
     )
 
     # test walk backward mode 'n'
     w_in = np.concatenate([np.arange(-1, 5, 1), np.arange(-1, 5, 1)], dtype="float")
     assert (
-        compare_numba_vs_python(interpolated_time_point_thresh, w_in, 1, 11, 0, np.int8(110))
+        compare_numba_vs_python(
+            interpolated_time_point_thresh, w_in, 1, 11, 0, np.int8(110)
+        )
         == 7.5
     )
 
     # test walk forward mode 'n'
     w_in = np.concatenate([np.arange(-1, 5, 1), np.arange(-1, 5, 1)], dtype="float")
     assert (
-        compare_numba_vs_python(interpolated_time_point_thresh, w_in, 3, 0, 1, np.int8(110))
+        compare_numba_vs_python(
+            interpolated_time_point_thresh, w_in, 3, 0, 1, np.int8(110)
+        )
         == 4.5
     )
 
     # test walk backward mode 'l'
     w_in = np.concatenate([np.arange(-1, 5, 1), np.arange(-1, 5, 1)], dtype="float")
     assert (
-        compare_numba_vs_python(interpolated_time_point_thresh, w_in, 1.5, 11, 0, np.int8(108))
+        compare_numba_vs_python(
+            interpolated_time_point_thresh, w_in, 1.5, 11, 0, np.int8(108)
+        )
         == 8.5
     )
 
     # test walk forward mode 'l'
     w_in = np.concatenate([np.arange(-1, 5, 1), np.arange(-1, 5, 1)], dtype="float")
     assert (
-        compare_numba_vs_python(interpolated_time_point_thresh, w_in, 3.5, 0, 1, np.int8(108))
+        compare_numba_vs_python(
+            interpolated_time_point_thresh, w_in, 3.5, 0, 1, np.int8(108)
+        )
         == 4.5
     )
 

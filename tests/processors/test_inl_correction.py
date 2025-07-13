@@ -21,9 +21,7 @@ def test_inl_correction(compare_numba_vs_python):
     w_in = np.arange(len_wf, dtype=np.int32)
     inl = np.full(len_inl, 0.5, dtype=np.float32)
     expected = w_in.astype(np.float32) + 0.5
-    assert np.allclose(
-        compare_numba_vs_python(inl_correction, w_in, inl), expected
-    )
+    assert np.allclose(compare_numba_vs_python(inl_correction, w_in, inl), expected)
 
     # Case 3: ADC code out of range
     w_in = np.array([300], dtype=np.int32)
@@ -35,6 +33,4 @@ def test_inl_correction(compare_numba_vs_python):
     w_in = np.array([0, 1, 2, 3], dtype=np.int32)
     inl = np.array([0.1, -0.1, 0.2, -0.2] + [0.0] * (len_inl - 4), dtype=np.float32)
     expected = w_in.astype(np.float32) + inl[:4]
-    assert np.allclose(
-        compare_numba_vs_python(inl_correction, w_in, inl), expected
-    )
+    assert np.allclose(compare_numba_vs_python(inl_correction, w_in, inl), expected)

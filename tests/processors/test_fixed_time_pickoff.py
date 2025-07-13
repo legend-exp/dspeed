@@ -15,19 +15,27 @@ def test_fixed_time_pickoff(compare_numba_vs_python):
     # test for nan if w_in has a nan
     w_in = np.ones(len_wf)
     w_in[4] = np.nan
-    assert np.isnan(compare_numba_vs_python(fixed_time_pickoff, w_in, 1, np.int8(ord("i"))))
+    assert np.isnan(
+        compare_numba_vs_python(fixed_time_pickoff, w_in, 1, np.int8(ord("i")))
+    )
 
     # test for nan if nan is passed to t_in
     w_in = np.ones(len_wf)
-    assert np.isnan(compare_numba_vs_python(fixed_time_pickoff, w_in, np.nan, np.int8(ord("i"))))
+    assert np.isnan(
+        compare_numba_vs_python(fixed_time_pickoff, w_in, np.nan, np.int8(ord("i")))
+    )
 
     # test for nan if t_in is negative
     w_in = np.ones(len_wf)
-    assert np.isnan(compare_numba_vs_python(fixed_time_pickoff, w_in, -1, np.int8(ord("i"))))
+    assert np.isnan(
+        compare_numba_vs_python(fixed_time_pickoff, w_in, -1, np.int8(ord("i")))
+    )
 
     # test for nan if t_in is too large
     w_in = np.ones(len_wf)
-    assert np.isnan(compare_numba_vs_python(fixed_time_pickoff, w_in, len_wf, np.int8(ord("i"))))
+    assert np.isnan(
+        compare_numba_vs_python(fixed_time_pickoff, w_in, len_wf, np.int8(ord("i")))
+    )
 
     # test for DSPFatal errors being raised
     # noninteger t_in with integer interpolation
@@ -54,7 +62,10 @@ def test_fixed_time_pickoff(compare_numba_vs_python):
     sols = [4, 3, 4, 3.5, 3.5, 3.5]
 
     for char, sol in zip(chars, sols):
-        assert compare_numba_vs_python(fixed_time_pickoff, w_in, 3.5, np.int8(ord(char))) == sol
+        assert (
+            compare_numba_vs_python(fixed_time_pickoff, w_in, 3.5, np.int8(ord(char)))
+            == sol
+        )
 
     # sine wave tests
     w_in = np.sin(np.arange(len_wf))
@@ -71,7 +82,8 @@ def test_fixed_time_pickoff(compare_numba_vs_python):
 
     for char, sol in zip(chars, sols):
         assert np.isclose(
-            compare_numba_vs_python(fixed_time_pickoff, w_in, 3.25, np.int8(ord(char))), sol
+            compare_numba_vs_python(fixed_time_pickoff, w_in, 3.25, np.int8(ord(char))),
+            sol,
         )
 
     # last few corner cases of 'h'
@@ -84,5 +96,6 @@ def test_fixed_time_pickoff(compare_numba_vs_python):
 
     for ftp, sol in zip(ftps, sols):
         assert np.isclose(
-            compare_numba_vs_python(fixed_time_pickoff, w_in, ftp, np.int8(ord("h"))), sol
+            compare_numba_vs_python(fixed_time_pickoff, w_in, ftp, np.int8(ord("h"))),
+            sol,
         )
