@@ -12,7 +12,7 @@ from dspeed.utils import numba_defaults_kwargs as nb_kwargs
         "void(int32[:], float32[:], float32[:])",
         "void(int32[:], float64[:], float64[:])",
     ],
-    "(n),(p),(n)",
+    "(n),(p)->(n)",
     **nb_kwargs,
 )
 def inl_correction(w_in: np.ndarray, inl: np.ndarray, w_out: np.ndarray) -> None:
