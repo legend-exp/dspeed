@@ -21,7 +21,7 @@ from dspeed.processors import get_multi_local_extrema
 #           1         2         3
 wf = np.array([0, 0, 1, 2, 3, 4, 5, 4, 3, 4, 5, 6, 7, 8, 9, 10,
                9, 8, 7, 6, 5, 4, 3, 4, 5, 4, 3, 2, 1, 0, 0])  # fmt: skip
-
+sig = "(n),(),(),(),(),()->(m),(m),(),()"
 
 # delta_min=delta_max tests (all searches should behave identical)
 
@@ -47,6 +47,7 @@ def test_get_multi_local_extrema_ltor(compare_numba_vs_python):
         min_out,
         n_max_out,
         n_min_out,
+        signature_override=sig,
     )
 
     assert np.array_equal(max_out, np.array([15, np.nan, np.nan]), equal_nan=True)
@@ -76,6 +77,7 @@ def test_get_multi_local_extrema_rtol(compare_numba_vs_python):
         min_out,
         n_max_out,
         n_min_out,
+        signature_override=sig,
     )
 
     assert np.array_equal(max_out, np.array([15, np.nan, np.nan]), equal_nan=True)
@@ -105,6 +107,7 @@ def test_get_multi_local_extrema_both_cons(compare_numba_vs_python):
         min_out,
         n_max_out,
         n_min_out,
+        signature_override=sig,
     )
 
     assert np.array_equal(max_out, np.array([15, np.nan, np.nan]), equal_nan=True)
@@ -133,6 +136,7 @@ def test_get_multi_local_extrema_both_agro(compare_numba_vs_python):
         min_out,
         n_max_out,
         n_min_out,
+        signature_override=sig,
     )
 
     assert np.array_equal(max_out, np.array([15, np.nan, np.nan]), equal_nan=True)
@@ -164,6 +168,7 @@ def test_get_multi_local_extrema_ltor_asym(compare_numba_vs_python):
         min_out,
         n_max_out,
         n_min_out,
+        signature_override=sig,
     )
 
     assert np.array_equal(max_out, np.array([15, 24, np.nan]), equal_nan=True)
@@ -193,6 +198,7 @@ def test_get_multi_local_extrema_rtol_asym(compare_numba_vs_python):
         min_out,
         n_max_out,
         n_min_out,
+        signature_override=sig,
     )
 
     assert np.array_equal(max_out, np.array([15, 6, np.nan]), equal_nan=True)
@@ -222,6 +228,7 @@ def test_get_multi_local_extrema_both_cons_asym(compare_numba_vs_python):
         min_out,
         n_max_out,
         n_min_out,
+        signature_override=sig,
     )
 
     assert np.array_equal(max_out, np.array([15, np.nan, np.nan]), equal_nan=True)
@@ -251,6 +258,7 @@ def test_get_multi_local_extrema_both_agro_asym(compare_numba_vs_python):
         min_out,
         n_max_out,
         n_min_out,
+        signature_override=sig,
     )
 
     assert np.array_equal(max_out, np.array([6, 15, 24]), equal_nan=True)
@@ -280,6 +288,7 @@ def test_get_multi_local_extrema_both_agro_asym_abs(compare_numba_vs_python):
         min_out,
         n_max_out,
         n_min_out,
+        signature_override=sig,
     )
 
     assert np.array_equal(max_out, np.array([15, np.nan, np.nan]), equal_nan=True)
@@ -315,6 +324,7 @@ def test_get_multi_local_extrema_return_on_nan(compare_numba_vs_python):
             min_out,
             n_max_out,
             n_min_out,
+            signature_override=sig,
         )[-1]
         == 0
     )
@@ -333,6 +343,7 @@ def test_get_multi_local_extrema_return_on_nan(compare_numba_vs_python):
             min_out,
             n_max_out,
             n_min_out,
+            signature_override=sig,
         )[-1]
         == 0
     )
@@ -349,6 +360,7 @@ def test_get_multi_local_extrema_return_on_nan(compare_numba_vs_python):
             min_out,
             n_max_out,
             n_min_out,
+            signature_override=sig,
         )[-1]
         == 0
     )
@@ -365,6 +377,7 @@ def test_get_multi_local_extrema_return_on_nan(compare_numba_vs_python):
             min_out,
             n_max_out,
             n_min_out,
+            signature_override=sig,
         )[-1]
         == 0
     )

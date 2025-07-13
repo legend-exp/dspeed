@@ -3,6 +3,7 @@ import os
 import shutil
 import uuid
 from getpass import getuser
+from inspect import unwrap
 from pathlib import Path
 from tempfile import gettempdir
 
@@ -59,7 +60,7 @@ def spms_raw_tbl(lgnd_test_data):
 
 @pytest.fixture(scope="session")
 def compare_numba_vs_python():
-    def numba_vs_python(func, *inputs):
+    def numba_vs_python(func, *inputs, signature_override=None):
         """
         Function for testing that the numba and python versions of a
         function are equal.
@@ -71,6 +72,15 @@ def compare_numba_vs_python():
         *inputs
             The various inputs to be passed to the function to be
             tested.
+        signature_override
+            Function shape signature to use in the special case that
+            outputs are sent as inputs (due to need for new output shape)
+            but at least one output is a scalar. In this case, scalars
+            will be passed as read-only. To remedy this, rewrite the
+            signature with a `->`. For example, say we have a function
+            with signature `(n),(m),()` with in output and two outputs.
+            You would pass `(n)->(m),()` for the signature override.
+            I wish there was another way, but this is how it has to be.
 
         Returns
         -------
@@ -79,10 +89,16 @@ def compare_numba_vs_python():
 
         """
 
-        if func.signature:
+        if signature_override:
+            sig = signature_override
+            copy_out = False
+        elif func.signature:
             sig = func.signature
+            copy_out = False
         else:
+            # function was implemented with @vectorize
             sig = ",".join(["()"] * func.nin) + "->" + ",".join(["()"] * func.nout)
+            copy_out = True
 
         if len(inputs) == func.nargs:
             # outputs passed as inputs; required when size of output
@@ -94,9 +110,11 @@ def compare_numba_vs_python():
             outputs_numba = [copy.deepcopy(arg) for arg in inputs]
 
             # unwrapped python outputs
-            # func_unwrapped = np.vectorize(inspect.unwrap(func), signature=func.signature)
             func_unwrapped = GUFuncWrapper(
-                func, sig, "".join([np.array(ar).dtype.char for ar in outputs_numba])
+                unwrap(func),
+                sig,
+                "".join([np.array(ar).dtype.char for ar in outputs_numba]),
+                copy_out=False,
             )
             func_unwrapped(*inputs)
             outputs_python = [copy.deepcopy(arg) for arg in inputs]
@@ -111,11 +129,11 @@ def compare_numba_vs_python():
 
             # unwrapped python outputs
             types = (
-                "".join([np.array(ar).dtype.char for ar in outputs_numba])
+                "".join([np.array(ar).dtype.char for ar in inputs])
                 + "->"
                 + "".join([np.array(ar).dtype.char for ar in outputs_numba])
             )
-            func_unwrapped = GUFuncWrapper(func, sig, types)
+            func_unwrapped = GUFuncWrapper(unwrap(func), sig, types, copy_out=copy_out)
 
             # now outputs must be passed as args. Scalars must be
             # converted to rank 1 arrays
