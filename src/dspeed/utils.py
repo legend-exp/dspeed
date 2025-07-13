@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from abc import ABCMeta
 from collections.abc import Callable, Collection, Iterator, MutableMapping
@@ -46,8 +48,8 @@ class GUFuncWrapper:
         self,
         fun: Callable,
         signature: str,
-        types: str | Collection,
-        name: str = None,
+        types: str | Collection[str],
+        name: str | None = None,
         vectorized: bool = False,
         copy_out: bool = True,
         doc_string: str = None,
