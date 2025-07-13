@@ -1,21 +1,19 @@
 from __future__ import annotations
 
 import numpy as np
-from numba import guvectorize
+from numba import vectorize
 
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
-@guvectorize(
+@vectorize(
     [
-        f"void({t}, {t}, {t}[:])"
+        f"{t}({t}, {t})"
         for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8", "f4", "f8"]
     ],
-    "(),()->()",
-    nopython=True,
     **nb_kwargs,
 )
-def round_to_nearest(val: np.ndarray, to_nearest: int | float, out: np.ndarray) -> None:
+def round_to_nearest(val: np.ndarray, to_nearest: int | float) -> None:
     """
     Round value to nearest multiple of to_nearest.
 
@@ -46,21 +44,19 @@ def round_to_nearest(val: np.ndarray, to_nearest: int | float, out: np.ndarray) 
     """
 
     if np.isnan(val):
-        out[:] = np.nan
+        return np.nan
     else:
-        out[:] = to_nearest * round(val / to_nearest)
+        return to_nearest * round(val / to_nearest)
 
 
-@guvectorize(
+@vectorize(
     [
-        f"void({t}, {t}, {t}[:])"
+        f"{t}({t}, {t})"
         for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8", "f4", "f8"]
     ],
-    "(),()->()",
-    nopython=True,
     **nb_kwargs,
 )
-def floor_to_nearest(val: np.ndarray, to_nearest: int | float, out: np.ndarray) -> None:
+def floor_to_nearest(val: np.ndarray, to_nearest: int | float) -> None:
     """
     Return largest multiple of to_nearest that is <= val
 
@@ -91,21 +87,19 @@ def floor_to_nearest(val: np.ndarray, to_nearest: int | float, out: np.ndarray) 
     """
 
     if np.isnan(val):
-        out[:] = np.nan
+        return np.nan
     else:
-        out[:] = to_nearest * np.floor(val / to_nearest)
+        return to_nearest * np.floor(val / to_nearest)
 
 
-@guvectorize(
+@vectorize(
     [
-        f"void({t}, {t}, {t}[:])"
+        f"{t}({t}, {t})"
         for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8", "f4", "f8"]
     ],
-    "(),()->()",
-    nopython=True,
     **nb_kwargs,
 )
-def ceil_to_nearest(val: np.ndarray, to_nearest: int | float, out: np.ndarray) -> None:
+def ceil_to_nearest(val: np.ndarray, to_nearest: int | float) -> None:
     """
     Return smallest multiple of to_nearest that is >= val.
 
@@ -136,21 +130,19 @@ def ceil_to_nearest(val: np.ndarray, to_nearest: int | float, out: np.ndarray) -
     """
 
     if np.isnan(val):
-        out[:] = np.nan
+        return np.nan
     else:
-        out[:] = to_nearest * np.ceil(val / to_nearest)
+        return to_nearest * np.ceil(val / to_nearest)
 
 
-@guvectorize(
+@vectorize(
     [
-        f"void({t}, {t}, {t}[:])"
+        f"{t}({t}, {t})"
         for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8", "f4", "f8"]
     ],
-    "(),()->()",
-    nopython=True,
     **nb_kwargs,
 )
-def trunc_to_nearest(val: np.ndarray, to_nearest: int | float, out: np.ndarray) -> None:
+def trunc_to_nearest(val: np.ndarray, to_nearest: int | float) -> None:
     """
     Return multiple of to_nearest that is closest to val, towards zero
 
@@ -181,6 +173,6 @@ def trunc_to_nearest(val: np.ndarray, to_nearest: int | float, out: np.ndarray) 
     """
 
     if np.isnan(val):
-        out[:] = np.nan
+        return np.nan
     else:
-        out[:] = to_nearest * np.trunc(val / to_nearest)
+        return to_nearest * np.trunc(val / to_nearest)
