@@ -315,7 +315,7 @@ def test_get_multi_local_extrema_return_on_nan(compare_numba_vs_python):
             min_out,
             n_max_out,
             n_min_out,
-        )
+        )[-1]
         == 0
     )
 
@@ -333,7 +333,7 @@ def test_get_multi_local_extrema_return_on_nan(compare_numba_vs_python):
             min_out,
             n_max_out,
             n_min_out,
-        )
+        )[-1]
         == 0
     )
     assert (
@@ -349,7 +349,7 @@ def test_get_multi_local_extrema_return_on_nan(compare_numba_vs_python):
             min_out,
             n_max_out,
             n_min_out,
-        )
+        )[-1]
         == 0
     )
     assert (
@@ -365,7 +365,7 @@ def test_get_multi_local_extrema_return_on_nan(compare_numba_vs_python):
             min_out,
             n_max_out,
             n_min_out,
-        )
+        )[-1]
         == 0
     )
 

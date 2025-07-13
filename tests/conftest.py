@@ -13,7 +13,7 @@ import pytest
 from legendtestdata import LegendTestData
 from lgdo.lh5 import read
 
-import dspeed.processors  # noqa: F401
+from dspeed.utils import GUFuncWrapper
 
 config_dir = Path(__file__).parent / "dsp" / "configs"
 _tmptestdir = os.path.join(
@@ -81,44 +81,62 @@ def compare_numba_vs_python():
 
         """
 
-        if "->" in func.signature:
-            # parse outputs from function signature
-            all_params = list(inspect.signature(func).parameters)
-            output_sizes = re.findall(r"(\(n*\))", func.signature.split("->")[-1])
-            noutputs = len(output_sizes)
-            output_names = all_params[-noutputs:]
+        if func.signature:
+            sig = func.signature
+        else:
+            sig = ",".join(["()"]*func.nin) + "->" + ",".join(["()"]*func.nout)
+
+        if len(inputs) == func.nargs:
+            # outputs passed as inputs; required when size of output
+            # differs from size of input. In this case apply in-place
+            # and check/return all args
+
+            # numba outputs
+            func(*inputs)
+            outputs_numba = [copy.deepcopy(arg) for arg in inputs]
+
+            # unwrapped python outputs
+            #func_unwrapped = np.vectorize(inspect.unwrap(func), signature=func.signature)
+            func_unwrapped = GUFuncWrapper(func, sig, ''.join([np.array(ar).dtype.char for ar in outputs_numba]))
+            func_unwrapped(*inputs)
+            outputs_python = [copy.deepcopy(arg) for arg in inputs]
+
+        elif len(inputs) == func.nin:
+            # outputs not passed as inputs. Copy and return only outputs
 
             # numba outputs
             outputs_numba = func(*inputs)
-            if noutputs == 1:
+            if func.nout == 1:
                 outputs_numba = [outputs_numba]
 
             # unwrapped python outputs
-            func_unwrapped = inspect.unwrap(func)
-            output_dict = {key: np.empty(len(inputs[0])) for key in output_names}
-            func_unwrapped(*inputs, **output_dict)
-            for spec, key in zip(output_sizes, output_dict):
-                if spec == "()":
-                    output_dict[key] = output_dict[key][0]
-            outputs_python = [output_dict[key] for key in output_names]
-        else:
-            # we are testing a factory function output, which updates
-            # a single output in-place
-            noutputs = 1
-            # numba outputs
-            func(*inputs)
-            outputs_numba = copy.deepcopy(inputs[-noutputs:])
+            types = ''.join([np.array(ar).dtype.char for ar in outputs_numba]) + "->" + ''.join([np.array(ar).dtype.char for ar in outputs_numba])
+            func_unwrapped = GUFuncWrapper(func, sig, types)
 
-            # unwrapped python outputs
-            func_unwrapped = inspect.unwrap(func)
-            func_unwrapped(*inputs)
-            outputs_python = copy.deepcopy(inputs[-noutputs:])
+            # now outputs must be passed as args. Scalars must be
+            # converted to rank 1 arrays
+            outputs_python = []
+            scalars = []
+            for i, ar in enumerate(outputs_numba):
+                if len(ar.shape)==0:
+                    outputs_python.append(np.zeros_like(ar).reshape((1)))
+                    scalars.append(i)
+                else:
+                    outputs_python.append(np.zeros_like(ar))
+
+            func_unwrapped(*inputs, *outputs_python)
+
+            # convert rank 1 arrays back to scalars
+            for i in scalars:
+                outputs_python[i] = outputs_python[i][0]
+        else:
+            raise ValueError("Must pass either all inputs or all inputs and outputs")
 
         # assert that numba and python are the same up to floating point
         # precision, setting nans to be equal
-        assert np.allclose(outputs_numba, outputs_python, equal_nan=True)
+        assert all(np.allclose(o_nb, o_py, equal_nan=True) for o_nb, o_py in zip(outputs_numba, outputs_python))
 
         # return value for comparison with expected solution
-        return outputs_numba[0] if noutputs == 1 else outputs_numba
+        return outputs_numba if len(outputs_numba)>1 else outputs_numba[0]
 
     return numba_vs_python

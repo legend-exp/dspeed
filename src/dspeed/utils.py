@@ -94,14 +94,21 @@ class GUFuncWrapper:
             self.ufunc = fun
         else:
             otypes = types[-self.nout :] if self.nout > 0 else None
-            self.ufunc = np.vectorize(fun, otypes=otypes, signature=self.signature)
+            if self.nout>0:
+                self.ufunc = np.vectorize(fun, otypes=otypes, signature=self.signature)
+            else:
+                # vectorize requires an output, so we'll give it an output
+                def fun_return(*args):
+                    fun(*args)
+                    return True
+                self.ufunc = np.vectorize(lambda *args: fun, otypes="?", signature=self.signature+"->()")
 
     def __call__(self, *args):
         """Call wrapped function with "in place" outputs"""
 
         assert len(args) == self.nargs
 
-        if self.copy_out and self.nout > 0:
+        if self.copy_out and self.nout>0:
             ins = args[: self.nin]
             outs = args[-self.nout :]
             # print([i.shape for i in ins], [o.shape for o in outs])
