@@ -4,7 +4,7 @@ from dspeed.processors import (
     ceil_to_nearest,
     floor_to_nearest,
     round_to_nearest,
-    trunc_to_nearest
+    trunc_to_nearest,
 )
 
 
@@ -36,4 +36,3 @@ def test_round_to_nearest(compare_numba_vs_python):
     assert np.isnan(compare_numba_vs_python(floor_to_nearest, w_in, 1.5))
     assert np.isnan(compare_numba_vs_python(ceil_to_nearest, w_in, 1.5))
     assert np.isnan(compare_numba_vs_python(trunc_to_nearest, w_in, 1.5))
-
