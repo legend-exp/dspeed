@@ -13,14 +13,14 @@ def test_fft(compare_numba_vs_python):
 
     dft_out = np.zeros(10, dtype="complex128")
     with pytest.raises(DSPFatal):
-        fft(w_in, dft_out)
+        compare_numba_vs_python(fft, w_in, dft_out)
 
     dft_out = np.zeros(11, dtype="complex128")
-    fft(w_in, dft_out)
+    compare_numba_vs_python(fft, w_in, dft_out)
     assert all(dft_out[:-1] == 0) and dft_out[-1] == len(w_in)
 
     w_in[1] = np.nan
-    fft(w_in, dft_out)
+    compare_numba_vs_python(fft, w_in, dft_out)
     assert np.all(np.isnan(dft_out))
 
 
@@ -30,14 +30,14 @@ def test_ifft(compare_numba_vs_python):
 
     w_out = np.zeros(21, dtype="float64")
     with pytest.raises(DSPFatal):
-        ifft(dft_in, w_out)
+        compare_numba_vs_python(ifft, dft_in, w_out)
 
     w_out = np.zeros(20, dtype="float64")
-    ifft(dft_in, w_out)
+    compare_numba_vs_python(ifft, dft_in, w_out)
     assert all(w_out[:-1] == 1 / len(w_out))
 
     dft_in[1] = np.nan
-    ifft(dft_in, w_out)
+    compare_numba_vs_python(ifft, dft_in, w_out)
     assert np.all(np.isnan(w_out))
 
 
@@ -49,12 +49,12 @@ def test_psd(compare_numba_vs_python):
 
     psd_out = np.zeros(10, dtype="float64")
     with pytest.raises(DSPFatal):
-        psd(w_in, psd_out)
+        compare_numba_vs_python(psd, w_in, psd_out)
 
     psd_out = np.zeros(11, dtype="float64")
-    psd(w_in, psd_out)
+    compare_numba_vs_python(psd, w_in, psd_out)
     assert all(psd_out[:-1] == 0) and psd_out[-1] == len(w_in)
 
     w_in[1] = np.nan
-    psd(w_in, psd_out)
+    compare_numba_vs_python(psd, w_in, psd_out)
     assert np.all(np.isnan(psd_out))
