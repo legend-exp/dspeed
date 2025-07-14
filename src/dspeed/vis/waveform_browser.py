@@ -436,7 +436,9 @@ class WaveformBrowser:
                 if isinstance(
                     data, (lgdo.ArrayOfEqualSizedArrays, lgdo.VectorOfVectors)
                 ):
-                    vals = list(data.nda[i_tb])
+
+                    vals = list(data.view_as("ak")[i_tb].to_numpy())
+
                 else:
                     vals = [data.nda[i_tb]]
 
