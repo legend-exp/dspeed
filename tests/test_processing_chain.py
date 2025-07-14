@@ -312,7 +312,6 @@ def test_proc_chain_where(spms_raw_tbl):
     wf = spms_raw_tbl["waveform"].values[0]
     assert np.all(np.where(wf < 0, 0, wf) == lh5_out["test1"].values[0])
     assert np.all(np.where(wf < 0, wf, 0) == lh5_out["test2"].values[0])
-    wf_min = lh5_out["wf_min"].nda
     tp_min = lh5_out["tp_min"].nda
     assert lh5_out["test3"].attrs["units"] == "nanosecond"
     assert lh5_out["test3"].nda[0] == tp_min[0] and lh5_out["test3"].nda[1] == 1

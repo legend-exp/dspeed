@@ -1378,7 +1378,6 @@ class ProcessingChain:
             elif not unit_a:
                 unit = unit_b
             else:
-                print(a.unit, b.unit)
                 raise ProcessingChainError(f"{a} and {b} do not have compatible units")
 
         elif isinstance(a, ProcChainVar) or isinstance(b, ProcChainVar):
