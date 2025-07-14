@@ -2557,7 +2557,8 @@ def build_processing_chain(
                 init_args = []
                 init_kwargs = {}
                 for arg in init_args_in:
-                    if not isinstance(arg, str): pass
+                    if not isinstance(arg, str):
+                        pass
 
                     for db_var in db_parser.findall(arg):
                         try:
