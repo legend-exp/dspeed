@@ -12,7 +12,7 @@
       "function": "gaussian_filter1d",
       "module": "dspeed.processors.gaussian_filter1d",
       "args": ["waveform", "wf_gaus(len(waveform))"],
-      "init_args": ["1", "4.0"],
+      "init_args": ["1", 4.0],
       "unit": "ADC"
     },
     "curr": {
