@@ -2556,7 +2556,10 @@ def build_processing_chain(
                 init_args_in = recipe["init_args"]
                 init_args = []
                 init_kwargs = {}
-                for _, arg in enumerate(init_args_in):
+                for arg in init_args_in:
+                    if not isinstance(arg, str):
+                        pass
+
                     for db_var in db_parser.findall(arg):
                         try:
                             db_node = db_dict
