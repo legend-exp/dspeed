@@ -732,15 +732,15 @@ class ProcessingChain:
 
           - ``len(expr)``: return the length of the array found with `expr`
           - ``astype(expr, dtype)``: cast `expr` to `dtype`
-          - ``round(expr, to_nearest = 1)``: return the value found with
+          - ``round(expr, to_nearest = 1, [dtype])``: return the value found with
               `expr` rounded to the nearest multiple of `to_nearest`
-          - ``floor(expr, to_nearest = 1)``: return the value found with
+          - ``floor(expr, to_nearest = 1, [dtype])``: return the value found with
               `expr` rounded to last multiple of `to_nearest` smaller
-          - ``ceil(expr, to_nearest = 1)``: return the value found with
+          - ``ceil(expr, to_nearest = 1, [dtype])``: return the value found with
               `expr` rounded to first multiple of `to_nearest` larger
-          - ``trunc(expr, to_nearest = 1)``: return the value found with
+          - ``trunc(expr, to_nearest = 1, [dtype])``: return the value found with
               `expr` rounded to first multiple of `to_nearest` towards zero
-          - ``where(condition, a, b)``: if `condition` is `True` return the
+          - ``where(condition, a, b, [dtype])``: if `condition` is `True` return the
               value held in `a`, else `b`
           - ``isnan(expr)``: return `True` if `expr` is `NaN`
           - ``isfinite(expr)``: return `True`` if not `NaN` `inf` or `-inf`
@@ -1340,6 +1340,7 @@ class ProcessingChain:
         condition: ProcChainVar,
         a: ProcChainVar | Real | Quantity,
         b: ProcChainVar | Real | Quantity,
+        dtype: str = auto,
     ) -> ProcChainVar:
         """Select value from ``a`` or ``b`` depending on if ``condition`` is ``True`` or ``False``. Used
         for the ``where`` function or ``a if b else c`` pattern."""
@@ -1360,19 +1361,22 @@ class ProcessingChain:
                 raise ProcessingChainError(
                     f"Cannot select between {a} and {b} with different is_coord"
                 )
+            is_coord = a.is_coord
 
             if a.offset == b.offset:
                 grid = a.grid
             else:
                 grid = CoordinateGrid(
-                    self._where(condition, a.offset, b.offset), a.period
+                    a.period,
+                    self._where(condition, a.offset, b.offset),
                 )
 
-            unit = a.unit if a.unit else b.unit
-            if a.unit == b.unit or not b.unit:
-                unit = a.unit
-            elif not a.unit:
-                unit = b.unit
+            unit_a = Unit(a.unit) if is_in_pint(a.unit) else a.unit
+            unit_b = Unit(b.unit) if is_in_pint(b.unit) else b.unit
+            if unit_a == unit_b or not unit_b:
+                unit = unit_a
+            elif not unit_a:
+                unit = unit_b
             else:
                 raise ProcessingChainError(f"{a} and {b} do not have compatible units")
 
@@ -1389,14 +1393,14 @@ class ProcessingChain:
 
             if not var.unit:
                 unit = None
-            elif not isinstance(const, Quantity) or var.unit == const.u:
+            elif not isinstance(const, Quantity):
                 unit = var.unit
-            elif is_in_pint(var.unit) and is_in_pint(const.u):
-                unit = var.unit
+            elif is_in_pint(var.unit):
+                unit = var.period if is_coord else Quantity(1, var.unit)
                 if isinstance(a, ProcChainVar):
-                    a = float(const / var.unit)
+                    b = float(const / (1 * unit))
                 else:
-                    b = float(const / var.unit)
+                    a = float(const / (1 * unit))
             else:
                 raise ProcessingChainError(f"{a} and {b} do not have compatible units")
 
@@ -1405,11 +1409,14 @@ class ProcessingChain:
             is_coord = False
             if isinstance(a, Quantity) and isinstance(b, Quantity):
                 unit = a.u
-                b = float(b / a.u)
+                a = a.m
+                b = float(b / (1 * unit))
             elif isinstance(a, Quantity):
                 unit = a.u
+                a = a.m
             elif isinstance(b, Quantity):
                 unit = b.u
+                b = b.m
             else:
                 unit = None
 
@@ -1417,7 +1424,7 @@ class ProcessingChain:
             self,
             name,
             auto,
-            auto,
+            dtype,
             grid,
             unit,
             is_coord,

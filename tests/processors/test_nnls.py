@@ -25,7 +25,7 @@ def test_nnls(compare_numba_vs_python):
         a[:, i] = gumbel_pdf(xd, x[i], 2)
 
     kernel = np.zeros(len(x))
-    optimize_nnls(a, yd, 1000, 1e-9, False, 0, kernel)
+    optimize_nnls(a, yd, 1000, 1e-9, False, np.float32(0), kernel)
 
     # check number of pulses reconstructed (overall 4, with 3 different time positions i.e. 2 at the same spot)
     assert len(kernel[kernel > 1.99]) == 1
@@ -40,4 +40,6 @@ def test_nnls(compare_numba_vs_python):
 
     # compare numba and python results
     kernel = np.zeros(len(x))
-    compare_numba_vs_python(optimize_nnls, a, yd, 1000, 1e-9, False, 0, kernel)
+    compare_numba_vs_python(
+        optimize_nnls, a, yd, 1000, 1e-9, False, np.float32(0), kernel
+    )

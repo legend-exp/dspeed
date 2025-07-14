@@ -2,6 +2,7 @@ import lgdo
 import numpy as np
 import pytest
 
+from dspeed.errors import ProcessingChainError
 from dspeed.processing_chain import build_processing_chain
 
 
@@ -275,19 +276,145 @@ def test_proc_chain_round(spms_raw_tbl):
 
 
 def test_proc_chain_where(spms_raw_tbl):
+    # test with variable and const
     dsp_config = {
-        "outputs": ["test1", "test2"],
+        "outputs": [
+            "tp_min",
+            "tp_max",
+            "wf_min",
+            "wf_max",
+            "test1",
+            "test2",
+            "test3",
+            "test4",
+            "test5",
+            "test6",
+        ],
         "processors": {
+            "tp_min, tp_max, wf_min, wf_max": {
+                "function": "min_max",
+                "module": "dspeed.processors",
+                "args": ["waveform", "tp_min", "tp_max", "wf_min", "wf_max"],
+                "unit": ["ns", "ns", "ADC", "ADC"],
+            },
             "test1": "where(waveform<0, 0, waveform)",
-            "test2": "0 if waveform<0 else waveform",
+            "test2": "where(waveform<0, waveform, 0)",
+            "test3": "where(eventnumber==0, tp_min, 1*ns)",
+            "test4": "where(eventnumber==0, tp_min, 1*us)",
+            "test5": "where(eventnumber==0, 1*ns, tp_min)",
+            "test6": "where(eventnumber==0, 1*us, tp_min)",
+            "test7": "where(eventnumber==0, tp_min, wf_min)",
+        },
+    }
+
+    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
+    proc_chain.execute(0, 2)
+    wf = spms_raw_tbl["waveform"].values[0]
+    assert np.all(np.where(wf < 0, 0, wf) == lh5_out["test1"].values[0])
+    assert np.all(np.where(wf < 0, wf, 0) == lh5_out["test2"].values[0])
+    tp_min = lh5_out["tp_min"].nda
+    assert lh5_out["test3"].attrs["units"] == "nanosecond"
+    assert lh5_out["test3"].nda[0] == tp_min[0] and lh5_out["test3"].nda[1] == 1
+    assert lh5_out["test4"].attrs["units"] == "nanosecond"
+    assert lh5_out["test4"].nda[0] == tp_min[0] and lh5_out["test4"].nda[1] == 1000
+    assert lh5_out["test5"].attrs["units"] == "nanosecond"
+    assert lh5_out["test5"].nda[0] == 1 and lh5_out["test5"].nda[1] == tp_min[1]
+    assert lh5_out["test6"].attrs["units"] == "nanosecond"
+    assert lh5_out["test6"].nda[0] == 1000 and lh5_out["test6"].nda[1] == tp_min[1]
+    with pytest.raises(ProcessingChainError):
+        proc_chain, _, lh5_out = build_processing_chain(
+            spms_raw_tbl, dsp_config, outputs=["test7"]
+        )
+
+    # test with variable and variable
+    dsp_config = {
+        "processors": {
+            "w_downsample": "waveform[::2]",
+            "w_win1": "waveform[:len(waveform)//2]",
+            "w_win2": "waveform[len(waveform)//2:]",
+            "tp_min, tp_max, wf_min, wf_max": {
+                "function": "min_max",
+                "module": "dspeed.processors",
+                "args": ["waveform", "tp_min", "tp_max", "wf_min", "wf_max"],
+                "unit": ["ns", "ns", "ADC", "ADC"],
+            },
+            "delta_t": "tp_max - tp_min",
+            "test1": "where(eventnumber==0, w_downsample, w_win1)",  # fail due to different periods
+            "test2": "where(eventnumber==0, w_win1, w_win2)",  # different offsets
+            "test3": "where(eventnumber==0, tp_max, delta_t)",  # fail to different is_coord
+            "test4": "where(eventnumber==0, tp_min, tp_max)",
+        }
+    }
+
+    with pytest.raises(ProcessingChainError):
+        proc_chain, _, lh5_out = build_processing_chain(
+            spms_raw_tbl, dsp_config, outputs=["test1"]
+        )
+
+    proc_chain, _, lh5_out = build_processing_chain(
+        spms_raw_tbl, dsp_config, outputs=["test2", "w_win1", "w_win2"]
+    )
+    proc_chain.execute(0, 2)
+    assert (
+        np.all(lh5_out["test2"].values[0] == lh5_out["w_win1"].values[0])
+        and lh5_out["test2"].t0[0] == lh5_out["w_win1"].t0[0]
+    )
+    assert (
+        np.all(lh5_out["test2"].values[1] == lh5_out["w_win2"].values[1])
+        and lh5_out["test2"].t0[1] == lh5_out["w_win2"].t0[1]
+    )
+
+    with pytest.raises(ProcessingChainError):
+        proc_chain, _, lh5_out = build_processing_chain(
+            spms_raw_tbl, dsp_config, outputs=["test3"]
+        )
+
+    proc_chain, _, lh5_out = build_processing_chain(
+        spms_raw_tbl, dsp_config, outputs=["test4", "tp_min", "tp_max"]
+    )
+    proc_chain.execute(0, 2)
+    assert lh5_out["test4"].attrs["units"] == "nanosecond"
+    assert np.all(lh5_out["test4"].nda[0] == lh5_out["tp_min"].nda[0])
+    assert np.all(lh5_out["test4"].nda[1] == lh5_out["tp_max"].nda[1])
+
+    # test with choosing between constant values
+    dsp_config = {
+        "processors": {
+            "test1": "where(eventnumber==0, 10*ns, 1*us, dtype='f')",
+            "test2": "where(eventnumber==0, 10*ns, 1000, dtype='f')",
+            "test3": "where(eventnumber==0, 1000, 10*ns, dtype='f')",
+            "test4": "where(eventnumber==0, 10, 1000, dtype='f')",
+            "test5": "where(eventnumber==0, 10*ns, 10*m, dtype='f')",
+        }
+    }
+    proc_chain, _, lh5_out = build_processing_chain(
+        spms_raw_tbl, dsp_config, outputs=["test1", "test2", "test3", "test4"]
+    )
+    proc_chain.execute(0, 2)
+    assert lh5_out["test1"].attrs["units"] == "nanosecond"
+    assert lh5_out["test1"].nda[0] == 10 and lh5_out["test1"].nda[1] == 1000
+    assert lh5_out["test2"].attrs["units"] == "nanosecond"
+    assert lh5_out["test2"].nda[0] == 10 and lh5_out["test2"].nda[1] == 1000
+    assert lh5_out["test3"].attrs["units"] == "nanosecond"
+    assert lh5_out["test3"].nda[0] == 1000 and lh5_out["test3"].nda[1] == 10
+    assert lh5_out["test4"].nda[0] == 10 and lh5_out["test4"].nda[1] == 1000
+    with pytest.raises(ProcessingChainError):
+        proc_chain, _, lh5_out = build_processing_chain(
+            spms_raw_tbl, dsp_config, outputs=["test5"]
+        )
+
+    # test a if b else c form
+    dsp_config = {
+        "outputs": ["test"],
+        "processors": {
+            "test": "0 if waveform<0 else waveform",
         },
     }
 
     proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
     proc_chain.execute(0, 1)
     wf = spms_raw_tbl["waveform"].values[0]
-    assert np.all(np.where(wf < 0, 0, wf) == lh5_out["test1"].values[0])
-    assert np.all(np.where(wf < 0, 0, wf) == lh5_out["test2"].values[0])
+    assert np.all(np.where(wf < 0, 0, wf) == lh5_out["test"].values[0])
 
 
 def test_proc_chain_isnan():

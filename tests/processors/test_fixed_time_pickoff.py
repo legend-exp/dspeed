@@ -35,7 +35,7 @@ def test_fixed_time_pickoff(compare_numba_vs_python):
         w_in = np.ones(len_wf)
         fixed_time_pickoff(w_in, 1.5, ord("i"))
     with pytest.raises(DSPFatal):
-        a_out = np.empty(len_wf)
+        a_out = np.empty(1)
         inspect.unwrap(fixed_time_pickoff)(w_in, 1.5, ord("i"), a_out)
 
     # unsupported mode_in character
@@ -43,7 +43,7 @@ def test_fixed_time_pickoff(compare_numba_vs_python):
         w_in = np.ones(len_wf)
         fixed_time_pickoff(w_in, 1.5, ord(" "))
     with pytest.raises(DSPFatal):
-        a_out = np.empty(len_wf)
+        a_out = np.empty(1)
         inspect.unwrap(fixed_time_pickoff)(w_in, 1.5, ord(" "), a_out)
 
     # linear tests
@@ -71,7 +71,8 @@ def test_fixed_time_pickoff(compare_numba_vs_python):
 
     for char, sol in zip(chars, sols):
         assert np.isclose(
-            compare_numba_vs_python(fixed_time_pickoff, w_in, 3.25, ord(char)), sol
+            compare_numba_vs_python(fixed_time_pickoff, w_in, 3.25, ord(char)),
+            sol,
         )
 
     # last few corner cases of 'h'
@@ -84,5 +85,6 @@ def test_fixed_time_pickoff(compare_numba_vs_python):
 
     for ftp, sol in zip(ftps, sols):
         assert np.isclose(
-            compare_numba_vs_python(fixed_time_pickoff, w_in, ftp, ord("h")), sol
+            compare_numba_vs_python(fixed_time_pickoff, w_in, ftp, ord("h")),
+            sol,
         )
