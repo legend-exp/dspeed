@@ -21,7 +21,7 @@ def fft(w_in, dft_out):
     w_in
         input waveform
     dft_out
-        ouptut discrete fourier transform
+        output discrete fourier transform
 
     JSON Configuration Example
     --------------------------
@@ -57,7 +57,7 @@ def ifft(dft_in, w_out):
     dft_in
         input discrete fourier transform
     w_out
-        ouptut waveform
+        output waveform
 
     JSON Configuration Example
     --------------------------
@@ -99,7 +99,7 @@ def psd(w_in, psd_out):
     w_in
         input waveform
     psd_out
-        ouptut discrete power spectrum
+        output discrete power spectrum
 
     JSON Configuration Example
     --------------------------
