@@ -26,7 +26,7 @@ def test_discrete_wavelet_transform(compare_numba_vs_python):
     assert np.allclose(
         compare_numba_vs_python(
             discrete_wavelet_transform, w_in, level, wave_type, coeff, w_out
-        ),
+        )[-1],
         w_out_expected,
     )
 
@@ -38,6 +38,6 @@ def test_discrete_wavelet_transform(compare_numba_vs_python):
         np.isnan(
             compare_numba_vs_python(
                 discrete_wavelet_transform, w_in, level, wave_type, coeff, w_out
-            )
+            )[-1]
         )
     )

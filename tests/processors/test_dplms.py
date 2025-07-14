@@ -32,4 +32,4 @@ def test_dplms(compare_numba_vs_python):
     with pytest.raises(DSPFatal):
         dplms(nmat, ref, 1, 1, 1, 2, kernel)
 
-    assert np.all(compare_numba_vs_python(dplms, nmat, ref, 1, 1, 1, 1, kernel))
+    assert np.all(compare_numba_vs_python(dplms, nmat, ref, 1, 1, 1, 1))

@@ -156,7 +156,7 @@ def zac_filter(sigma: float, flat: int, decay: int, kernel: np.array) -> None:
         "void(float32[:,:], float32[:], float32, float32, float32, float32, float32[:])",
         "void(float64[:,:], float64[:], float64, float64, float64, float64, float64[:])",
     ],
-    "(n,n),(m),(),(),(),(),(n)",
+    "(n,n),(m),(),(),(),()->(n)",
     **nb_kwargs(
         forceobj=True,
     ),

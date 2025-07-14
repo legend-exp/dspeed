@@ -16,18 +16,19 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Collection, MutableMapping
 from copy import deepcopy
 from dataclasses import dataclass
+from functools import partial
 from numbers import Real
 from typing import Any
 
 import lgdo
 import numpy as np
 from lgdo import LGDO, lh5
-from numba import guvectorize, vectorize
+from numba import guvectorize
 from pint import Quantity, Unit
 from yaml import dump, safe_load
 
+from . import processors
 from .errors import DSPFatal, ProcessingChainError
-from .processors.round_to_nearest import round_to_nearest
 from .units import unit_registry as ureg
 from .utils import ProcChainVarBase
 from .utils import numba_defaults_kwargs as nb_kwargs
@@ -730,12 +731,25 @@ class ProcessingChain:
           following expressions:
 
           - ``len(expr)``: return the length of the array found with `expr`
-          - ``round(expr)``: return the value found with `expr` to the
-            nearest integer
+          - ``astype(expr, dtype)``: cast `expr` to `dtype`
+          - ``round(expr, to_nearest = 1, [dtype])``: return the value found with
+              `expr` rounded to the nearest multiple of `to_nearest`
+          - ``floor(expr, to_nearest = 1, [dtype])``: return the value found with
+              `expr` rounded to last multiple of `to_nearest` smaller
+          - ``ceil(expr, to_nearest = 1, [dtype])``: return the value found with
+              `expr` rounded to first multiple of `to_nearest` larger
+          - ``trunc(expr, to_nearest = 1, [dtype])``: return the value found with
+              `expr` rounded to first multiple of `to_nearest` towards zero
+          - ``where(condition, a, b, [dtype])``: if `condition` is `True` return the
+              value held in `a`, else `b`
+          - ``isnan(expr)``: return `True` if `expr` is `NaN`
+          - ``isfinite(expr)``: return `True`` if not `NaN` `inf` or `-inf`
           - ``varname(shape, type)``: allocate a new buffer with the
             specified shape and type, using ``varname``. This is used if
             the automatic type and shape deduction for allocating variables
             fails
+          - ``loadlh5(file, group)``: load LH5 object held in `group` of lh5
+              file. Returned object will be treated as a const.
 
         - Unary and binary operators :obj:`+`, :obj:`-`, :obj:`*`, :obj:`/`,
           :obj:`//` are available. If a variable name is included in the
@@ -748,6 +762,8 @@ class ProcessingChain:
           pointing from keyword to the parsed `expr`. This is used for
           `kwargs`. If `expr_only` is ``True``, raise an exception if we see
           this.
+        - ``a if b else c``: see `where`; return value held in `a` if `b`
+          is `True`, else `c`
 
         If `get_names_only` is set to ``True``, do not fetch or allocate new
         arrays, instead return a list of variable names found in the expression.
@@ -1051,6 +1067,13 @@ class ProcessingChain:
             out._buffer = [(out_buf, val._buffer[0][1])] if out.is_coord else out_buf
             return out
 
+        # a if condition else b
+        elif isinstance(node, ast.IfExp):
+            condition = self._parse_expr(node.test, expr, dry_run, var_name_list)
+            a = self._parse_expr(node.body, expr, dry_run, var_name_list)
+            b = self._parse_expr(node.orelse, expr, dry_run, var_name_list)
+            return self._where(condition, a, b)
+
         # for name.attribute
         elif isinstance(node, ast.Attribute):
             # If we are looking for an attribute of a module (e.g. np.pi)
@@ -1081,7 +1104,7 @@ class ProcessingChain:
                 for kwarg in node.keywords
             }
             if func is not None:
-                return func(*args, **kwargs) if not dry_run else None
+                return func(self, *args, **kwargs) if not dry_run else None
             elif self._validate_name(node.func.id):
                 var_name = node.func.id
                 var_name_list.append(var_name)
@@ -1147,7 +1170,7 @@ class ProcessingChain:
 
     # Define functions that can be parsed by get_variable
     # Get length of ProcChainVar
-    def _length(var: ProcChainVar) -> int:  # noqa: N805
+    def _length(self, var: ProcChainVar) -> int:
         if var is None:
             return None
         if not isinstance(var, ProcChainVar):
@@ -1165,28 +1188,43 @@ class ProcessingChain:
 
     # round value
     def _round(
-        var: ProcChainVar | Quantity,  # noqa: N805
+        self,
+        var: ProcChainVar | Quantity,
         to_nearest: Real | Unit | Quantity | CoordinateGrid = 1,
         dtype: str = None,
+        mode: str = "round",
     ) -> float | Quantity | ProcChainVar:
         """Round a variable or value to nearest multiple of `to_nearest`.
         If var is a ProcChainVar, and to_nearest is a Unit or Quantity, return
         a new ProcChainVar with a period of to_nearest, and the underlying
         values and offset rounded. If var is a ProcChainVar and to_nearest
         is an int or a float, keep the unit and just round the underlying
-        value.
+        value. Can change mode to "floor", "ceil", or "trunc"
 
         Example usage:
         round(tp_0, wf.grid) - convert tp_0 to nearest array index of wf
         round(5*us, wf.period) - 5 us in wf clock ticks
         """
+        if mode == "round":
+            fun = processors.round_to_nearest
+        elif mode == "floor":
+            fun = processors.floor_to_nearest
+        elif mode == "ceil":
+            fun = processors.ceil_to_nearest
+        elif mode == "trunc":
+            fun = processors.trunc_to_nearest
+        else:
+            raise ProcessingChainError("Mode must be round, floor, ceil or trunc")
 
         if var is None:
             return None
         if not isinstance(var, ProcChainVar):
-            return round(float(var / to_nearest)) * to_nearest
+            if isinstance(var, Quantity):
+                return fun(var.m, float(to_nearest / var.u))
+            else:
+                return fun(var, to_nearest)
         else:
-            name = f"round({var.name}, {to_nearest})"
+            name = f"{mode}({var}, {to_nearest})"
             dtype = np.dtype(dtype) if dtype is not None else var.dtype
             if var.is_coord:
                 if isinstance(to_nearest, Real):
@@ -1197,7 +1235,7 @@ class ProcessingChain:
                     grid = to_nearest
 
                 out = ProcChainVar(
-                    var.proc_chain,
+                    self,
                     name,
                     var.shape,
                     dtype,
@@ -1205,13 +1243,13 @@ class ProcessingChain:
                     var.unit,
                     var.is_coord,
                 )
-                conversion_manager = UnitConversionManager(var, grid, round=True)
+                conversion_manager = UnitConversionManager(var, grid, mode=mode)
                 out._buffer = conversion_manager.out_buffer
-                var.proc_chain._proc_managers.append(conversion_manager)
+                self._proc_managers.append(conversion_manager)
                 log.debug(f"added conversion: {conversion_manager}")
             else:
                 out = ProcChainVar(
-                    var.proc_chain,
+                    self,
                     name,
                     var.shape,
                     dtype,
@@ -1220,21 +1258,21 @@ class ProcessingChain:
                     var.is_coord,
                 )
 
-                var.proc_chain.add_processor(round_to_nearest, var, to_nearest, out)
+                self.add_processor(fun, var, to_nearest, out)
 
             return out
 
     # type cast variable
-    def _astype(var: ProcChainVar, dtype: str) -> ProcChainVar:  # noqa: N805
+    def _astype(self, var: ProcChainVar, dtype: str) -> ProcChainVar:
         dtype = np.dtype(dtype)
         if var is None:
             return None
         if not isinstance(var, ProcChainVar):
             raise ProcessingChainError(f"cannot call astype() on {var}")
         else:
-            name = f"{var.name}.astype(`{dtype.char}`)"
+            name = f"{var}.astype(`{dtype.char}`)"
             out = ProcChainVar(
-                var.proc_chain,
+                self,
                 name,
                 var.shape,
                 dtype,
@@ -1243,18 +1281,160 @@ class ProcessingChain:
                 var.is_coord,
             )
             proc_man = ProcessorManager(
-                var.proc_chain,
+                self,
                 np.copyto,
                 [out, var],
                 kw_params={"casting": "'unsafe'"},
                 signature="(),(),()",
                 types=f"{dtype.char}{var.dtype.char}",
             )
-            var.proc_chain._proc_managers.append(proc_man)
+            self._proc_managers.append(proc_man)
             log.debug(f"added processor: {proc_man}")
             return out
 
-    def _loadlh5(path_to_file, path_in_file: str) -> np.array:  # noqa: N805
+    def _isnan(self, var: ProcChainVar | Real | None):
+        """Is value NaN"""
+        if var is None:
+            return None
+        elif not isinstance(var, ProcChainVar):
+            return np.isnan(var)
+        else:
+            out = ProcChainVar(
+                self,
+                f"isnan({var})",
+                var.shape,
+                "bool",
+                var.grid,
+                var.unit,
+                var.is_coord,
+            )
+            proc_man = ProcessorManager(self, np.isnan, [var, out])
+            self._proc_managers.append(proc_man)
+            log.debug(f"added processor: {proc_man}")
+            return out
+
+    def _isfinite(self, var: ProcChainVar | Real | None):
+        """Is value finite (i.e. not NaN or infinite)"""
+        if var is None:
+            return None
+        elif not isinstance(var, ProcChainVar):
+            return np.isfinite(var)
+        else:
+            out = ProcChainVar(
+                self,
+                f"isfinite({var})",
+                var.shape,
+                "bool",
+                var.grid,
+                var.unit,
+                var.is_coord,
+            )
+            proc_man = ProcessorManager(self, np.isfinite, [var, out])
+            self._proc_managers.append(proc_man)
+            log.debug(f"added processor: {proc_man}")
+            return out
+
+    # choose a or b
+    def _where(
+        self,
+        condition: ProcChainVar,
+        a: ProcChainVar | Real | Quantity,
+        b: ProcChainVar | Real | Quantity,
+        dtype: str = auto,
+    ) -> ProcChainVar:
+        """Select value from ``a`` or ``b`` depending on if ``condition`` is ``True`` or ``False``. Used
+        for the ``where`` function or ``a if b else c`` pattern."""
+
+        if condition is None:
+            return None
+
+        if not (isinstance(condition, ProcChainVar) and condition.dtype == "?"):
+            raise ProcessingChainError(f"{condition} must be a boolean variable")
+
+        name = f"where({condition}, {a}, {b})"
+        if isinstance(a, ProcChainVar) and isinstance(b, ProcChainVar):
+            if a.period != b.period:
+                raise ProcessingChainError(
+                    f"Cannot select between {a} and {b} with different periods"
+                )
+            if a.is_coord != b.is_coord:
+                raise ProcessingChainError(
+                    f"Cannot select between {a} and {b} with different is_coord"
+                )
+            is_coord = a.is_coord
+
+            if a.offset == b.offset:
+                grid = a.grid
+            else:
+                grid = CoordinateGrid(
+                    a.period,
+                    self._where(condition, a.offset, b.offset),
+                )
+
+            unit_a = Unit(a.unit) if is_in_pint(a.unit) else a.unit
+            unit_b = Unit(b.unit) if is_in_pint(b.unit) else b.unit
+            if unit_a == unit_b or not unit_b:
+                unit = unit_a
+            elif not unit_a:
+                unit = unit_b
+            else:
+                raise ProcessingChainError(f"{a} and {b} do not have compatible units")
+
+        elif isinstance(a, ProcChainVar) or isinstance(b, ProcChainVar):
+            if isinstance(a, ProcChainVar):
+                var = a
+                const = b
+            else:
+                var = b
+                const = a
+
+            grid = var.grid
+            is_coord = var.is_coord
+
+            if not var.unit:
+                unit = None
+            elif not isinstance(const, Quantity):
+                unit = var.unit
+            elif is_in_pint(var.unit):
+                unit = var.period if is_coord else Quantity(1, var.unit)
+                if isinstance(a, ProcChainVar):
+                    b = float(const / (1 * unit))
+                else:
+                    a = float(const / (1 * unit))
+            else:
+                raise ProcessingChainError(f"{a} and {b} do not have compatible units")
+
+        else:
+            grid = None
+            is_coord = False
+            if isinstance(a, Quantity) and isinstance(b, Quantity):
+                unit = a.u
+                a = a.m
+                b = float(b / (1 * unit))
+            elif isinstance(a, Quantity):
+                unit = a.u
+                a = a.m
+            elif isinstance(b, Quantity):
+                unit = b.u
+                b = b.m
+            else:
+                unit = None
+
+        out = ProcChainVar(
+            self,
+            name,
+            auto,
+            dtype,
+            grid,
+            unit,
+            is_coord,
+        )
+        proc_man = ProcessorManager(self, processors.where, [condition, a, b, out])
+        self._proc_managers.append(proc_man)
+        log.debug(f"added processor: {proc_man}")
+        return out
+
+    def _loadlh5(self, path_to_file, path_in_file: str) -> np.array:
         """
         Load data from an LH5 file.
 
@@ -1280,8 +1460,14 @@ class ProcessingChain:
     # dict of functions that can be parsed by get_variable
     func_list = {
         "len": _length,
-        "round": _round,
+        "isfinite": _isfinite,
+        "isnan": _isnan,
+        "round": partial(_round, mode="round"),
+        "floor": partial(_round, mode="floor"),
+        "ceil": partial(_round, mode="ceil"),
+        "trunc": partial(_round, mode="trunc"),
         "astype": _astype,
+        "where": _where,
         "loadlh5": _loadlh5,
     }
     module_list = {"np": np, "numpy": np}
@@ -1606,53 +1792,38 @@ class ProcessorManager:
 class UnitConversionManager(ProcessorManager):
     """A special processor manager for handling converting variables between unit systems."""
 
-    @vectorize(
-        [f"{t}({t}, f8, f8, f8)" for t in ["f4", "f8"]],
-        **nb_kwargs,
-    )
-    def convert(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
-        return (buf_in + offset_in) * period_ratio - offset_out
-
-    @vectorize(
-        [
-            f"{t}({t}, f8, f8, f8)"
-            for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
-        ],
-        **nb_kwargs,
-    )
-    def convert_int(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
-        tmp = (buf_in + offset_in) * period_ratio - offset_out
-        ret = np.rint(tmp)
-        if np.abs(tmp - ret) < 1.0e-5:
-            return ret
-        else:
-            raise DSPFatal("Cannot convert to integer. Use round or astype")
-
-    @vectorize(
-        [
-            f"{t}({t}, f8, f8, f8)"
-            for t in ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8", "f4", "f8"]
-        ],
-        **nb_kwargs,
-    )
-    def convert_round(buf_in, offset_in, offset_out, period_ratio):  # noqa: N805
-        return np.rint((buf_in + offset_in) * period_ratio - offset_out)
-
     def __init__(
         self,
         var: ProcChainVar,
         unit: str | Unit | Quantity | CoordinateGrid,
-        round=False,
+        mode=None,
     ) -> None:
         # reference back to our processing chain
         self.proc_chain = var.proc_chain
         # callable function used to process data
-        if round:
-            self.processor = UnitConversionManager.convert_round
+        from .processors.unit_conversion import (
+            convert,
+            convert_ceil,
+            convert_floor,
+            convert_int,
+            convert_round,
+            convert_trunc,
+        )
+
+        if mode == "round":
+            self.processor = convert_round
+        elif mode == "floor":
+            self.processor = convert_floor
+        elif mode == "ceil":
+            self.processor = convert_ceil
+        elif mode == "trunc":
+            self.processor = convert_trunc
+        elif mode is not None:
+            raise ProcessingChainError("Mode must be round, floor, ceil or trunc")
         elif issubclass(var.dtype.type, np.floating):
-            self.processor = UnitConversionManager.convert
+            self.processor = convert
         else:
-            self.processor = UnitConversionManager.convert_int
+            self.processor = convert_int
 
         to_offset = 0
         if isinstance(unit, CoordinateGrid):
