@@ -1367,7 +1367,8 @@ class ProcessingChain:
                 grid = a.grid
             else:
                 grid = CoordinateGrid(
-                    a.period, self._where(condition, a.offset, b.offset),
+                    a.period,
+                    self._where(condition, a.offset, b.offset),
                 )
 
             unit_a = Unit(a.unit) if is_in_pint(a.unit) else a.unit
@@ -1398,9 +1399,9 @@ class ProcessingChain:
             elif is_in_pint(var.unit):
                 unit = var.period if is_coord else Quantity(1, var.unit)
                 if isinstance(a, ProcChainVar):
-                    b = float(const / (1*unit))
+                    b = float(const / (1 * unit))
                 else:
-                    a = float(const / (1*unit))
+                    a = float(const / (1 * unit))
             else:
                 raise ProcessingChainError(f"{a} and {b} do not have compatible units")
 
@@ -1410,7 +1411,7 @@ class ProcessingChain:
             if isinstance(a, Quantity) and isinstance(b, Quantity):
                 unit = a.u
                 a = a.m
-                b = float(b / (1*unit))
+                b = float(b / (1 * unit))
             elif isinstance(a, Quantity):
                 unit = a.u
                 a = a.m
