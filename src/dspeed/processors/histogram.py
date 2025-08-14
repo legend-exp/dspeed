@@ -108,27 +108,27 @@ def histogram_stats(
     edges_in
         histogram bin edges.
     max_in
-        if not :any:`numpy.nan`, this value is used as the histogram bin
-        content at the mode.  Otherwise the mode is computed automatically
-        (from left to right).
+        if not :any:`numpy.nan`, the mode is derived as the bin edge
+        closest to `max_in`.  Otherwise the mode is computed automatically.
     mode_out
-        the computed mode of the histogram. If `max_in` is not :any:`numpy.nan`
-        then the closest waveform index to `max_in` is returned.
+        The index of the mode.
     max_out
-        the histogram bin content at the mode.
+        the computed mode of the histogram. If `max_in` is not :any:`numpy.nan`
+        then the closest edge to `max_in` is returned.
     fwhm_out
-        the FWHM of the histogram, calculated by starting from the mode and
-        descending left and right.
+        is actually the HALF width at half maximum (HWHM) of the histogram.
+        The calculations starts from the mode and descends left and right, taking
+        the smallest HWHM found in either direction.
 
     JSON Configuration Example
     --------------------------
 
     .. code-block :: json
 
-        "fwhm, idx_out, max_out": {
+        "hwhm, idx_out, mode_out": {
             "function": "histogram_stats",
             "module": "dspeed.processors.histogram",
-            "args": ["hist_weights","hist_borders","idx_out","max_out","fwhm","np.nan"],
+            "args": ["hist_weights","hist_borders","idx_out","mode_out","hwhm","np.nan"],
             "unit": ["ADC", "none", "ADC"]
         }
 
