@@ -621,7 +621,7 @@ class WaveformBrowser:
         safe
             if ``False``, throw an exception for out of range entries.
         """
-        self.find_entry(entry, append)
+        self.find_entry(entry, append, safe)
         self.draw_current(clear)
 
     def find_next(self, n_wfs: int = None, append: bool = False) -> tuple[int, int]:
