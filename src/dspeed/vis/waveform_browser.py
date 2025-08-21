@@ -52,7 +52,7 @@ class WaveformBrowser:
         align: str = None,
         buffer_len: int = 128,
         block_width: int = 8,
-        additional_outputs: list[str] | None = None
+        additional_outputs: list[str] | None = None,
     ) -> None:
         """
         Parameters
@@ -150,7 +150,7 @@ class WaveformBrowser:
 
         block_width
             block width for :class:`~.processing_chain.ProcessingChain`.
-        
+
         additional_outputs
             More output fields for the internal processing chain.
             Useful for deriving classes.
