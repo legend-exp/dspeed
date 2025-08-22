@@ -79,6 +79,7 @@ _modules = {
     "get_wf_centroid": "get_wf_centroid",
     "histogram": "histogram",
     "histogram_around_mode": "histogram",
+    "histogram_peakstats": "histogram_stats",
     "histogram_stats": "histogram_stats",
     "inject_damped_oscillation": "inject_ringing",
     "inl_correction": "inl_correction",
