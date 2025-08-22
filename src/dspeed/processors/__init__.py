@@ -78,6 +78,7 @@ _modules = {
     "get_multi_local_extrema": "get_multi_local_extrema",
     "get_wf_centroid": "get_wf_centroid",
     "histogram": "histogram",
+    "histogram_around_mode": "histogram",
     "histogram_stats": "histogram",
     "inject_damped_oscillation": "inject_ringing",
     "inl_correction": "inl_correction",
