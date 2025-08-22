@@ -41,7 +41,7 @@ def histogram_stats(
     fwhm_out
         is actually the HALF width at half maximum (HWHM) of the histogram.
         The calculations starts from the mode and descends left and right, taking
-        the smallest HWHM found in either direction.
+        the largest HWHM found in either direction.
 
     JSON Configuration Example
     --------------------------
