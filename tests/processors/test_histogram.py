@@ -1,11 +1,10 @@
 import os
 
 import numpy as np
-from dspeed.processors.histogram import histogram_around_mode
-
 from lgdo import lh5
 
 from dspeed import build_dsp
+from dspeed.processors.histogram import histogram_around_mode
 
 
 def test_histogram_fixed_width(lgnd_test_data, tmptestdir):
@@ -41,6 +40,7 @@ def test_histogram_fixed_width(lgnd_test_data, tmptestdir):
         b = df["hist_borders"][0][i] - df["hist_borders"][0][i - 1]
         assert round(a, 2) == round(b, 2)
 
+
 def test_histogram_around_mode_basic():
     # Create a simple waveform with a clear mode
     w_in = np.array([1, 2, 2, 2, 3, 4, 5], dtype=np.float32)
@@ -56,7 +56,9 @@ def test_histogram_around_mode_basic():
     mode_bin = np.argmax(weights_out)
     assert weights_out[mode_bin] == 3
     # The center of the histogram should be aligned with the mode
-    center = borders_out[mode_bin] + 0.5 * (borders_out[mode_bin + 1] - borders_out[mode_bin])
+    center = borders_out[mode_bin] + 0.5 * (
+        borders_out[mode_bin + 1] - borders_out[mode_bin]
+    )
     assert np.isclose(center, 2.0, atol=0.5)
 
     # Check that all entries are binned
@@ -64,7 +66,7 @@ def test_histogram_around_mode_basic():
 
     w_in = np.array([1, 2, 2, 2, 3, 4, 5, 100], dtype=np.float32)
     histogram_around_mode(w_in, np.nan, bin_width, weights_out, borders_out)
-    #histogram does not span the whole range, so not all entries are binned
+    # histogram does not span the whole range, so not all entries are binned
     assert np.sum(weights_out) < len(w_in)
 
     histogram_around_mode(w_in, 100, bin_width, weights_out, borders_out)
@@ -79,7 +81,13 @@ def test_histogram_around_mode_dsp(lgnd_test_data, tmptestdir):
             "hist_weights , hist_borders": {
                 "function": "histogram_around_mode",
                 "module": "dspeed.processors.histogram",
-                "args": ["waveform", "np.nan", "1", "hist_weights(101)", "hist_borders(102)"],
+                "args": [
+                    "waveform",
+                    "np.nan",
+                    "1",
+                    "hist_weights(101)",
+                    "hist_borders(102)",
+                ],
                 "unit": ["none", "ADC"],
             }
         },

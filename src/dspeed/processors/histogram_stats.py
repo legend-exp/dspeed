@@ -22,7 +22,7 @@ def histogram_peakstats(
     skip_zeroes: int,
     width_type: int,
     mode_out: float,
-    width_out: float
+    width_out: float,
 ) -> None:
     """
     Compute peak statistics for a histogram, including mode and width.
@@ -101,26 +101,32 @@ def histogram_peakstats(
                     max_index = i
                     break
 
-    #bin center
-    mode_out[0] = edges_in[max_index] + 0.5 * (edges_in[max_index + 1] - edges_in[max_index])
-    
+    # bin center
+    mode_out[0] = edges_in[max_index] + 0.5 * (
+        edges_in[max_index + 1] - edges_in[max_index]
+    )
+
     hwhm_left = np.nan
     hwhm_right = np.nan
 
-    for i in range(max_index, n_bins): # to the right
+    for i in range(max_index, n_bins):  # to the right
         if skip_zeroes and weights_in[i] == 0:
             continue
         if weights_in[i] <= 0.5 * weights_in[max_index]:
-            hwhm_right = abs(mode_out[0] - edges_in[i]) # take the left edge of the first bin below ths
+            hwhm_right = abs(
+                mode_out[0] - edges_in[i]
+            )  # take the left edge of the first bin below threshold
             break
     else:
         hwhm_right = abs(mode_out[0] - edges_in[-1])
 
-    for i in range(max_index, -1, -1): # to the left
+    for i in range(max_index, -1, -1):  # to the left
         if skip_zeroes and weights_in[i] == 0:
             continue
         if weights_in[i] <= 0.5 * weights_in[max_index]:
-            hwhm_left = abs(mode_out[0] - edges_in[i+1]) # take the right edge of the first bin below ths
+            hwhm_left = abs(
+                mode_out[0] - edges_in[i + 1]
+            )  # take the right edge of the first bin below threshold
             break
     else:
         hwhm_left = abs(mode_out[0] - edges_in[0])
@@ -156,7 +162,7 @@ def histogram_stats(
     max_in: float,
 ) -> None:
     """Compute useful histogram-related quantities.
-    Be careful, since outputs are biased, as the computed mode is 
+    Be careful, since outputs are biased, as the computed mode is
     aligned with the left edge of the bin.
 
     Parameters

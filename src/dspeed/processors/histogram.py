@@ -83,7 +83,6 @@ def histogram(
                 break
 
 
-
 @guvectorize(
     [
         "void(float32[:], float32, float32, float32[:], float32[:])",
@@ -93,12 +92,16 @@ def histogram(
     **nb_kwargs,
 )
 def histogram_around_mode(
-    w_in: np.ndarray, center: float, bin_width: float, weights_out: np.ndarray, borders_out: np.ndarray
+    w_in: np.ndarray,
+    center: float,
+    bin_width: float,
+    weights_out: np.ndarray,
+    borders_out: np.ndarray,
 ) -> None:
     """Creates a histogram centered at a specified point.
-    If no point given, use the mode of the input data, resulting in two histogramming passes: 
-      1. using the full min-max range to determine the mode
-      2. histogramming around the mode to determine the final output histogram.
+    If no point given, use the mode of the input data, resulting in two histogramming passes:
+    1. using the full min-max range to determine the mode
+    2. histogramming around the mode to determine the final output histogram.
     If a valid center is given, only step 2 is performed.
     The number of samples is determined from the size of the output arrays.
     The histogram will always be aligned such that the center is in the center of a bin,
@@ -139,11 +142,11 @@ def histogram_around_mode(
     if len(weights_out) + 1 != len(borders_out):
         raise DSPFatal("length borders_out must be exactly 1 + length of weights_out")
 
-    #borders_out[:] = np.nan
+    # borders_out[:] = np.nan
 
     if np.isnan(w_in).any():
         raise DSPFatal("input data contains nan")
-    
+
     # number of bins
     n_bins = len(weights_out)
 
@@ -166,7 +169,7 @@ def histogram_around_mode(
         # make the histogram
         for i in range(0, len(w_in)):
             for k in range(0, n_bins):
-                if (w_in[i] - borders_out[k+1]) < 0:
+                if (w_in[i] - borders_out[k + 1]) < 0:
                     weights_out[k] += 1
                     break
 
@@ -175,14 +178,14 @@ def histogram_around_mode(
         # align center to bin_width
         center = np.round(center / bin_width) * bin_width
 
-    #(re)set
+    # (re)set
     weights_out[:] = 0
 
     hist_min = center - bin_width * (n_bins // 2) - 0.5 * bin_width
-    #hist_max = hist_min + bin_width * n_bins
+    # hist_max = hist_min + bin_width * n_bins
 
     # create the bin borders
-    for i in range(0, n_bins+1):
+    for i in range(0, n_bins + 1):
         borders_out[i] = hist_min + bin_width * i
     # make the histogram
     for i in range(0, len(w_in)):
@@ -190,8 +193,6 @@ def histogram_around_mode(
         if w_in[i] < borders_out[0]:
             continue
         for k in range(0, n_bins):
-            if (w_in[i] - borders_out[k+1]) < 0:
+            if (w_in[i] - borders_out[k + 1]) < 0:
                 weights_out[k] += 1
                 break
-
-
