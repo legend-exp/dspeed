@@ -63,7 +63,9 @@ def test_histogram_peakstats_wrong_size(compare_numba_vs_python):
     edges = np.array([0, 1, 2, 3, 4], dtype=np.float32)
     with pytest.raises(DSPFatal) as excinfo:
         compare_numba_vs_python(histogram_peakstats, weights, edges, np.nan, 0, 0)
-    assert "length edges_in must be exactly 1 + length of weights_in" in str(excinfo.value)
+    assert "length edges_in must be exactly 1 + length of weights_in" in str(
+        excinfo.value
+    )
 
 
 def test_histogram_peakstats_nan(compare_numba_vs_python):

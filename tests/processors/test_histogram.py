@@ -55,7 +55,7 @@ def test_histogram_around_mode_basic(compare_numba_vs_python):
     def wrapped(w_in, center, bin_width):
         _, _, _, w_o, b_o = compare_numba_vs_python(
             histogram_around_mode, w_in, center, bin_width, weights_out, borders_out
-            )
+        )
         return w_o, b_o
 
     # Center is nan, so mode will be computed
@@ -95,7 +95,9 @@ def test_histogram_around_mode_basic(compare_numba_vs_python):
     borders_out = np.zeros(n_bins, dtype=np.float32)
     with pytest.raises(DSPFatal) as excinfo:
         bin_weights, borders_out = wrapped(w_in, np.nan, bin_width)
-    assert "length borders_out must be exactly 1 + length of weights_out" in str(excinfo.value)
+    assert "length borders_out must be exactly 1 + length of weights_out" in str(
+        excinfo.value
+    )
 
 
 def test_histogram_around_mode_dsp(lgnd_test_data, tmptestdir):
