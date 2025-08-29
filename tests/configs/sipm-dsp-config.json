@@ -22,7 +22,7 @@
     },
     "fwhm, idx_out_c, max_out": {
       "function": "histogram_stats",
-      "module": "dspeed.processors.histogram",
+      "module": "dspeed.processors",
       "args": [
         "hist_weights",
         "hist_borders",
