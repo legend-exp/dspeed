@@ -2256,6 +2256,7 @@ def build_processing_chain(
     db_dict: dict = None,
     outputs: list[str] = None,
     block_width: int = 16,
+    lh5_in_aux: lgdo.Table = None,
 ) -> tuple[ProcessingChain, list[str], lgdo.Table]:
     """Produces a :class:`ProcessingChain` object and an LH5
     :class:`~lgdo.types.table.Table` for output parameters from an input LH5
@@ -2480,9 +2481,12 @@ def build_processing_chain(
     for input_par in input_par_list:
         buf_in = lh5_in.get(input_par)
         if buf_in is None:
-            log.warning(
-                f"I don't know what to do with '{input_par}'. Building output without it!"
-            )
+            if lh5_in_aux is not None:
+                buf_in = lh5_in_aux.get(input_par)
+            if buf_in is None:
+                log.warning(
+                    f"I don't know what to do with '{input_par}'. Building output without it!"
+                )
         try:
             proc_chain.link_input_buffer(input_par, buf_in)
         except Exception as e:
@@ -2662,11 +2666,14 @@ def build_processing_chain(
     for copy_par in copy_par_list:
         buf_in = lh5_in.get(copy_par)
         if buf_in is None:
-            log.warning(
-                f"Did not find {copy_par} in either input file or parameter list. Building output without it!"
-            )
-        else:
-            lh5_out.add_field(copy_par, buf_in)
+            if lh5_in_aux is not None:
+                buf_in = lh5_in_aux.get(input_par)
+            if buf_in is None:
+                log.warning(
+                    f"Did not find {copy_par} in either input file or parameter list. Building output without it!"
+                )
+            else:
+                lh5_out.add_field(copy_par, buf_in)
 
     # finally, add the output buffers to lh5_out and the proc chain
     for out_par in out_par_list:

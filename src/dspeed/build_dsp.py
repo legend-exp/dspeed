@@ -34,6 +34,8 @@ def build_dsp(
     buffer_len: int = 3200,
     block_width: int = 16,
     chan_config: Mapping[str, str] = None,
+    f_aux: str = None,
+    aux_type: str = "raw",
 ) -> None:
     """Convert raw-tier LH5 data into dsp-tier LH5 data by running a sequence
     of processors via the :class:`~.processing_chain.ProcessingChain`.
@@ -186,11 +188,15 @@ def build_dsp(
         for lh5_in in lh5_it:
             loading_time += time.time() - curr
             # Initialize
+            if f_aux is not None:
+                lh5_in_aux = lh5.read(f"{chan_name}/{aux_type}", f_aux)
+            else:
+                lh5_in_aux = None
 
             if proc_chain is None:
                 proc_chain_start = time.time()
                 proc_chain, lh5_it.field_mask, tb_out = build_processing_chain(
-                    lh5_in, dsp_config, db_dict, outputs, block_width
+                    lh5_in, dsp_config, db_dict, outputs, block_width, lh5_in_aux
                 )
                 if log.getEffectiveLevel() >= logging.INFO:
                     progress_bar = tqdm(

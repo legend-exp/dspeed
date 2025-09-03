@@ -70,6 +70,77 @@ def convolve_wf(
     w_out[:] = np.convolve(w_in, kernel, mode=mode)
 
 
+@guvectorize(
+    [
+        "void(float32[:], float32[:], char, int32, float32[:])",
+        "void(float64[:], float64[:], char, int32, float64[:])",
+    ],
+    "(n),(m),(),(),(p)",
+    **nb_kwargs(
+        forceobj=True,
+    ),
+)
+def convolve_wf_with_threshold(
+    w_in: np.ndarray, kernel: np.array, mode_in: np.int8, threshold: int, w_out: np.ndarray
+) -> None:  #
+    """
+    Parameters
+    ----------
+    w_in
+        the input waveform.
+    kernel
+        the kernel to convolve with
+    mode
+        mode of convolution options are f : full, v : valid or s : same,
+        explained here: https://numpy.org/doc/stable/reference/generated/numpy.convolve.html
+    threshold
+        threshold.
+    w_out
+        the filtered waveform.
+    """
+    w_out[:] = np.nan
+
+    if np.isnan(w_in).any():
+        return
+
+    if np.isnan(kernel).any():
+        return
+
+    if len(kernel) > len(w_in):
+        raise DSPFatal("The filter is longer than the input waveform")
+
+    if chr(mode_in) == "f":
+        mode = "full"
+        if len(w_out) != len(w_in) + len(kernel) - 1:
+            raise DSPFatal(
+                f"Output waveform has length {len(w_out)}; expect {len(w_in) + len(kernel) - 1}"
+            )
+    elif chr(mode_in) == "v":
+        mode = "valid"
+        if len(w_out) != abs(len(w_in) - len(kernel)) + 1:
+            raise DSPFatal(
+                f"Output waveform has length {len(w_out)}; expect {abs(len(w_in) - len(kernel)) + 1}"
+            )
+    elif chr(mode_in) == "s":
+        mode = "same"
+        if len(w_out) != max(len(w_in), len(kernel)):
+            raise DSPFatal(
+                "Output waveform has length {len(w_out)}; expect {max(len(w_in), len(kernel))}"
+            )
+    else:
+        raise DSPFatal("Invalid mode")
+
+    if np.isnan(threshold):
+        return
+    if threshold < 0:
+        raise DSPFatal("threshold must be positive")
+
+    if max(w_in) > threshold:
+        w_out[:] = np.convolve(w_in, kernel, mode=mode)
+    else:
+        w_out[:] = 0
+
+
 @dspeed_guvectorize(
     "(n),(m),(),(p)",
     ["ffbf", "ddbd"],
@@ -93,8 +164,9 @@ def fft_convolve_wf(
         the filtered waveform.
     """
     w_out[:] = np.nan
-    nan_ids = np.isnan(w_in).any(axis=-1)
-    w_in[nan_ids] = 0
+
+    if np.isnan(w_in).any():
+        return
 
     if np.isnan(kernel).any():
         return
@@ -113,8 +185,7 @@ def fft_convolve_wf(
 
     if len(kernel.shape) < len(w_in.shape):
         kernel = kernel.reshape((1, *kernel.shape))
-    w_out[:] = fftconvolve(w_in, kernel, mode=mode, axes=-1)
-    w_out[nan_ids] = np.nan
+    w_out[:] = fftconvolve(w_in, kernel, mode=mode)
 
 
 @guvectorize(
