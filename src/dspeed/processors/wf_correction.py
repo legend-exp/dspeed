@@ -16,7 +16,11 @@ from dspeed.utils import numba_defaults_kwargs as nb_kwargs
     **nb_kwargs,
 )
 def wf_correction(
-    w_in: np.ndarray, w_corr: np.ndarray, start_idx: int, stop_idx: int, w_out: np.ndarray
+    w_in: np.ndarray,
+    w_corr: np.ndarray,
+    start_idx: int,
+    stop_idx: int,
+    w_out: np.ndarray,
 ) -> None:
 
     if np.isnan(w_in).any():
@@ -46,4 +50,6 @@ def wf_correction(
 
     w_out[:] = w_in[:]
 
-    w_out[start_idx:stop_idx] = w_in[start_idx:stop_idx] - w_corr[:stop_idx - start_idx]
+    w_out[start_idx:stop_idx] = (
+        w_in[start_idx:stop_idx] - w_corr[: stop_idx - start_idx]
+    )

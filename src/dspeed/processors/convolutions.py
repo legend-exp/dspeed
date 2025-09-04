@@ -81,7 +81,11 @@ def convolve_wf(
     ),
 )
 def convolve_wf_with_threshold(
-    w_in: np.ndarray, kernel: np.array, mode_in: np.int8, threshold: int, w_out: np.ndarray
+    w_in: np.ndarray,
+    kernel: np.array,
+    mode_in: np.int8,
+    threshold: int,
+    w_out: np.ndarray,
 ) -> None:  #
     """
     Parameters
