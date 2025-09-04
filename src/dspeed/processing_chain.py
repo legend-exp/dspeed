@@ -2482,7 +2482,7 @@ def build_processing_chain(
         buf_in = lh5_in.get(input_par)
         if buf_in is None and lh5_in_aux:
             buf_in = lh5_in_aux.get(input_par)
-        elif buf_in is None:
+        if buf_in is None:
             log.warning(
                 f"I don't know what to do with '{input_par}'. Building output without it!"
             )
@@ -2666,7 +2666,7 @@ def build_processing_chain(
         buf_in = lh5_in.get(copy_par)
         if buf_in is None and lh5_in_aux:
             buf_in = lh5_in_aux.get(input_par)
-        elif buf_in is None:
+        if buf_in is None:
             log.warning(
                 f"Did not find {copy_par} in either input file or parameter list. Building output without it!"
             )
