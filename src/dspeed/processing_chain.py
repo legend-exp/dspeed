@@ -2480,13 +2480,12 @@ def build_processing_chain(
     # Now add all of the input buffers from lh5_in (and also the clk time)
     for input_par in input_par_list:
         buf_in = lh5_in.get(input_par)
-        if buf_in is None:
-            if lh5_in_aux is not None:
-                buf_in = lh5_in_aux.get(input_par)
-            if buf_in is None:
-                log.warning(
-                    f"I don't know what to do with '{input_par}'. Building output without it!"
-                )
+        if buf_in is None and lh5_in_aux:
+            buf_in = lh5_in_aux.get(input_par)
+        elif buf_in is None:
+            log.warning(
+                f"I don't know what to do with '{input_par}'. Building output without it!"
+            )
         try:
             proc_chain.link_input_buffer(input_par, buf_in)
         except Exception as e:
@@ -2665,15 +2664,14 @@ def build_processing_chain(
     # add inputs that are directly copied
     for copy_par in copy_par_list:
         buf_in = lh5_in.get(copy_par)
-        if buf_in is None:
-            if lh5_in_aux is not None:
-                buf_in = lh5_in_aux.get(input_par)
-            if buf_in is None:
-                log.warning(
-                    f"Did not find {copy_par} in either input file or parameter list. Building output without it!"
-                )
-            else:
-                lh5_out.add_field(copy_par, buf_in)
+        if buf_in is None and lh5_in_aux:
+            buf_in = lh5_in_aux.get(input_par)
+        elif buf_in is None:
+            log.warning(
+                f"Did not find {copy_par} in either input file or parameter list. Building output without it!"
+            )
+        else:
+            lh5_out.add_field(copy_par, buf_in)
 
     # finally, add the output buffers to lh5_out and the proc chain
     for out_par in out_par_list:
