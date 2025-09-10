@@ -168,9 +168,8 @@ def fft_convolve_wf(
         the filtered waveform.
     """
     w_out[:] = np.nan
-
-    if np.isnan(w_in).any():
-        return
+    nan_ids = np.isnan(w_in).any(axis=-1)
+    w_in[nan_ids] = 0
 
     if np.isnan(kernel).any():
         return
@@ -189,7 +188,8 @@ def fft_convolve_wf(
 
     if len(kernel.shape) < len(w_in.shape):
         kernel = kernel.reshape((1, *kernel.shape))
-    w_out[:] = fftconvolve(w_in, kernel, mode=mode)
+    w_out[:] = fftconvolve(w_in, kernel, mode=mode, axes=-1)
+    w_out[nan_ids] = np.nan
 
 
 @guvectorize(
