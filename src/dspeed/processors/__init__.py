@@ -69,7 +69,6 @@ _modules = {
     "convolve_exp": "convolutions",
     "convolve_wf": "convolutions",
     "fft_convolve_wf": "convolutions",
-    "convolve_wf_with_threshold": "convolutions",
     "discrete_wavelet_transform": "dwt",
     "cusp_filter": "energy_kernels",
     "dplms": "energy_kernels",
