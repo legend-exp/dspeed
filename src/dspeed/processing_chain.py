@@ -254,11 +254,10 @@ class ProcChainVar(ProcChainVarBase):
         super().__setattr__(name, value)
 
     def _make_buffer(self) -> np.ndarray:
-        shape = (
-            self.shape
-            if self.is_const
-            else (self.proc_chain._block_width,) + self.shape
-        )
+        if self.is_const:
+            shape = (1,) + self.shape
+        else:
+            shape = (self.proc_chain._block_width,) + self.shape
         len = np.prod(shape)
         # Flattened array, with padding to allow memory alignment
         buf = np.zeros(len + 64 // self.dtype.itemsize, dtype=self.dtype)
@@ -509,8 +508,8 @@ class ProcessingChain:
         param.is_const = True
 
         if isinstance(val, Quantity):
-            unit = val.unit
-            val = val.magnitude
+            unit = val.u
+            val = val.m
 
         val = np.array(val, dtype=dtype)
 
@@ -2048,10 +2047,7 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
 
     def write(self, start: int, end: int) -> None:
         self.io_array.resize(end)
-        if self.var.is_const:
-            self.io_array[start:end, ...] = self.raw_var[...]
-        else:
-            self.io_array[start:end, ...] = self.raw_var[0 : end - start, ...]
+        self.io_array[start:end, ...] = self.raw_var[0 : end - start, ...]
 
     def __str__(self) -> str:
         return f"{self.var} linked to lgdo.ArrayOfEqualSizedArrays(shape={self.io_array.shape}, dtype={self.io_array.dtype}, attrs={self.io_array.attrs})"
@@ -2500,19 +2496,22 @@ def build_processing_chain(
             if "args" not in recipe:
                 fun_str = recipe if isinstance(recipe, str) else recipe["function"]
                 fun_var = proc_chain.get_variable(fun_str)
-                if not isinstance(fun_var, ProcChainVar):
-                    raise ProcessingChainError(
-                        f"Could not find function {recipe['function']}"
+                if isinstance(fun_var, ProcChainVar):
+                    new_var = proc_chain.add_variable(
+                        name=proc_par,
+                        dtype=fun_var.dtype,
+                        shape=fun_var.shape,
+                        grid=fun_var.grid,
+                        unit=fun_var.unit,
+                        is_coord=fun_var.is_coord,
                     )
-                new_var = proc_chain.add_variable(
-                    name=proc_par,
-                    dtype=fun_var.dtype,
-                    shape=fun_var.shape,
-                    grid=fun_var.grid,
-                    unit=fun_var.unit,
-                    is_coord=fun_var.is_coord,
-                )
-                new_var._buffer = fun_var._buffer
+                    new_var._buffer = fun_var._buffer
+
+                else:
+                    new_var = proc_chain.set_constant(
+                        varname=proc_par,
+                        val = fun_var,
+                    )
                 log.debug(f"setting {new_var} = {fun_var}")
                 continue
 
