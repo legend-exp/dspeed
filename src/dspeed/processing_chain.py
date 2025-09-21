@@ -1219,7 +1219,7 @@ class ProcessingChain:
             return None
         if not isinstance(var, ProcChainVar):
             if isinstance(var, Quantity):
-                return fun(var.m, float(to_nearest / var.u))
+                return fun(float(var/to_nearest.u), to_nearest.m) * to_nearest.u
             else:
                 return fun(var, to_nearest)
         else:
