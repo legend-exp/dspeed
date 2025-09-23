@@ -92,7 +92,7 @@ class GUFuncWrapper:
         self.nout = len(self.out_dims)
         self.nargs = self.nin + self.nout
         self.types = [types] if isinstance(types, str) else types
-        self.ntypes = 1
+        self.ntypes = len(self.types)
         self.copy_out = copy_out
         self.vectorized = vectorized
         if doc_string:
