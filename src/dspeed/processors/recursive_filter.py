@@ -6,10 +6,15 @@ from numba import guvectorize
 from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
-@guvectorize( [
+
+@guvectorize(
+    [
         "void(float32[:], float32[:], float32[:], float32, float32, float32[:])",
         "void(float64[:], float64[:], float64[:], float64, float64, float64[:])",
-    ], "(n),(p),(q),(),()->(n)", nopython=True, **nb_kwargs
+    ],
+    "(n),(p),(q),(),()->(n)",
+    nopython=True,
+    **nb_kwargs,
 )
 def recursive_filter(w_in, a, b, init_in, init_out, w_out):
     r"""
@@ -47,31 +52,39 @@ def recursive_filter(w_in, a, b, init_in, init_out, w_out):
     """
 
     w_out[:] = np.nan
-    if np.isnan(w_in).any() or np.isnan(a).any() or np.isnan(b).any() or np.isnan(init_in) or np.isnan(init_out):
+    if (
+        np.isnan(w_in).any()
+        or np.isnan(a).any()
+        or np.isnan(b).any()
+        or np.isnan(init_in)
+        or np.isnan(init_out)
+    ):
         return
 
     if len(b) == 0:
-        raise DSPFatal(f"b cannot be scalar")
+        raise DSPFatal("b cannot be scalar")
     if len(w_in) <= len(b):
-        raise DSPFatal(f"The length of the waveform must be larger than {len(b)} for the filter to work safely")
+        raise DSPFatal(
+            f"The length of the waveform must be larger than {len(b)} for the filter to work safely"
+        )
 
     # circular buffer; make float64 to mitigate numerical instabilities
-    circ_buf = np.full(len(b), init_out, dtype='float64')
+    circ_buf = np.full(len(b), init_out, dtype="float64")
 
     for i in range(len(w_out)):
-        i_buf = i%len(circ_buf)
+        i_buf = i % len(circ_buf)
 
         circ_buf[i_buf] = 0
         # feed forward
         for j in range(len(a)):
             if j <= i:
-                circ_buf[i_buf] += a[j] * w_in[i-j]
+                circ_buf[i_buf] += a[j] * w_in[i - j]
             else:
                 circ_buf[i_buf] += a[j] * init_in
 
         # feed back
         for j in range(1, len(b)):
-            circ_buf[i_buf] -= b[j] * circ_buf[i_buf-j]
+            circ_buf[i_buf] -= b[j] * circ_buf[i_buf - j]
 
         circ_buf[i_buf] /= b[0]
 

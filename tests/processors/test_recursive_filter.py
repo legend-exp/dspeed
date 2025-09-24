@@ -39,9 +39,7 @@ def test_recursive_filter(compare_numba_vs_python):
 
     assert np.all(
         np.isnan(
-            compare_numba_vs_python(
-                recursive_filter, w_in, a_wrong_in, b_in, 0, 0
-            )
+            compare_numba_vs_python(recursive_filter, w_in, a_wrong_in, b_in, 0, 0)
         )
     )
 
@@ -51,9 +49,7 @@ def test_recursive_filter(compare_numba_vs_python):
 
     assert np.all(
         np.isnan(
-            compare_numba_vs_python(
-                recursive_filter, w_in, a_in, b_wrong_in, 0, 0
-            )
+            compare_numba_vs_python(recursive_filter, w_in, a_in, b_wrong_in, 0, 0)
         )
     )
 

@@ -43,6 +43,7 @@ def test_waveform_slicing(geds_raw_tbl):
     assert isinstance(tbl_out["wf_blsub"], lgdo.WaveformTable)
     assert tbl_out["wf_blsub"].wf_len == 500
 
+
 def test_processor_none_arg(geds_raw_tbl):
     dsp_config = {
         "outputs": ["wf_cum"],
@@ -294,7 +295,17 @@ def test_proc_chain_round(spms_raw_tbl):
 
     # test rounding of united variables and scalars
     dsp_config = {
-        "outputs": ["tp_max", "t_round", "t_floor", "t_ceil", "t_trunc", "c_round", "c_floor", "c_ceil", "c_trunc"],
+        "outputs": [
+            "tp_max",
+            "t_round",
+            "t_floor",
+            "t_ceil",
+            "t_trunc",
+            "c_round",
+            "c_floor",
+            "c_ceil",
+            "c_trunc",
+        ],
         "processors": {
             "tp_min, tp_max, wf_min, wf_max": {
                 "function": "min_max",
@@ -321,10 +332,11 @@ def test_proc_chain_round(spms_raw_tbl):
     assert np.ceil(tp) == lh5_out["t_ceil"][0]
     assert np.trunc(tp) == lh5_out["t_trunc"][0]
 
-    assert lh5_out["c_round"][0] == 992 # round to even...
+    assert lh5_out["c_round"][0] == 992  # round to even...
     assert lh5_out["c_floor"][0] == 992
     assert lh5_out["c_ceil"][0] == 1008
     assert lh5_out["c_trunc"][0] == 992
+
 
 def test_proc_chain_where(spms_raw_tbl):
     # test with variable and const
