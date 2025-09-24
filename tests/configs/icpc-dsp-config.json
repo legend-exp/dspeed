@@ -42,12 +42,7 @@
       "args": ["waveform", "tp_min", "tp_max", "wf_min", "wf_max"],
       "unit": ["ns", "ns", "ADC", "ADC"]
     },
-    "wf_blsub": {
-      "function": "bl_subtract",
-      "module": "dspeed.processors",
-      "args": ["waveform", "baseline", "wf_blsub"],
-      "unit": "ADC"
-    },
+    "wf_blsub": "dspeed.processors.bl_subtract(waveform, baseline, wf_blsub(unit='ADC'))",
     "bl_mean , bl_std, bl_slope, bl_intercept": {
       "function": "linear_slope_fit",
       "module": "dspeed.processors",
@@ -231,9 +226,7 @@
       "unit": "ADC"
     },
     "zacEmax": {
-      "function": "amax",
-      "module": "numpy",
-      "args": ["wf_zac", 1, "zacEmax"],
+      "function": "numpy.amax(wf_zac, 1, zacEmax)",
       "kwargs": { "signature": "(n),()->()", "types": ["fi->f"] },
       "unit": "ADC"
     },

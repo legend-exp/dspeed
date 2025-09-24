@@ -254,11 +254,10 @@ class ProcChainVar(ProcChainVarBase):
         super().__setattr__(name, value)
 
     def _make_buffer(self) -> np.ndarray:
-        shape = (
-            self.shape
-            if self.is_const
-            else (self.proc_chain._block_width,) + self.shape
-        )
+        if self.is_const:
+            shape = (1,) + self.shape
+        else:
+            shape = (self.proc_chain._block_width,) + self.shape
         len = np.prod(shape)
         # Flattened array, with padding to allow memory alignment
         buf = np.zeros(len + 64 // self.dtype.itemsize, dtype=self.dtype)
@@ -509,8 +508,8 @@ class ProcessingChain:
         param.is_const = True
 
         if isinstance(val, Quantity):
-            unit = val.unit
-            val = val.magnitude
+            unit = val.u
+            val = val.m
 
         val = np.array(val, dtype=dtype)
 
@@ -1220,7 +1219,7 @@ class ProcessingChain:
             return None
         if not isinstance(var, ProcChainVar):
             if isinstance(var, Quantity):
-                return fun(var.m, float(to_nearest / var.u))
+                return fun(float(var / to_nearest.u), to_nearest.m) * to_nearest.u
             else:
                 return fun(var, to_nearest)
         else:
@@ -2048,10 +2047,7 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
 
     def write(self, start: int, end: int) -> None:
         self.io_array.resize(end)
-        if self.var.is_const:
-            self.io_array[start:end, ...] = self.raw_var[...]
-        else:
-            self.io_array[start:end, ...] = self.raw_var[0 : end - start, ...]
+        self.io_array[start:end, ...] = self.raw_var[0 : end - start, ...]
 
     def __str__(self) -> str:
         return f"{self.var} linked to lgdo.ArrayOfEqualSizedArrays(shape={self.io_array.shape}, dtype={self.io_array.dtype}, attrs={self.io_array.attrs})"
@@ -2370,11 +2366,70 @@ def build_processing_chain(
         if isinstance(node, str):
             node = {"function": node}
             processors[key] = node
-        if "args" in node:
-            args = node["args"]
-        else:
-            args = [node["function"]]
 
+        if "function" not in node:
+            raise ProcessingChainError
+        function = node["function"]
+        f_parse = ast.parse(function, mode="eval").body
+
+        mod_err_str = f"Module specified twice for parameter {key}"
+        args_err_str = (
+            f"Cannot specify arguments if function is expr for parameter {key}"
+        )
+        if isinstance(f_parse, ast.Name):
+            pass
+        elif isinstance(f_parse, ast.Attribute):
+            node["function"] = f_parse.attr
+            if "module" in node:
+                raise ProcessingChainError(mod_err_str)
+            node["module"] = function[
+                f_parse.value.col_offset : f_parse.value.end_col_offset
+            ]
+        elif isinstance(f_parse, ast.Call):
+            # this is a function. Parse arguments from here
+            if "args" in node:
+                raise ProcessingChainError(args_err_str)
+
+            if (
+                isinstance(f_parse.func, ast.Name)
+                and f_parse.func.id in ProcessingChain.func_list
+                and "module" not in node
+            ):
+                # this should be treated as an inline expression assignment
+                node["module"] = None
+                node["args"] = [function]
+            elif isinstance(f_parse.func, ast.Name):
+                node["function"] = f_parse.func.id
+                node["args"] = [
+                    function[a.col_offset : a.end_col_offset]
+                    for a in f_parse.args + f_parse.keywords
+                ]
+            elif isinstance(f_parse.func, ast.Attribute):
+                node["function"] = f_parse.func.attr
+                if "module" in node:
+                    raise ProcessingChainError(mod_err_str)
+                mod = f_parse.func.value
+                node["module"] = function[mod.col_offset : mod.end_col_offset]
+                node["args"] = [
+                    function[a.col_offset : a.end_col_offset]
+                    for a in f_parse.args + f_parse.keywords
+                ]
+        else:
+            # this is an expression that ProcessingChain will try to parse
+            if "args" in node:
+                raise ProcessingChainError(args_err_str)
+            if "module" in node:
+                raise ProcessingChainError(mod_err_str)
+            node["module"] = None
+            node["args"] = [function]
+
+        if "module" not in node:
+            raise ProcessingChainError(f"Could not find module for parameter {key}")
+        if "args" not in node:
+            raise ProcessingChainError(f"Could not find args for parameter {key}")
+
+        # substitute database values in arguments
+        args = node["args"]
         for i, arg in enumerate(args):
             if not isinstance(arg, str):
                 continue
@@ -2497,36 +2552,30 @@ def build_processing_chain(
             # if we are invoking a built in expression, have the parser
             # add it to the processing chain, and then add a new variable
             # that shares its buffer
-            if "args" not in recipe:
-                fun_str = recipe if isinstance(recipe, str) else recipe["function"]
-                fun_var = proc_chain.get_variable(fun_str)
-                if not isinstance(fun_var, ProcChainVar):
-                    raise ProcessingChainError(
-                        f"Could not find function {recipe['function']}"
+            if recipe["module"] is None:
+                assert len(recipe["args"]) == 1
+                fun_var = proc_chain.get_variable(recipe["args"][0])
+                if isinstance(fun_var, ProcChainVar):
+                    new_var = proc_chain.add_variable(
+                        name=proc_par,
+                        dtype=fun_var.dtype,
+                        shape=fun_var.shape,
+                        grid=fun_var.grid,
+                        unit=fun_var.unit,
+                        is_coord=fun_var.is_coord,
                     )
-                new_var = proc_chain.add_variable(
-                    name=proc_par,
-                    dtype=fun_var.dtype,
-                    shape=fun_var.shape,
-                    grid=fun_var.grid,
-                    unit=fun_var.unit,
-                    is_coord=fun_var.is_coord,
-                )
-                new_var._buffer = fun_var._buffer
+                    new_var._buffer = fun_var._buffer
+
+                else:
+                    new_var = proc_chain.set_constant(
+                        varname=proc_par,
+                        val=fun_var,
+                    )
                 log.debug(f"setting {new_var} = {fun_var}")
                 continue
 
-            if "module" in recipe:
-                module = importlib.import_module(recipe["module"])
-                func = getattr(module, recipe["function"])
-            else:
-                p = recipe["function"].rfind(".")
-                if p < 0:
-                    raise ProcessingChainError(
-                        f"Must provide a module for function {recipe['function']}"
-                    )
-                module = importlib.import_module(recipe["function"][:p])
-                func = getattr(module, recipe["function"][p + 1 :])
+            module = importlib.import_module(recipe["module"])
+            func = getattr(module, recipe["function"])
 
             args = recipe["args"]
             new_vars = [k for k in re.split(",| ", proc_par) if k != ""]

@@ -25,6 +25,24 @@ def test_waveform_slicing(geds_raw_tbl):
     assert isinstance(tbl_out["wf_blsub"], lgdo.WaveformTable)
     assert tbl_out["wf_blsub"].wf_len == 100
 
+    dsp_config = {
+        "outputs": ["wf_blsub"],
+        "processors": {
+            "wf_blsub": {
+                "function": "bl_subtract",
+                "module": "dspeed.processors",
+                "args": ["waveform[2*us:10*us]", "baseline", "wf_blsub"],
+                "unit": "ADC",
+            },
+        },
+    }
+    proc_chain, _, tbl_out = build_processing_chain(geds_raw_tbl, dsp_config)
+    proc_chain.execute(0, 1)
+
+    assert list(tbl_out.keys()) == ["wf_blsub"]
+    assert isinstance(tbl_out["wf_blsub"], lgdo.WaveformTable)
+    assert tbl_out["wf_blsub"].wf_len == 500
+
 
 def test_processor_none_arg(geds_raw_tbl):
     dsp_config = {
@@ -256,6 +274,7 @@ def test_proc_chain_coordinate_grid(spms_raw_tbl):
 
 
 def test_proc_chain_round(spms_raw_tbl):
+    # Test rounding of non-united variables
     dsp_config = {
         "outputs": ["w_round", "w_floor", "w_ceil", "w_trunc"],
         "processors": {
@@ -273,6 +292,50 @@ def test_proc_chain_round(spms_raw_tbl):
     assert np.all(np.floor(wf / 4) * 4 == lh5_out["w_floor"].values[0])
     assert np.all(np.ceil(wf / 4) * 4 == lh5_out["w_ceil"].values[0])
     assert np.all(np.trunc(wf / 4) * 4 == lh5_out["w_trunc"].values[0])
+
+    # test rounding of united variables and scalars
+    dsp_config = {
+        "outputs": [
+            "tp_max",
+            "t_round",
+            "t_floor",
+            "t_ceil",
+            "t_trunc",
+            "c_round",
+            "c_floor",
+            "c_ceil",
+            "c_trunc",
+        ],
+        "processors": {
+            "tp_min, tp_max, wf_min, wf_max": {
+                "function": "min_max",
+                "module": "dspeed.processors",
+                "args": ["waveform", "tp_min", "tp_max", "wf_min", "wf_max"],
+                "unit": ["us", "us", "ADC", "ADC"],
+            },
+            "t_round": "round(tp_max, 1*us)",
+            "t_floor": "floor(tp_max, 1*us)",
+            "t_ceil": "ceil(tp_max, 1*us)",
+            "t_trunc": "trunc(tp_max, 1*us)",
+            "c_round": "round(1*us, waveform.period)",
+            "c_floor": "floor(1*us, waveform.period)",
+            "c_ceil": "ceil(1*us, waveform.period)",
+            "c_trunc": "trunc(1*us, waveform.period)",
+        },
+    }
+
+    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
+    proc_chain.execute(0, 1)
+    tp = lh5_out["tp_max"][0]
+    assert np.rint(tp) == lh5_out["t_round"][0]
+    assert np.floor(tp) == lh5_out["t_floor"][0]
+    assert np.ceil(tp) == lh5_out["t_ceil"][0]
+    assert np.trunc(tp) == lh5_out["t_trunc"][0]
+
+    assert lh5_out["c_round"][0] == 992  # round to even...
+    assert lh5_out["c_floor"][0] == 992
+    assert lh5_out["c_ceil"][0] == 1008
+    assert lh5_out["c_trunc"][0] == 992
 
 
 def test_proc_chain_where(spms_raw_tbl):
