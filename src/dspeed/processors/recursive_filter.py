@@ -18,11 +18,12 @@ def recursive_filter(w_in, a, b, init_in, init_out, w_out):
 
     .. math::
         w_{out}[i] = (a[0]*w_{in}[i] + a[1]*w_{in}[i-1] + a[2]*w_{in}[i-2] + ... - b[1]*w_{out}[i-1] - b[2]*w_{out}[i-2] - ...)/b[0]
-    
+
     When performing a z-transform, ``a`` and ``b`` represent the polynomial coefficients of the numerator and denominator, respectively:
 
     ..math::
         F(z) = \frac{a[0] + a[1]*z^{-1} + a[2]*z^{-2} + ...}{b[0] + b[1]*z^{-1} + b[2]*z^{-2} + ...}
+
     See `scipy.signal.iir_filter <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.iirfilter.html>`_
     for an example of how to generate these coefficients (using ``'ba'`` output).
 
