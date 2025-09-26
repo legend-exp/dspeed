@@ -2252,6 +2252,7 @@ def build_processing_chain(
     db_dict: dict = None,
     outputs: list[str] = None,
     block_width: int = 16,
+    lh5_in_aux: lgdo.Table = None,
 ) -> tuple[ProcessingChain, list[str], lgdo.Table]:
     """Produces a :class:`ProcessingChain` object and an LH5
     :class:`~lgdo.types.table.Table` for output parameters from an input LH5
@@ -2534,6 +2535,8 @@ def build_processing_chain(
     # Now add all of the input buffers from lh5_in (and also the clk time)
     for input_par in input_par_list:
         buf_in = lh5_in.get(input_par)
+        if buf_in is None and lh5_in_aux:
+            buf_in = lh5_in_aux.get(input_par)
         if buf_in is None:
             log.warning(
                 f"I don't know what to do with '{input_par}'. Building output without it!"
@@ -2710,6 +2713,8 @@ def build_processing_chain(
     # add inputs that are directly copied
     for copy_par in copy_par_list:
         buf_in = lh5_in.get(copy_par)
+        if buf_in is None and lh5_in_aux:
+            buf_in = lh5_in_aux.get(input_par)
         if buf_in is None:
             log.warning(
                 f"Did not find {copy_par} in either input file or parameter list. Building output without it!"

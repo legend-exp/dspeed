@@ -144,6 +144,7 @@ _modules = {
     "interpolating_upsampler": "upsampler",
     "upsampler": "upsampler",
     "wf_alignment": "wf_alignment",
+    "wf_correction": "wf_correction",
     "where": "where",
     "wiener_filter": "wiener_filter",
     "windower": "windower",
