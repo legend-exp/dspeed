@@ -37,17 +37,20 @@ def wf_alignment(
     w_out
         aligned waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_align": {
-          "function": "wf_alignment",
-          "module": "dspeed.processors",
-          "args": ["waveform", "centroid", "shift", "size", "wf_align"],
-          "unit": "ADC"
-        }
+        wf_align:
+          function: wf_alignment
+          module: dspeed.processors
+          args:
+            - waveform
+            - centroid
+            - shift
+            - size
+            - wf_align
     """
 
     w_out[:] = np.nan

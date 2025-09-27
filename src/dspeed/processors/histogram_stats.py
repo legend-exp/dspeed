@@ -55,18 +55,25 @@ def histogram_peakstats(
     width_out
         Output: the computed width value.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "mode_out, width_out": {
-            "function": "histogram_peakstats",
-            "module": "dspeed.processors",
-            "args": ["hist_weights", "hist_borders", "np.nan", 0, 0, "mode_out", "width_out"],
-            "unit": ["ADC", "ADC"]
-        }
-
+        mode_out, width_out:
+          function: histogram_peakstats
+          module: dspeed.processors
+          args:
+            - hist_weights
+            - hist_borders
+            - np.nan
+            - 0
+            - 0
+            - mode_out
+            - width_out
+          unit:
+            - ADC
+            - ADC
     See Also
     --------
     .histogram_around_mode
@@ -184,18 +191,25 @@ def histogram_stats(
         The calculations starts from the mode and descends left and right, taking
         the largest HWHM found in either direction.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "hwhm, idx_out, mode_out": {
-            "function": "histogram_stats",
-            "module": "dspeed.processors",
-            "args": ["hist_weights","hist_borders","idx_out","mode_out","hwhm","np.nan"],
-            "unit": ["ADC", "none", "ADC"]
-        }
-
+        hwhm, idx_out, mode_out:
+          function: histogram_stats
+          module: dspeed.processors
+          args:
+            - hist_weights
+            - hist_borders
+            - idx_out
+            - mode_out
+            - hwhm
+            - np.nan
+          unit:
+            - ADC
+            - none
+            - ADC
     See Also
     --------
     .histogram
