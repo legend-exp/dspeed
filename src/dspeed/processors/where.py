@@ -29,20 +29,23 @@ def where(condition, a, b, out):
         output:
             array containing output values
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
     Note: this processor is aliased using `where` in ProcessingChain and
     the `a if b else c` syntax. The following examples are equivalent.
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "a_or_b": {
-            "function": "dspeed.processors.where",
-            "args": ["condition", "a", "b", "a_or_b"],
-        }
-        "a_or_b": "where(condition, a, b)"
-        "a_or_b": "a if condition else b"
+        a_or_b:
+          function: dspeed.processors.where
+          args:
+            - condition
+            - a
+            - b
+            - a_or_b
+        a_or_b: "where(condition, a, b)"
+        a_or_b: "a if condition else b"
     """
 
     out[:] = np.where(condition, a, b)

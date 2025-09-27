@@ -23,17 +23,18 @@ def log_check(w_in: np.ndarray, w_log: np.ndarray) -> None:
     w_log
         the output waveform with logged values.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_logged": {
-            "function": "log_check",
-            "module": "dspeed.processors",
-            "args": ["wf_blsub[2100:]", "wf_logged"],
-            "unit": "ADC"
-        }
+        wf_logged:
+          function: log_check
+          module: dspeed.processors
+          args:
+            - "wf_blsub[2100:]"
+            - wf_logged
+          unit: ADC
     """
     w_log[:] = np.nan
 

@@ -86,17 +86,19 @@ def interpolating_upsampler(
     w_out
         output array for upsampled waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_up": {
-            "function": "interpolating_upsampler",
-            "module": "dspeed.processors",
-            "args": ["wf", "'s'", "wf_up(len(wf)*10, period=wf.period/10)"],
-            "unit": "ADC"
-        }
+        wf_up:
+          function: interpolating_upsampler
+          module: dspeed.processors
+          args:
+            - wf
+            - "'s'"
+            - "wf_up(len(wf)*10, period=wf.period/10)"
+          unit: ADC
     """
 
     w_out[:] = np.nan

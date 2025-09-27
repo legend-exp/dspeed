@@ -28,17 +28,19 @@ def rc_cr2(w_in: np.array, t_tau: float, w_out: np.array) -> None:
     w_out
         the RC-CR^2 filtered waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_RC_CR2": {
-            "function": "rc_cr2",
-            "module": "dspeed.processors",
-            "args": ["wf_bl", "300*ns", "wf_RC_CR2"],
-            "unit": "ADC"
-        }
+        wf_RC_CR2:
+          function: rc_cr2
+          module: dspeed.processors
+          args:
+            - wf_bl
+            - "300*ns"
+            - wf_RC_CR2
+          unit: ADC
     """
     w_out[:] = np.nan
 

@@ -24,17 +24,19 @@ def pole_zero(w_in: np.ndarray, t_tau: float, w_out: np.ndarray) -> None:
     w_out
         the pole-zero cancelled waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_pz": {
-            "function": "pole_zero",
-            "module": "dsp_tutorial",
-            "args": ["wf_bl", "400*us", "wf_pz"],
-            "unit": "ADC"
-        }
+        wf_pz:
+          function: pole_zero
+          module: dsp_tutorial
+          args:
+            - wf_bl
+            - "400*us"
+            - wf_pz
+          unit: ADC
     """
     if np.isnan(t_tau) or t_tau == 0:
         raise DSPFatal("t_tau must be a non-zero number")
@@ -65,17 +67,18 @@ def derivative(w_in: np.ndarray, w_out: np.ndarray):
     w_out
         the derivative waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_deriv": {
-            "function": "derivative",
-            "module": "dsp_tutorial",
-            "args": ["wf_in", "wf_deriv(shape=len(wf_in)-5)"],
-            "unit": "ADC/us"
-        }
+        wf_deriv:
+          function: derivative
+          module: dsp_tutorial
+          args:
+            - wf_in
+            - "wf_deriv(shape=len(wf_in)-5)"
+          unit: ADC/us
     """
     n_samp = len(w_in) - len(w_out)
     if n_samp < 0:
@@ -107,17 +110,19 @@ def gauss_filter(w_in: np.ndarray, sigma: float, w_out: np.ndarray):
     w_out
         the derivative waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_gauss": {
-            "function": "gauss_filter",
-            "module": "dsp_tutorial",
-            "args": ["wf_in", "100*ns", "wf_gauss"],
-            "unit": "ADC"
-        }
+        wf_gauss:
+          function: gauss_filter
+          module: dsp_tutorial
+          args:
+            - wf_in
+            - "100*ns"
+            - wf_gauss
+          unit: ADC
     """
 
     w_out[:] = np.nan
@@ -139,18 +144,20 @@ def triangle_filter(length: int):
     Returns
         gufunc for triangle filter
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_tri": {
-            "function": "triangle_filter",
-            "module": "dsp_tutorial",
-            "args": ["wf_in", "wf_gauss"],
-            "init_args": ["100*ns"]
-            "unit": "ADC"
-        }
+        wf_tri:
+          function: triangle_filter
+          module: dsp_tutorial
+          args:
+            - wf_in
+            - wf_gauss
+          init_args:
+            - "100*ns"
+          unit: ADC
     """
 
     # build triangular kernel

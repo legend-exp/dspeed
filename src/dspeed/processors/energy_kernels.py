@@ -31,17 +31,20 @@ def cusp_filter(sigma: float, flat: int, decay: int, kernel: np.array) -> None:
     kernel
         the calculated kernel
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "kern_cusp": {
-            "function": "cusp_filter",
-            "module": "dspeed.processors",
-            "args": ["10*us", "3*us", "400*us", "kern_cusp"],
-            "unit": "ADC"
-        }
+        kern_cusp:
+          function: cusp_filter
+          module: dspeed.processors
+          args:
+            - "10*us"
+            - "3*us"
+            - "400*us"
+            - kern_cusp
+          unit: ADC
     """
 
     if sigma < 0:
@@ -93,17 +96,20 @@ def zac_filter(sigma: float, flat: int, decay: int, kernel: np.array) -> None:
     kernel
         the calculated kernel
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "kern_zac": {
-            "function": "zac_filter",
-            "module": "dspeed.processors",
-            "args": ["10*us", "3*us", "400*us", "kern_zac"],
-            "unit": "ADC"
-        }
+        kern_zac:
+          function: zac_filter
+          module: dspeed.processors
+          args:
+            - "10*us"
+            - "3*us"
+            - "400*us"
+            - kern_zac
+          unit: ADC
     """
 
     if sigma < 0:
@@ -199,20 +205,23 @@ def dplms(
         output kernel
 
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "kern_dplms": {
-            "function": "dplms",
-            "module": "dspeed.processors",
-            "args": ["db.dplms.noise_matrix",
-                "db.dplms.reference",
-                "50", "0.1", "1", "1"
-                "kern_dplms"],
-            "unit": "ADC",
-        }
+        kern_dplms:
+          function: dplms
+          module: dspeed.processors
+          args:
+            - db.dplms.noise_matrix
+            - db.dplms.reference
+            - 50
+            - 0.1
+            - 1
+            - 1
+            - kern_dplms
+          unit: ADC
     """
 
     noise_mat = np.array(noise_mat)

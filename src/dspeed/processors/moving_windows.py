@@ -28,17 +28,19 @@ def moving_window_left(w_in: np.ndarray, length: float, w_out: np.ndarray) -> No
     w_out
         output waveform after moving window applied.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_mw": {
-            "function": "moving_window_left",
-            "module": "dspeed.processors",
-            "args": ["wf_pz", "96*ns", "wf_mw"],
-            "unit": "ADC"
-        }
+        wf_mw:
+          function: moving_window_left
+          module: dspeed.processors
+          args:
+            - wf_pz
+            - "96*ns"
+            - wf_mw
+          unit: ADC
     """
 
     w_out[:] = np.nan
@@ -75,17 +77,19 @@ def moving_window_right(w_in: np.ndarray, length: float, w_out: np.ndarray) -> N
     w_out
         output waveform after moving window applied.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_mw": {
-            "function": "moving_window_right",
-            "module": "dspeed.processors",
-            "args": ["wf_pz", "96*ns", "wf_mw"],
-            "unit": "ADC"
-        }
+        wf_mw:
+          function: moving_window_right
+          module: dspeed.processors
+          args:
+            - wf_pz
+            - "96*ns"
+            - wf_mw
+          unit: ADC
     """
 
     w_out[:] = np.nan
@@ -139,17 +143,21 @@ def moving_window_multi(
     w_out
         the windowed waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "curr_av": {
-            "function": "moving_window_multi",
-            "module": "dspeed.processors",
-            "args": ["curr", "96*ns", "3", "0", "curr_av"],
-            "unit": "ADC/sample"
-        }
+        curr_av:
+          function: moving_window_multi
+          module: dspeed.processors
+          args:
+            - curr
+            - "96*ns"
+            - 3
+            - 0
+            - curr_av
+          unit: ADC/sample
     """
     w_out[:] = np.nan
 
@@ -212,17 +220,19 @@ def avg_current(w_in: np.ndarray, length: float, w_out: np.ndarray) -> None:
     w_out
         output waveform after derivation.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "curr": {
-            "function": "avg_current",
-            "module": "dspeed.processors",
-            "args": ["wf_pz", 1, "curr(len(wf_pz)-1, f)"],
-            "unit": "ADC/sample"
-        }
+        curr:
+          function: avg_current
+          module: dspeed.processors
+          args:
+            - wf_pz
+            - 1
+            - "curr(len(wf_pz)-1, f)"
+          unit: ADC/sample
     """
 
     w_out[:] = np.nan

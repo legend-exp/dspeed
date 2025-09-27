@@ -33,17 +33,20 @@ def soft_pileup_corr(
     w_out
         The output waveform with the exponential subtracted.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_bl": {
-            "function": "soft_pileup_corr",
-            "module": "dspeed.processors",
-            "args": ["waveform", "1000", "500*us", "wf_bl"],
-            "unit": "ADC"
-        }
+      wf_bl:
+        function: soft_pileup_corr
+        module: dspeed.processors
+        args:
+          - waveform
+          - "1000"
+          - "500*us"
+          - wf_bl
+        unit: ADC
     """
     w_out[:] = np.nan
 
@@ -105,17 +108,21 @@ def soft_pileup_corr_bl(
     w_out
         the output waveform with the exponential subtracted.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_bl": {
-            "function": "soft_pileup_corr_bl",
-            "module": "dspeed.processors",
-            "args": ["waveform", "1000", "500*us", "baseline", "wf_bl"],
-            "unit": "ADC"
-        }
+      wf_bl:
+        function: soft_pileup_corr_bl
+        module: dspeed.processors
+        args:
+          - waveform
+          - "1000"
+          - "500*us"
+          - baseline
+          - wf_bl
+        unit: ADC
     """
     w_out[:] = np.nan
 
