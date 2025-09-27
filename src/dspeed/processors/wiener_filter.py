@@ -27,18 +27,20 @@ def wiener_filter(file_name_array: list[str]) -> np.ndarray:
         superpulse HDF5 group must be titled ``spms/processed/superpulse`` and
         the noise waveform must be called ``spms/processed/noise_wf``.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_wiener": {
-            "function": "wiener_filter",
-            "module": "dspeed.processors",
-            "args": ["wf_bl_fft", "wf_wiener(2000,f)"],
-            "unit": "dB",
-            "init_args": ["/path/to/file/wiener.lh5"]
-        }
+        wf_wiener:
+          function: wiener_filter
+          module: dspeed.processors
+          args:
+            - wf_bl_fft
+            - "wf_wiener(2000,f)"
+          unit: dB
+          init_args:
+            - /path/to/file/wiener.lh5
     """
 
     sto = lh5.LH5Store()

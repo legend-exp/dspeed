@@ -31,10 +31,10 @@ def inl_correction(w_in: np.ndarray, inl: np.ndarray, w_out: np.ndarray) -> None
     w_out
         corrected waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
       "wf_corr": {
           "function": "inl_correction",

@@ -71,18 +71,22 @@ def optimize_1pz(
     val0_out
         the output value of the best-fit time constant.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "tau0": {
-            "function": "optimize_1pz",
-            "module": "dspeed.processors",
-            "args": ["waveform", "baseline", "0", "20*us", "500*us", "tau0"],
-            "unit": "us"
-        }
-
+        tau0:
+          function: optimize_1pz
+          module: dspeed.processors
+          args:
+            - waveform
+            - baseline
+            - 0
+            - "20*us"
+            - "500*us"
+            - tau0
+          unit: us
     See Also
     --------
     ~.pole_zero.pole_zero, .double_pole_zero
@@ -174,20 +178,26 @@ def optimize_2pz(
     val2_out
         the output value of the best-fit fraction.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "tau1, tau2, frac": {
-            "function": "optimize_2pz",
-            "module": "dspeed.processors",
-            "args": [
-                "waveform", "baseline", "0", "20*us", "500*us",
-                "20*us", "0.02", "tau1", "tau2", "frac"
-            ],
-            "unit": "us"
-        }
+        tau1, tau2, frac:
+          function: optimize_2pz
+          module: dspeed.processors
+          args:
+            - waveform
+            - baseline
+            - 0
+            - "20*us"
+            - "500*us"
+            - "20*us"
+            - 0.02
+            - tau1
+            - tau2
+            - frac
+          unit: us
     """
     val0_out[0] = np.nan
     val1_out[0] = np.nan

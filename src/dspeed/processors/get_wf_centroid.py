@@ -31,17 +31,18 @@ def get_wf_centroid(w_in: np.ndarray, shift: int, centroid: int) -> None:
     centroid
         centroid position.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "centroid": {
-          "function": "get_wf_centroid",
-          "module": "dspeed.processors",
-          "args": ["waveform", "shift", "centroid"],
-          "unit": "ADC"
-        }
+        centroid:
+          function: get_wf_centroid
+          module: dspeed.processors
+          args:
+            - waveform
+            - shift
+            - centroid
     """
 
     centroid[0] = np.nan

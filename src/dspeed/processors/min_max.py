@@ -37,17 +37,25 @@ def min_max(
     a_max
         the maximum value
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "tp_min, tp_max, wf_min, wf_max": {
-            "function": "min_max",
-            "module": "dspeed.processors",
-            "args": ["waveform", "tp_min", "tp_max", "wf_min", "wf_max"],
-            "unit": ["ns", "ns", "ADC", "ADC"]
-        }
+        tp_min, tp_max, wf_min, wf_max:
+          function: min_max
+          module: dspeed.processors
+          args:
+            - waveform
+            - tp_min
+            - tp_max
+            - wf_min
+            - wf_max
+          unit:
+            - ns
+            - ns
+            - ADC
+            - ADC
     """
     a_min[0] = np.nan
     a_max[0] = np.nan
@@ -98,17 +106,21 @@ def min_max_norm(
     w_out
         the normalized output waveform
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_norm": {
-            "function": "min_max_norm",
-            "module": "dspeed.processors",
-            "args": ["wf_blsub", "wf_min", "wf_max", "wf_norm"],
-            "unit": ["ADC"]
-        }
+        wf_norm:
+          function: min_max_norm
+          module: dspeed.processors
+          args:
+            - wf_blsub
+            - wf_min
+            - wf_max
+            - wf_norm
+          unit:
+            - ADC
     """
 
     w_out[:] = np.nan

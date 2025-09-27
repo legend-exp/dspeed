@@ -48,19 +48,21 @@ def optimize_nnls(
     x : ndarray
         Solution vector.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "nnls_solution": {
-            "function": "optimize_nnls",
-            "module": "dspeed.processors",
-            "args": ["db.coefficient_matrix",
-                "wf_blsub",
-                "1000", "1e-6", "True"
-                "nnls_solution"],
-        }
+        nnls_solution:
+          function: optimize_nnls
+          module: dspeed.processors
+          args:
+            - db.coefficient_matrix
+            - wf_blsub
+            - 1000
+            - 1e-6
+            - True
+            - nnls_solution
     """
 
     def numba_ix(arr: np.array, rows: np.array, cols: np.array) -> np.array:

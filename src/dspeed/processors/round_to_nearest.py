@@ -26,21 +26,26 @@ def round_to_nearest(val: np.ndarray, to_nearest: int | float) -> None:
     out
         rounded value
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
     Note: this processor is aliased using `round` in ProcessingChain.
     The following two examples are equivalent.
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "t_rounded": {
-            "function": "round_to_nearest",
-            "module": "dspeed.processors",
-            "args": ["t_in", "1*us", "t_rounded"]
-            "unit": ["ns"]
-        },
-        "t_rounded": "round(t_in, 1*us)"
+      # Equivalent forms:
+      t_rounded:
+        function: round_to_nearest
+        module: dspeed.processors
+        args:
+          - t_in
+          - "1*us"
+          - t_rounded
+        unit:
+          - ns
+
+      t_rounded: "round(t_in, 1*us)"
     """
 
     if np.isnan(val):
@@ -69,21 +74,26 @@ def floor_to_nearest(val: np.ndarray, to_nearest: int | float) -> None:
     out
         floored value
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
     Note: this processor is aliased using `floor` in ProcessingChain.
     The following two examples are equivalent.
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "t_floor": {
-            "function": "floor_to_nearest",
-            "module": "dspeed.processors",
-            "args": ["t_in", "1*us", "t_floor"]
-            "unit": ["ns"]
-        },
-        "t_floor": "floor(t_in, 1*us)"
+      # Equivalent forms:
+      t_floor:
+        function: floor_to_nearest
+        module: dspeed.processors
+        args:
+          - t_in
+          - "1*us"
+          - t_floor
+        unit:
+          - ns
+
+      t_floor: "floor(t_in, 1*us)"
     """
 
     if np.isnan(val):
@@ -112,21 +122,26 @@ def ceil_to_nearest(val: np.ndarray, to_nearest: int | float) -> None:
     out
         ceiled value
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
     Note: this processor is aliased using `ceil` in ProcessingChain.
     The following two examples are equivalent.
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "t_ceil": {
-            "function": "ceil_to_nearest",
-            "module": "dspeed.processors",
-            "args": ["t_in", "1*us", "t_ceil"]
-            "unit": ["ns"]
-        },
-        "t_ceil": "ceil(t_in, 1*us)"
+      # Equivalent forms:
+      t_ceil:
+        function: ceil_to_nearest
+        module: dspeed.processors
+        args:
+          - t_in
+          - "1*us"
+          - t_ceil
+        unit:
+          - ns
+
+      t_ceil: "ceil(t_in, 1*us)"
     """
 
     if np.isnan(val):
@@ -155,21 +170,26 @@ def trunc_to_nearest(val: np.ndarray, to_nearest: int | float) -> None:
     out
         truncated value
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
     Note: this processor is aliased using `ceil` in ProcessingChain.
     The following two examples are equivalent.
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "t_trunc": {
-            "function": "trunc_to_nearest",
-            "module": "dspeed.processors",
-            "args": ["t_in", "1*us", "t_trunc"]
-            "unit": ["ns"]
-        },
-        "t_trunc": "trunc(t_in, 1*us)"
+      # Equivalent forms:
+      t_trunc:
+        function: trunc_to_nearest
+        module: dspeed.processors
+        args:
+          - t_in
+          - "1*us"
+          - t_trunc
+        unit:
+          - ns
+
+      t_trunc: "trunc(t_in, 1*us)"
     """
 
     if np.isnan(val):

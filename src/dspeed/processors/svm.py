@@ -26,18 +26,21 @@ def svm_predict(svm_file: str) -> Callable:
        The name of the file with the trained SVM ``svm_p*_r*_T***Z.sav``
 
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "svm_label":{
-            "function": "svm_predict",
-            "module": "dspeed.processors",
-            "args": ["dwt_norm", "svm_label"],
-            "unit": "",
-            "prereqs": ["dwt_norm"],
-            "init_args": ["'svm_p*_r*_T***Z.sav'"]
-        }
+      svm_label:
+        function: svm_predict
+        module: dspeed.processors
+        args:
+          - dwt_norm
+          - svm_label
+        unit: ""
+        prereqs:
+          - dwt_norm
+        init_args:
+          - "'svm_p*_r*_T***Z.sav'"
     """
 
     if svm_file == 0:

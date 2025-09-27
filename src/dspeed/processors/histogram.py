@@ -29,18 +29,21 @@ def histogram(
     borders_out
         The output histogram bin edges of the histogram. Length must be len(weights_out)+1
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "hist_weights, hist_borders": {
-            "function": "histogram",
-            "module": "dspeed.processors.histogram",
-            "args": ["waveform", "hist_weights(100)", "hist_borders(101)"],
-            "unit": ["none", "ADC"]
-        }
-
+        hist_weights, hist_borders:
+          function: histogram
+          module: dspeed.processors.histogram
+          args:
+            - waveform
+            - "hist_weights(100)"
+            - "hist_borders(101)"
+          unit:
+            - none
+            - ADC
     Note
     ----
     This implementation is significantly faster than just wrapping
@@ -122,18 +125,23 @@ def histogram_around_mode(
     borders_out
         The output histogram bin edges of the histogram. Length must be len(weights_out)+1
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "hist_weights, hist_borders": {
-            "function": "histogram",
-            "module": "dspeed.processors.histogram",
-            "args": ["waveform", "np.nan", "1", "hist_weights(101)", "hist_borders(102)"],
-            "unit": ["none", "ADC"]
-        }
-
+        hist_weights, hist_borders:
+          function: histogram
+          module: dspeed.processors.histogram
+          args:
+            - waveform
+            - np.nan
+            - 1
+            - "hist_weights(101)"
+            - "hist_borders(102)"
+          unit:
+            - none
+            - ADC
     See Also
     --------
     .histogram
