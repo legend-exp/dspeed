@@ -1,3 +1,5 @@
+"""Processors computing statistics within moving windows."""
+
 from __future__ import annotations
 
 import numpy as np

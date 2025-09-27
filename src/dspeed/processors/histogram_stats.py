@@ -1,3 +1,5 @@
+"""Processors computing summary statistics from histograms."""
+
 from __future__ import annotations
 
 import numpy as np

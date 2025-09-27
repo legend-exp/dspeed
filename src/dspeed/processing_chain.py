@@ -2267,22 +2267,30 @@ def build_processing_chain(
         A dictionary or YAML/JSON filename containing the recipes for computing DSP
         parameter from raw parameters. The format is as follows:
 
-        .. code-block:: json
+        .. code-block:: yaml
 
-            {
-               "outputs" : [ "par1", "par2" ]
-               "processors" : {
-                  "name1, name2" : {
-                    "function" : "func1"
-                    "module" : "mod1"
-                    "args" : ["arg1", 3, "arg2"]
-                    "kwargs" : {"key1": "val1"}
-                    "init_args" : ["arg1", 3, "arg2"]
-                    "unit" : ["u1", "u2"]
-                    "defaults" : {"arg1": "defval1"}
-                  }
-               }
-            }
+            outputs:
+              - par1
+              - par2
+            processors:
+              "name1, name2":
+                function: func1
+                module: mod1
+                args:
+                  - arg1
+                  - 3
+                  - arg2
+                kwargs:
+                  key1: val1
+                init_args:
+                  - arg1
+                  - 3
+                  - arg2
+                unit:
+                  - u1
+                  - u2
+                defaults:
+                  arg1: defval1
 
         - ``outputs`` -- list of output parameters (strings) to compute by
           default. See `outputs` argument
@@ -2302,7 +2310,7 @@ def build_processing_chain(
               outputs should be fed by reference as args! Arguments read
               from the database are prepended with ``db``.
             - ``kwargs`` -- dictionary. Keyword arguments for
-              :meth:`ProcesssingChain.add_processor`.
+              :meth:`ProcessingChain.add_processor`.
             - ``init_args`` --  list of strings or numerical values. List
               of names of computed and input parameters or constant values
               used to initialize a :class:`numpy.gufunc` via a factory

@@ -1,3 +1,5 @@
+"""Processors finding multiple local extrema in waveforms."""
+
 from __future__ import annotations
 
 import numpy as np

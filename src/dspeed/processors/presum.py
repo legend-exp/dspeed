@@ -1,3 +1,5 @@
+"""Processors performing running-sum (presum) operations."""
+
 from __future__ import annotations
 
 import numpy as np

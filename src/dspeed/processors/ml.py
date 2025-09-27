@@ -46,9 +46,7 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
     **nb_kwargs,
 )
 def relu(x_in: np.ndarray, x_out: np.ndarray) -> None:
-    """
-    relu activation function 0 if x_in < 0 else x_in
-    """
+    """Apply the rectified linear unit activation function."""
     x_out[:] = x_in * (x_in > 0)
 
 
@@ -58,9 +56,7 @@ def relu(x_in: np.ndarray, x_out: np.ndarray) -> None:
     **nb_kwargs,
 )
 def leaky_relu(x_in: np.ndarray, x_out: np.ndarray) -> None:
-    """
-    leaky relu activation function 0 if x_in < 0 else 0.01 x_in
-    """
+    """Apply a leaky ReLU activation with a 0.01 negative slope."""
     x_out[:] = x_in * (x_in > 0) + 0.01 * x_in * (x_in < 0)
 
 
@@ -70,9 +66,7 @@ def leaky_relu(x_in: np.ndarray, x_out: np.ndarray) -> None:
     **nb_kwargs,
 )
 def sigmoid(x_in: np.ndarray, x_out: np.ndarray) -> None:
-    """
-    sigmoid activation function
-    """
+    """Apply the logistic sigmoid activation function."""
     x_out[:] = 1 / (1 + np.exp(-x_in))
 
 
@@ -82,9 +76,7 @@ def sigmoid(x_in: np.ndarray, x_out: np.ndarray) -> None:
     **nb_kwargs,
 )
 def softmax(x_in: np.ndarray, x_out: np.ndarray) -> None:
-    """
-    softmax activation function
-    """
+    """Apply a numerically stable softplus-style activation."""
     x_out[:] = np.log(1 + np.exp(x_in))
 
 
@@ -100,24 +92,20 @@ def softmax(x_in: np.ndarray, x_out: np.ndarray) -> None:
 def dense_layer_no_bias(
     x_in: np.ndarray, kernel: np.ndarray, activation_func: np.int8, x_out: np.ndarray
 ) -> None:
-    """
-    Basic dense neural network layer with no bias, f(x.W)
+    """Dense neural network layer without a bias term.
 
     Parameters
     ----------
-    w_in
-        the input waveform shape n.
+    x_in
+        Input vector with length ``n``.
     kernel
-        the matrix of weights shape (n x m).
+        Matrix of weights with shape ``(n, m)``.
     activation_func
-        the activation function to use specify with char:
-        s - sigmoid
-        r - relu
-        l - leaky relu
-        m - softmax
-        t - tanh
+        Character flag indicating which activation to apply. Supported values
+        are ``s`` (sigmoid), ``r`` (ReLU), ``l`` (leaky ReLU), ``m`` (softplus),
+        and ``t`` (hyperbolic tangent).
     x_out
-        the output vector shape m.
+        Output vector with length ``m``.
 
     YAML Configuration Example
     --------------------------
@@ -169,26 +157,22 @@ def dense_layer_with_bias(
     activation_func: np.int8,
     x_out: np.ndarray,
 ) -> None:
-    """
-    Basic dense neural network layer with bias added f(x.W+b)
+    """Dense neural network layer with an additive bias term.
 
     Parameters
     ----------
-    w_in
-        the input waveform shape n.
+    x_in
+        Input vector with length ``n``.
     kernel
-        the matrix of weights shape (n x m).
+        Matrix of weights with shape ``(n, m)``.
     bias
-        the bias with shape m.
+        Bias vector with length ``m``.
     activation_func
-        the activation function to use specify with char:
-        s - sigmoid
-        r - relu
-        l - leaky relu
-        m - softmax
-        t - tanh
+        Character flag indicating which activation to apply. Supported values
+        are ``s`` (sigmoid), ``r`` (ReLU), ``l`` (leaky ReLU), ``m`` (softplus),
+        and ``t`` (hyperbolic tangent).
     x_out
-        the output vector shape m.
+        Output vector with length ``m``.
 
     YAML Configuration Example
     --------------------------

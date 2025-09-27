@@ -1,3 +1,5 @@
+"""Processors implementing multi-T filter utilities."""
+
 from __future__ import annotations
 
 import numpy as np

@@ -1,3 +1,5 @@
+"""Wiener filter processors for waveform denoising."""
+
 from __future__ import annotations
 
 import numpy as np

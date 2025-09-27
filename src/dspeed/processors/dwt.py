@@ -1,3 +1,5 @@
+"""Discrete wavelet transform processors for waveform analysis."""
+
 from __future__ import annotations
 
 import numpy as np
