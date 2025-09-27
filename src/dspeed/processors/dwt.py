@@ -43,17 +43,21 @@ def discrete_wavelet_transform(
        can be obtained via ``pywt.Wavelet(wave_type).dec_len``
 
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "dwt_haar":{
-            "function": "discrete_wavelet_transform",
-            "module": "dspeed.processors",
-            "args": ["wf_blsub", 5, "'h'", "'a'", "dwt_haar(256, 'f')"],
-            "unit": "ADC",
-            "prereqs": ["wf_blsub"],
-        }
+        dwt_haar:
+          function: discrete_wavelet_transform
+          module: dspeed.processors
+          args:
+            - wf_blsub
+            - 5
+            - "'h'"
+            - "'a'"
+            - "dwt_haar(256, 'f')"
+          prereqs:
+            - wf_blsub
     """
 
     w_out[:] = np.nan

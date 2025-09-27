@@ -28,18 +28,21 @@ def t0_filter(rise: int, fall: int, kernel: np.array) -> None:
     kernel
         the output kernel
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "t0_filter": {
-            "function": "t0_filter",
-            "module": "dspeed.processors",
-            "args": ["128*ns", "2*us", "t0_filter"],
-            "unit": "ADC",
-            "init_args": ["128*ns", "2*us"]
-        }
+        t0_filter:
+          function: t0_filter
+          module: dspeed.processors
+          args:
+            - "128*ns"
+            - "2*us"
+            - t0_filter
+          init_args:
+            - "128*ns"
+            - "2*us"
     """
     if rise < 0:
         raise DSPFatal("The length of the rise section must be positive")
@@ -73,17 +76,17 @@ def moving_slope(kernel):
     kernel
         the output kernel
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "kern_slopes": {
-            "function": "moving_slope",
-            "module": "dspeed.processors",
-            "args": ["12", "kern_slopes"],
-            "unit": "ADC"
-        }
+        kern_slopes:
+          function: moving_slope
+          module: dspeed.processors
+          args:
+            - 12
+            - kern_slopes
     """
     length = len(kernel)
 
@@ -112,17 +115,17 @@ def step(weight_pos: int, kernel: np.array) -> None:
     kernel
         output kernel
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "kern_step": {
-            "function": "step",
-            "module": "dspeed.processors",
-            "args": ["16", "kern_step"],
-            "unit": "ADC"
-        }
+        kern_step:
+          function: step
+          module: dspeed.processors
+          args:
+            - 16
+            - kern_step
     """
 
     x = np.arange(len(kernel))

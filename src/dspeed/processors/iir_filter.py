@@ -47,17 +47,23 @@ def iir_filter(
         type of filter: {‘lowpass’, ‘highpass’, ‘bandpass’, ‘bandstop’}
         (default to lowpass)
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_lp": {
-            "function": "iir_filter",
-            "module": "dspeed.processors",
-            "args_in": ["15*MHz", 4, "wf", "ftype=butter", "btype=lowpass"],
-            "args": ["wf", "wf_lp(unit=ADC)"],
-        }
+        wf_lp:
+          function: iir_filter
+          module: dspeed.processors
+          args_in:
+            - "15*MHz"
+            - 4
+            - wf
+            - "ftype=butter"
+            - "btype=lowpass"
+          args:
+            - wf
+            - "wf_lp(unit=ADC)"
     """
     # convert units as needed, check inputs are valid
     if isinstance(f_samp, ProcChainVar):
@@ -122,17 +128,21 @@ def notch_filter(
         sampling frequency for input waveform or ProcessingChain
         variable representing waveform
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_notch": {
-            "function": "notch_filter",
-            "module": "dspeed.processors",
-            "args_in": ["15*MHz", "1.5*MHz", "wf"],
-            "args": ["wf", "wf_notch(unit=ADC)"],
-        }
+        wf_notch:
+          function: notch_filter
+          module: dspeed.processors
+          args_in:
+            - "15*MHz"
+            - "1.5*MHz"
+            - wf
+          args:
+            - wf
+            - "wf_notch(unit=ADC)"
     """
     if isinstance(f_samp, ProcChainVar):
         f_samp = 1 / f_samp.period
@@ -176,17 +186,21 @@ def peak_filter(
         sampling frequency for input waveform or ProcessingChain
         variable representing waveform
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_peak": {
-            "function": "peak_filter",
-            "module": "dspeed.processors",
-            "args_in": ["15*MHz", "1.5*MHz", "wf"],
-            "args": ["wf", "wf_peak(unit=ADC)"],
-        }
+        wf_peak:
+          function: peak_filter
+          module: dspeed.processors
+          args_in:
+            - "15*MHz"
+            - "1.5*MHz"
+            - wf
+          args:
+            - wf
+            - "wf_peak(unit=ADC)"
     """
     if isinstance(f_samp, ProcChainVar):
         f_samp = 1 / f_samp.period

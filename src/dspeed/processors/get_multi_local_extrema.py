@@ -68,26 +68,30 @@ def get_multi_local_extrema(
     n_max_out
         the number of maxima found in a waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "vt_max_out, vt_min_out, n_max_out, n_min_out": {
-            "function": "get_multi_local_extrema",
-            "module": "dspeed.processors",
-            "args": [
-                "waveform",
-                5, 0.1,
-                1,
-                20, 0,
-                "vt_max_out(20)",
-                "vt_min_out(20)",
-                "n_max_out",
-                "n_min_out"
-            ],
-            "unit": ["ns", "ns", "none", "none"]
-        }
+      vt_max_out, vt_min_out, n_max_out, n_min_out:
+        function: get_multi_local_extrema
+        module: dspeed.processors
+        args:
+          - waveform
+          - 5
+          - 0.1
+          - 1
+          - 20
+          - 0
+          - "vt_max_out(20)"
+          - "vt_min_out(20)"
+          - n_max_out
+          - n_min_out
+        unit:
+          - ns
+          - ns
+          - none
+          - none
     """
     # prepare output
     vt_max_out[:] = np.nan
