@@ -1,3 +1,5 @@
+"""Processors for looking up parameters from calibration tables."""
+
 from __future__ import annotations
 
 import numpy as np

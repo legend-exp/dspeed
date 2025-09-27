@@ -1,3 +1,5 @@
+"""Processors applying peak signal-to-noise ratio thresholds."""
+
 from __future__ import annotations
 
 import numpy as np
