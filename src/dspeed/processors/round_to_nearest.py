@@ -1,3 +1,5 @@
+"""Processors rounding values to the nearest discrete step."""
+
 from __future__ import annotations
 
 import numpy as np

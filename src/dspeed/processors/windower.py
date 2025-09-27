@@ -1,3 +1,5 @@
+"""Windowing utility processors for waveform preparation."""
+
 from __future__ import annotations
 
 import numpy as np

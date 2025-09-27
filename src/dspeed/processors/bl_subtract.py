@@ -1,3 +1,5 @@
+"""DSP processors for subtracting a constant baseline from waveforms."""
+
 from __future__ import annotations
 
 import numpy as np

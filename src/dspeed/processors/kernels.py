@@ -1,3 +1,5 @@
+"""Kernel generator utilities for DSP filters."""
+
 from __future__ import annotations
 
 import numpy as np

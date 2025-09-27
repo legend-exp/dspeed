@@ -1,3 +1,5 @@
+"""Processors performing logarithmic consistency checks on waveforms."""
+
 from __future__ import annotations
 
 import numpy as np
