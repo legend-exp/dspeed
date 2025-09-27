@@ -46,6 +46,8 @@ def convolve_wf(
     if len(kernel) > len(w_in):
         raise DSPFatal("The filter is longer than the input waveform")
 
+    extension_length = 0
+
     if chr(mode_in) == "f":
         mode = "full"
         if len(w_out) != len(w_in) + len(kernel) - 1:
@@ -64,10 +66,24 @@ def convolve_wf(
             raise DSPFatal(
                 "Output waveform has length {len(w_out)}; expect {max(len(w_in), len(kernel))}"
             )
+    elif chr(mode_in) == "r":
+        extension_length = int(len(kernel) / 2) + 1
+
+        reflected_front = np.flip(w_in[0:extension_length])
+        reflected_end = np.flip(w_in[-extension_length:])
+
+        # Extend the signal
+
+        extended_signal = w_in
+        extended_signal = np.concatenate((extended_signal, reflected_end), axis=None)
+        extended_signal = np.concatenate((reflected_front, extended_signal), axis=None)
+
+        mode = "same"
+
     else:
         raise DSPFatal("Invalid mode")
 
-    w_out[:] = np.convolve(w_in, kernel, mode=mode)
+    w_out[:] = np.convolve(w_in, kernel, mode=mode)[extension_length:-extension_length]
 
 
 @dspeed_guvectorize(
@@ -206,3 +222,54 @@ def convolve_damped_oscillator(
     for i in range(len(w_in)):
         w_out[i:] += np.real(cn) * w_in[: len(w_in) - i]
         cn *= c
+
+
+@guvectorize(
+    [
+        "void(float32[:], float32[:], float32[:])",
+        "void(float64[:], float64[:], float64[:])",
+    ],
+    "(n),(m),(p)",
+    **nb_kwargs(
+        forceobj=True,
+    ),
+)
+def reflected_convolve_wf(
+    w_in: np.ndarray, kernel: np.array, w_out: np.ndarray
+) -> None:
+    """
+    Parameters
+    ----------
+    w_in
+        the input waveform.
+    kernel
+        the kernel to convolve with
+    w_out
+        the filtered waveform.
+    """
+
+    w_out[:] = np.nan
+
+    if np.isnan(w_in).any():
+        return
+
+    if np.isnan(kernel).any():
+        return
+
+    if len(kernel) > len(w_in):
+        raise DSPFatal("The filter is longer than the input waveform")
+
+    extension_length = int(len(kernel) / 2) + 1
+
+    reflected_front = np.flip(w_in[0:extension_length])
+    reflected_end = np.flip(w_in[-extension_length:])
+
+    # Extend the signal
+
+    extended_signal = w_in
+    extended_signal = np.concatenate((extended_signal, reflected_end), axis=None)
+    extended_signal = np.concatenate((reflected_front, extended_signal), axis=None)
+
+    w_out[:] = np.convolve(extended_signal, kernel, mode="same")[
+        extension_length:-extension_length
+    ]
