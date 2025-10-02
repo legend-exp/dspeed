@@ -52,14 +52,16 @@ def fixed_time_pickoff(w_in: np.ndarray, t_in: float, mode_in: np.int8, a_out: f
 
     Examples
     --------
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "trapEftp": {
-            "function": "fixed_time_pickoff",
-            "module": "dspeed.processors",
-            "args": ["wf_trap", "tp_0+10*us", "'h'", "trapEftp"],
-            "unit": "ADC",
-        }
+        trapEftp:
+          function: fixed_time_pickoff
+          module: dspeed.processors
+          args:
+            - wf_trap
+            - "tp_0+10*us"
+            - "'h'"
+            - trapEftp
     """
     a_out[0] = np.nan
 

@@ -35,17 +35,25 @@ def linear_slope_fit(
     intercept
         the intercept of the linear fit.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "bl_mean, bl_std, bl_slope, bl_intercept": {
-            "function": "linear_slope_fit",
-            "module": "dspeed.processors",
-            "args": ["wf_blsub[0:round(44.5*us, wf_blsub.period)]", "bl_mean", "bl_std", "bl_slope", "bl_intercept"],
-            "unit": ["ADC", "ADC", "ADC", "ADC"],
-        }
+        bl_mean, bl_std, bl_slope, bl_intercept:
+          function: linear_slope_fit
+          module: dspeed.processors
+          args:
+            - "wf_blsub[0:round(44.5*us, wf_blsub.period)]"
+            - bl_mean
+            - bl_std
+            - bl_slope
+            - bl_intercept
+          unit:
+            - ADC
+            - ADC
+            - ADC
+            - ADC
     """
     mean[0] = np.nan
     stdev[0] = np.nan
@@ -110,25 +118,24 @@ def linear_slope_diff(
     stdev
         the standard deviation of the waveform after subtracting the slope/intercept.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "bl_slope_diff , bl_slope_rms": {
-          "description": "finds mean and rms relative to linear fit of the baseline section",
-          "function": "linear_slope_diff",
-          "module": "dspeed.processors",
-          "args": [
-            "wf_presum[0: round(44.5*us, wf_presum.period)]",
-            "bl_slope",
-            "bl_intercept",
-            "bl_slope_diff",
-            "bl_slope_rms"
-          ],
-          "unit": ["ADC", "ADC"]
-        }
-
+        bl_slope_diff , bl_slope_rms:
+          description: "finds mean and rms relative to linear fit of the baseline section"
+          function: linear_slope_diff
+          module: dspeed.processors
+          args:
+            - "wf_presum[0: round(44.5*us, wf_presum.period)]"
+            - bl_slope
+            - bl_intercept
+            - bl_slope_diff
+            - bl_slope_rms
+          unit:
+            - ADC
+            - ADC
     """
     mean[0] = np.nan
     rms[0] = np.nan

@@ -46,6 +46,7 @@ dependencies=[
     "parse",
     "pint",
     "pyarrow",
+    "pyyaml",
     "scipy",
     "tqdm>=4.27",
 ]

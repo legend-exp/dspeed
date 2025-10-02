@@ -29,17 +29,19 @@ def trap_filter(w_in: np.ndarray, rise: int, flat: int, w_out: np.ndarray) -> No
     w_out
         the filtered waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_tf": {
-            "function": "trap_filter",
-            "module": "dspeed.processors",
-            "args": ["wf_pz", "10*us", "3*us", "wf_tf"],
-            "unit": "ADC"
-        }
+        wf_tf:
+          function: trap_filter
+          module: dspeed.processors
+          args:
+            - wf_pz
+            - "10*us"
+            - "3*us"
+            - wf_tf
     """
     w_out[:] = np.nan
 
@@ -95,17 +97,19 @@ def trap_norm(w_in: np.ndarray, rise: int, flat: int, w_out: np.ndarray) -> None
     w_out
         the normalized, filtered waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_tf": {
-            "function": "trap_norm",
-            "module": "dspeed.processors",
-            "args": ["wf_pz", "10*us", "3*us", "wf_tf"],
-            "unit": "ADC"
-        }
+        wf_tf:
+          function: trap_norm
+          module: dspeed.processors
+          args:
+            - wf_pz
+            - "10*us"
+            - "3*us"
+            - wf_tf
     """
     w_out[:] = np.nan
 
@@ -170,17 +174,20 @@ def asym_trap_filter(
     w_out
         the normalized, filtered waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_af": {
-            "function": "asym_trap_filter",
-            "module": "dspeed.processors",
-            "args": ["wf_pz", "128*ns", "64*ns", "2*us", "wf_af"],
-            "unit": "ADC"
-        }
+        wf_af:
+          function: asym_trap_filter
+          module: dspeed.processors
+          args:
+            - wf_pz
+            - "128*ns"
+            - "64*ns"
+            - "2*us"
+            - wf_af
     """
     w_out[:] = np.nan
 
@@ -246,17 +253,20 @@ def trap_pickoff(
     a_out
         the output pick-off value of the filtered waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "ct_corr": {
-            "function": "trap_pickoff",
-            "module": "dspeed.processors",
-            "args": ["wf_pz", "1.5*us", 0, "tp_0", "ct_corr"],
-            "unit": "ADC"
-        }
+        ct_corr:
+          function: trap_pickoff
+          module: dspeed.processors
+          args:
+            - wf_pz
+            - "1.5*us"
+            - 0
+            - tp_0
+            - ct_corr
     """
     a_out[0] = np.nan
 

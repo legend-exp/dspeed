@@ -3,6 +3,43 @@ import numpy as np
 import pytest
 
 from dspeed import build_dsp
+from dspeed.errors import ProcessingChainError
+
+
+def test_waveform_slicing(geds_raw_tbl):
+    dsp_config = {
+        "outputs": ["wf_blsub"],
+        "processors": {
+            "wf_blsub": {
+                "function": "bl_subtract",
+                "module": "dspeed.processors",
+                "args": ["waveform[0:100]", "baseline", "wf_blsub"],
+                "unit": "ADC",
+            },
+        },
+    }
+    tbl_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
+
+    assert list(tbl_out.keys()) == ["wf_blsub"]
+    assert isinstance(tbl_out["wf_blsub"], lgdo.WaveformTable)
+    assert tbl_out["wf_blsub"].wf_len == 100
+
+    dsp_config = {
+        "outputs": ["wf_blsub"],
+        "processors": {
+            "wf_blsub": {
+                "function": "bl_subtract",
+                "module": "dspeed.processors",
+                "args": ["waveform[2*us:10*us]", "baseline", "wf_blsub"],
+                "unit": "ADC",
+            },
+        },
+    }
+    tbl_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
+
+    assert list(tbl_out.keys()) == ["wf_blsub"]
+    assert isinstance(tbl_out["wf_blsub"], lgdo.WaveformTable)
+    assert tbl_out["wf_blsub"].wf_len == 500
 
 
 def test_processor_none_arg(geds_raw_tbl):
@@ -325,15 +362,213 @@ def test_proc_chain_coordinate_grid(spms_raw_tbl):
 
 
 def test_proc_chain_round(spms_raw_tbl):
+    # Test rounding of non-united variables
     dsp_config = {
-        "outputs": ["waveform_round"],
-        "processors": {"waveform_round": "round(waveform, 4)"},
+        "outputs": ["w_round", "w_floor", "w_ceil", "w_trunc"],
+        "processors": {
+            "w_round": "round(waveform, 4)",
+            "w_floor": "floor(waveform, 4)",
+            "w_ceil": "ceil(waveform, 4)",
+            "w_trunc": "trunc(waveform, 4)",
+        },
     }
 
     lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
+    wf = spms_raw_tbl["waveform"].values[0]
+    assert np.all(np.rint(wf / 4) * 4 == lh5_out["w_round"].values[0])
+    assert np.all(np.floor(wf / 4) * 4 == lh5_out["w_floor"].values[0])
+    assert np.all(np.ceil(wf / 4) * 4 == lh5_out["w_ceil"].values[0])
+    assert np.all(np.trunc(wf / 4) * 4 == lh5_out["w_trunc"].values[0])
+
+    # test rounding of united variables and scalars
+    dsp_config = {
+        "outputs": [
+            "tp_max",
+            "t_round",
+            "t_floor",
+            "t_ceil",
+            "t_trunc",
+            "c_round",
+            "c_floor",
+            "c_ceil",
+            "c_trunc",
+        ],
+        "processors": {
+            "tp_min, tp_max, wf_min, wf_max": {
+                "function": "min_max",
+                "module": "dspeed.processors",
+                "args": ["waveform", "tp_min", "tp_max", "wf_min", "wf_max"],
+                "unit": ["us", "us", "ADC", "ADC"],
+            },
+            "t_round": "round(tp_max, 1*us)",
+            "t_floor": "floor(tp_max, 1*us)",
+            "t_ceil": "ceil(tp_max, 1*us)",
+            "t_trunc": "trunc(tp_max, 1*us)",
+            "c_round": "round(1*us, waveform.period)",
+            "c_floor": "floor(1*us, waveform.period)",
+            "c_ceil": "ceil(1*us, waveform.period)",
+            "c_trunc": "trunc(1*us, waveform.period)",
+        },
+    }
+
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
+    tp = lh5_out["tp_max"][0]
+    assert np.rint(tp) == lh5_out["t_round"][0]
+    assert np.floor(tp) == lh5_out["t_floor"][0]
+    assert np.ceil(tp) == lh5_out["t_ceil"][0]
+    assert np.trunc(tp) == lh5_out["t_trunc"][0]
+
+    assert lh5_out["c_round"][0] == 992  # round to even...
+    assert lh5_out["c_floor"][0] == 992
+    assert lh5_out["c_ceil"][0] == 1008
+    assert lh5_out["c_trunc"][0] == 992
+
+
+def test_proc_chain_where(spms_raw_tbl):
+    # test with variable and const
+    dsp_config = {
+        "outputs": [
+            "tp_min",
+            "tp_max",
+            "wf_min",
+            "wf_max",
+            "test1",
+            "test2",
+            "test3",
+            "test4",
+            "test5",
+            "test6",
+        ],
+        "processors": {
+            "tp_min, tp_max, wf_min, wf_max": {
+                "function": "min_max",
+                "module": "dspeed.processors",
+                "args": ["waveform", "tp_min", "tp_max", "wf_min", "wf_max"],
+                "unit": ["ns", "ns", "ADC", "ADC"],
+            },
+            "test1": "where(waveform<0, 0, waveform)",
+            "test2": "where(waveform<0, waveform, 0)",
+            "test3": "where(eventnumber==0, tp_min, 1*ns)",
+            "test4": "where(eventnumber==0, tp_min, 1*us)",
+            "test5": "where(eventnumber==0, 1*ns, tp_min)",
+            "test6": "where(eventnumber==0, 1*us, tp_min)",
+            "test7": "where(eventnumber==0, tp_min, wf_min)",
+        },
+    }
+
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=2)
+    wf = spms_raw_tbl["waveform"].values[0]
+    assert np.all(np.where(wf < 0, 0, wf) == lh5_out["test1"].values[0])
+    assert np.all(np.where(wf < 0, wf, 0) == lh5_out["test2"].values[0])
+    tp_min = lh5_out["tp_min"].nda
+    print(spms_raw_tbl)
+    print(len(spms_raw_tbl))
+    print(lh5_out)
+    print(len(lh5_out))
+    assert lh5_out["test3"].attrs["units"] == "nanosecond"
+    assert lh5_out["test3"].nda[0] == tp_min[0] and lh5_out["test3"].nda[1] == 1
+    assert lh5_out["test4"].attrs["units"] == "nanosecond"
+    assert lh5_out["test4"].nda[0] == tp_min[0] and lh5_out["test4"].nda[1] == 1000
+    assert lh5_out["test5"].attrs["units"] == "nanosecond"
+    assert lh5_out["test5"].nda[0] == 1 and lh5_out["test5"].nda[1] == tp_min[1]
+    assert lh5_out["test6"].attrs["units"] == "nanosecond"
+    assert lh5_out["test6"].nda[0] == 1000 and lh5_out["test6"].nda[1] == tp_min[1]
+    with pytest.raises(ProcessingChainError):
+        lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, outputs=["test7"])
+
+    # test with variable and variable
+    dsp_config = {
+        "processors": {
+            "w_downsample": "waveform[::2]",
+            "w_win1": "waveform[:len(waveform)//2]",
+            "w_win2": "waveform[len(waveform)//2:]",
+            "tp_min, tp_max, wf_min, wf_max": {
+                "function": "min_max",
+                "module": "dspeed.processors",
+                "args": ["waveform", "tp_min", "tp_max", "wf_min", "wf_max"],
+                "unit": ["ns", "ns", "ADC", "ADC"],
+            },
+            "delta_t": "tp_max - tp_min",
+            "test1": "where(eventnumber==0, w_downsample, w_win1)",  # fail due to different periods
+            "test2": "where(eventnumber==0, w_win1, w_win2)",  # different offsets
+            "test3": "where(eventnumber==0, tp_max, delta_t)",  # fail to different is_coord
+            "test4": "where(eventnumber==0, tp_min, tp_max)",
+        }
+    }
+
+    with pytest.raises(ProcessingChainError):
+        lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, outputs=["test1"])
+
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, outputs=["test2", "w_win1", "w_win2"], n_entries=2)
+    assert (
+        np.all(lh5_out["test2"].values[0] == lh5_out["w_win1"].values[0])
+        and lh5_out["test2"].t0[0] == lh5_out["w_win1"].t0[0]
+    )
+    assert (
+        np.all(lh5_out["test2"].values[1] == lh5_out["w_win2"].values[1])
+        and lh5_out["test2"].t0[1] == lh5_out["w_win2"].t0[1]
+    )
+
+    with pytest.raises(ProcessingChainError):
+        lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, outputs=["test3"])
+
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, outputs=["test4", "tp_min", "tp_max"], n_entries=2)
+    assert lh5_out["test4"].attrs["units"] == "nanosecond"
+    assert np.all(lh5_out["test4"].nda[0] == lh5_out["tp_min"].nda[0])
+    assert np.all(lh5_out["test4"].nda[1] == lh5_out["tp_max"].nda[1])
+
+    # test with choosing between constant values
+    dsp_config = {
+        "processors": {
+            "test1": "where(eventnumber==0, 10*ns, 1*us, dtype='f')",
+            "test2": "where(eventnumber==0, 10*ns, 1000, dtype='f')",
+            "test3": "where(eventnumber==0, 1000, 10*ns, dtype='f')",
+            "test4": "where(eventnumber==0, 10, 1000, dtype='f')",
+            "test5": "where(eventnumber==0, 10*ns, 10*m, dtype='f')",
+        }
+    }
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, outputs=["test1", "test2", "test3", "test4"], n_entries=2)
+    assert lh5_out["test1"].attrs["units"] == "nanosecond"
+    assert lh5_out["test1"].nda[0] == 10 and lh5_out["test1"].nda[1] == 1000
+    assert lh5_out["test2"].attrs["units"] == "nanosecond"
+    assert lh5_out["test2"].nda[0] == 10 and lh5_out["test2"].nda[1] == 1000
+    assert lh5_out["test3"].attrs["units"] == "nanosecond"
+    assert lh5_out["test3"].nda[0] == 1000 and lh5_out["test3"].nda[1] == 10
+    assert lh5_out["test4"].nda[0] == 10 and lh5_out["test4"].nda[1] == 1000
+    with pytest.raises(ProcessingChainError):
+        lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, outputs=["test5"])
+
+    # test a if b else c form
+    dsp_config = {
+        "outputs": ["test"],
+        "processors": {
+            "test": "0 if waveform<0 else waveform",
+        },
+    }
+
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
+    wf = spms_raw_tbl["waveform"].values[0]
+    assert np.all(np.where(wf < 0, 0, wf) == lh5_out["test"].values[0])
+
+
+def test_proc_chain_isnan():
+    dsp_config = {
+        "outputs": ["test_nan", "test_finite"],
+        "processors": {
+            "test_nan": "isnan(input)",
+            "test_finite": "isfinite(input)",
+        },
+    }
+
+    tb = lgdo.Table(
+        {"input": lgdo.Array(np.array([1.0, 0.0, np.inf, -np.inf, np.nan]))}
+    )
+    lh5_out = build_dsp(tb, dsp_config=dsp_config)
     assert np.all(
-        np.rint(spms_raw_tbl["waveform"].values[0] / 4) * 4
-        == lh5_out["waveform_round"].values[0]
+        np.array([False, False, False, False, True]) == lh5_out["test_nan"].nda
+    )
+    assert np.all(
+        np.array([True, True, False, False, False]) == lh5_out["test_finite"].nda
     )
 
 

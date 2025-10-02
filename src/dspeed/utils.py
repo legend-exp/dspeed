@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import os
 from abc import ABCMeta
-from collections.abc import MutableMapping
-from typing import Any, Iterator
+from collections.abc import Callable, Collection, Iterator, MutableMapping
+from typing import Any
 
 import numpy as np
 from numba.np.ufunc import sigparse
@@ -19,8 +21,8 @@ class GUFuncWrapper:
     .. highlight::python
     .. code-block:: python
 
-        set up some object 'obj' that has a function we want to call on w_in
-        gufunc = gufunc_wrapper(
+        # set up some object 'obj' that has a function we want to call on w_in
+        gufunc = GUFuncWrapper(
             lambda w_in: obj.execute(w_in, args...),
             "(n)->()",
             "ff"
@@ -31,8 +33,8 @@ class GUFuncWrapper:
     .. highlight::python
     .. code-block:: python
 
-        fun is a vectorized python function, but we want to use ufunc interface
-        gufunc = gufunc_wrapper(
+        # fun is a vectorized python function, but we want to use ufunc interface
+        gufunc = GUFuncWrapper(
             lambda w_in, a, w_out: fun(w_in, a, out=w_out, ...more kwargs),
             "(n),()->(n)",
             "fff",
@@ -44,13 +46,13 @@ class GUFuncWrapper:
 
     def __init__(
         self,
-        fun,
-        signature,
-        types,
-        name=None,
-        vectorized=False,
-        copy_out=True,
-        doc_string=None,
+        fun: Callable,
+        signature: str,
+        types: str | Collection[str],
+        name: str | None = None,
+        vectorized: bool = False,
+        copy_out: bool = True,
+        doc_string: str = None,
     ):
         """
         Parameters
@@ -74,44 +76,91 @@ class GUFuncWrapper:
             manually set doc string. If None, use docstring of fun if it
             exists. Else use this docstring.
         """
-        assert vectorized or copy_out
-
         self.__name__ = name if name else fun.__name__
+        self.ufunc = fun
         self.signature = signature
-        ins, outs = sigparse.parse_signature(signature)
-        self.nin = len(ins)
-        self.nout = len(outs)
+        if "->" in signature:
+            # numba signature parser can't handle outputs with new dimensions
+            self.in_dims, self.out_dims = (
+                np.lib._function_base_impl._parse_gufunc_signature(signature)
+            )
+        else:
+            # numpy signature parser can't handle no outputs
+            self.in_dims, self.out_dims = sigparse.parse_signature(signature)
+
+        self.nin = len(self.in_dims)
+        self.nout = len(self.out_dims)
         self.nargs = self.nin + self.nout
         self.types = [types] if isinstance(types, str) else types
-        self.ntypes = 1
+        self.ntypes = len(self.types)
         self.copy_out = copy_out
+        self.vectorized = vectorized
         if doc_string:
             self.__doc__ = doc_string
         elif fun.__doc__:
             self.__doc__ = fun.__doc__
-
-        if vectorized:
-            self.ufunc = fun
-        else:
-            otypes = types[-self.nout :] if self.nout > 0 else None
-            self.ufunc = np.vectorize(fun, otypes=otypes, signature=self.signature)
 
     def __call__(self, *args):
         """Call wrapped function with "in place" outputs"""
 
         assert len(args) == self.nargs
 
-        if self.copy_out and self.nout > 0:
+        if self.vectorized and self.copy_out and self.nout > 0:
             ins = args[: self.nin]
             outs = args[-self.nout :]
-            # print([i.shape for i in ins], [o.shape for o in outs])
             rets = self.ufunc(*ins)
             if self.nout == 1:
                 rets = [rets]
             for out, ret in zip(outs, rets):
                 out[...] = ret
-        else:
+        elif self.vectorized:
             self.ufunc(*args)
+        else:
+            # Calculate broadcasted shapes based on signature
+            args = [
+                arg if isinstance(arg, np.ndarray) else np.array(arg) for arg in args
+            ]
+
+            broadcast_shape, dim_sizes = (
+                np.lib._function_base_impl._parse_input_dimensions(
+                    args, self.in_dims + self.out_dims
+                )
+            )
+            # handle special case, if scalars were passed as length 1 arrays
+            if len(broadcast_shape) > 0 and broadcast_shape[0] == 1:
+                broadcast_shape = broadcast_shape[1:]
+            shapes = np.lib._function_base_impl._calculate_shapes(
+                broadcast_shape, dim_sizes, self.in_dims + self.out_dims
+            )
+
+            # check that dimensions match; broadcast inputs that don't
+            for i, (arg, shape) in enumerate(zip(args, shapes)):
+                if arg.shape != shape and arg.shape != (1,) + shape:
+                    if i >= self.nin:
+                        raise ValueError("Outputs are not the right shape")
+                    args[i] = np.broadcast_to(arg, shape, subok=True)
+
+            # loop over outer dimensions and call function
+            for index in np.ndindex(*broadcast_shape):
+                ins = [arg[index] for arg in args[: self.nin]]
+                outs = []
+                for arg in args[self.nin :]:
+                    if len(arg.shape) == len(index):
+                        if len(index) == 1:
+                            outs += [arg[index[0] : index[0] + 1]]
+                        else:
+                            outs += [arg[np.s_[index[:-1], index[-1] : index[-1] + 1]]]
+                    else:
+                        outs += [arg[index]]
+
+                if self.copy_out and self.nout > 0:
+                    rets = self.ufunc(*ins)
+                    if self.nout == 1:
+                        rets = [rets]
+                    for out, ret in zip(outs, rets):
+                        out[...] = ret
+                else:
+                    self.ufunc(*ins, *outs)
 
 
 def dspeed_guvectorize(*args, **kwargs):

@@ -10,7 +10,7 @@ import os
 import re
 import time
 from collections.abc import Collection, Mapping
-from copy import deepcopy
+from copy import copy, deepcopy
 from fnmatch import fnmatch
 
 from lgdo import LGDO, Struct, Table, lh5
@@ -339,9 +339,9 @@ def build_dsp(
             lh5_it.n_entries = tot_n_rows
             tb_in = next(iter(lh5_in))
         else:
-            tb_in = lh5_in
-            lh5_in.resize(tot_n_rows)
-            lh5_it = [lh5_in]
+            tb_in = copy(lh5_in)
+            tb_in.resize(tot_n_rows)
+            lh5_it = [tb_in]
 
         # Setup timers
         log.info(f"Processing table {tb} with {tot_n_rows} rows")
