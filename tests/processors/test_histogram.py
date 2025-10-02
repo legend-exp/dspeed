@@ -1,10 +1,6 @@
 import numpy as np
 import pytest
 
-import numpy as np
-import pytest
-from lgdo import lh5
-
 from dspeed import build_dsp
 from dspeed.errors import DSPFatal
 from dspeed.processors.histogram import histogram, histogram_around_mode
@@ -20,6 +16,7 @@ def test_histogram_fixed_width(compare_numba_vs_python):
     histogram(vals, hist_weights, hist_edges)
     assert all(hist_edges == np.arange(67))
     assert all(hist_weights[0::2] == 2) and all(hist_weights[1::2] == 1)
+
 
 def test_histogram_around_mode_basic(compare_numba_vs_python):
     # Create a simple waveform with a clear mode
@@ -97,9 +94,7 @@ def test_histogram_around_mode_dsp(lgnd_test_data, tmptestdir):
         },
     }
     df = build_dsp(
-        lgnd_test_data.get_path(
-            "lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"
-        ),
+        lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
         dsp_config=dsp_config,
     )["geds/dsp"]
 

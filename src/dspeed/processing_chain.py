@@ -23,7 +23,7 @@ from typing import Any
 
 import lgdo
 import numpy as np
-from lgdo import LGDO, lh5
+from lgdo import lh5
 from numba import guvectorize
 from pint import Quantity, Unit
 from yaml import safe_load
@@ -1043,7 +1043,7 @@ class ProcessingChain:
         # for name.attribute
         elif isinstance(node, ast.Attribute):
             # If we are looking for an attribute of a module (e.g. np.pi)
-            module = expr[node.value.col_offset:node.value.end_col_offset]
+            module = expr[node.value.col_offset : node.value.end_col_offset]
             if module in self.module_list:
                 mod = self.module_list[module]
                 attr = getattr(mod, node.attr)
@@ -2355,7 +2355,7 @@ def build_processing_chain(
         if isinstance(f_parse, ast.Name):
             pass
         elif isinstance(f_parse, ast.Attribute):
-            module = function[f_parse.value.col_offset:f_parse.value.end_col_offset]
+            module = function[f_parse.value.col_offset : f_parse.value.end_col_offset]
             if module in ProcessingChain.module_list and "args" not in node:
                 # this is an attribute like np.pi
                 node["module"] = None

@@ -1,8 +1,6 @@
-import os
 
 import numpy as np
 import pytest
-from lgdo import lh5
 
 from dspeed import build_dsp
 from dspeed.errors import DSPFatal
@@ -127,9 +125,7 @@ def test_histogram_peakstats_dsp(lgnd_test_data, tmptestdir):
         },
     }
     df = build_dsp(
-        lgnd_test_data.get_path(
-            "lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"
-        ),
+        lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
         dsp_config=dsp_config,
     )["geds/dsp"]
 
@@ -172,9 +168,7 @@ def test_histogram_stats_dsp(lgnd_test_data, tmptestdir):
         },
     }
     df = build_dsp(
-        lgnd_test_data.get_path(
-            "lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"
-        ),
+        lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
         dsp_config=dsp_config,
     )["geds/dsp"]
 
