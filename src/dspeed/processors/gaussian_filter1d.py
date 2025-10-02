@@ -1,3 +1,5 @@
+"""Processors applying one-dimensional Gaussian smoothing filters."""
+
 # Copyright (C) 2003-2005 Peter J. Verveer
 #
 # Redistribution and use in source and binary forms, with or without

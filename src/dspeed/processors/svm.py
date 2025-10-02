@@ -1,3 +1,5 @@
+"""Support vector machine inference processors."""
+
 from __future__ import annotations
 
 import pickle

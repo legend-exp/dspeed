@@ -1,3 +1,5 @@
+"""Processors for waveform alignment and interpolation."""
+
 from __future__ import annotations
 
 import numpy as np

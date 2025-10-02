@@ -1,3 +1,5 @@
+"""Processors computing fixed-time pick-off metrics."""
+
 from __future__ import annotations
 
 import numpy as np
