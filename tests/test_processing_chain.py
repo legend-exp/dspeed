@@ -8,6 +8,37 @@ from dspeed.errors import ProcessingChainError
 
 def test_waveform_slicing(geds_raw_tbl):
     dsp_config = {
+        "outputs": ["waveform", "wf_sample", "wf_slice", "wf_slice_stride"],
+        "processors": {
+            "wf_sample": {"function": "waveform[50]"},
+            "wf_slice": {"function": "waveform[50:100]"},
+            "wf_slice_stride": {"function": "waveform[50:100:2]"},
+        },
+    }
+    tbl_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=10)
+
+    assert isinstance(tbl_out.waveform, lgdo.WaveformTable)
+    assert isinstance(tbl_out.wf_sample, lgdo.Array)
+    assert isinstance(tbl_out.wf_slice, lgdo.WaveformTable)
+    assert isinstance(tbl_out.wf_slice_stride, lgdo.WaveformTable)
+
+    assert np.all(tbl_out.waveform.values[:, 50] == tbl_out.wf_sample)
+    assert np.all(tbl_out.waveform.values[:, 50:100] == tbl_out.wf_slice.values)
+    assert np.all(
+        tbl_out.waveform.t0.nda + 50 * tbl_out.waveform.dt.nda
+        == tbl_out.wf_slice.t0.nda
+    )
+    assert np.all(tbl_out.waveform.dt.nda == tbl_out.wf_slice.dt.nda)
+    assert np.all(
+        tbl_out.waveform.values[:, 50:100:2] == tbl_out.wf_slice_stride.values
+    )
+    assert np.all(
+        tbl_out.waveform.t0.nda + 50 * tbl_out.waveform.dt.nda
+        == tbl_out.wf_slice_stride.t0.nda
+    )
+    assert np.all(tbl_out.waveform.dt.nda == tbl_out.wf_slice_stride.dt.nda / 2)
+
+    dsp_config = {
         "outputs": ["wf_blsub"],
         "processors": {
             "wf_blsub": {
@@ -127,39 +158,6 @@ def test_comparators():
     assert all(tbl_out["gte"].nda[0] == (w_in >= 5))
     assert all(tbl_out["lt"].nda[0] == (w_in < 5))
     assert all(tbl_out["lte"].nda[0] == (w_in <= 5))
-
-
-def test_waveform_slicing(geds_raw_tbl):
-    dsp_config = {
-        "outputs": ["waveform", "wf_sample", "wf_slice", "wf_slice_stride"],
-        "processors": {
-            "wf_sample": {"function": "waveform[50]"},
-            "wf_slice": {"function": "waveform[50:100]"},
-            "wf_slice_stride": {"function": "waveform[50:100:2]"},
-        },
-    }
-    tbl_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=10)
-
-    assert isinstance(tbl_out.waveform, lgdo.WaveformTable)
-    assert isinstance(tbl_out.wf_sample, lgdo.Array)
-    assert isinstance(tbl_out.wf_slice, lgdo.WaveformTable)
-    assert isinstance(tbl_out.wf_slice_stride, lgdo.WaveformTable)
-
-    assert np.all(tbl_out.waveform.values[:, 50] == tbl_out.wf_sample)
-    assert np.all(tbl_out.waveform.values[:, 50:100] == tbl_out.wf_slice.values)
-    assert np.all(
-        tbl_out.waveform.t0.nda + 50 * tbl_out.waveform.dt.nda
-        == tbl_out.wf_slice.t0.nda
-    )
-    assert np.all(tbl_out.waveform.dt.nda == tbl_out.wf_slice.dt.nda)
-    assert np.all(
-        tbl_out.waveform.values[:, 50:100:2] == tbl_out.wf_slice_stride.values
-    )
-    assert np.all(
-        tbl_out.waveform.t0.nda + 50 * tbl_out.waveform.dt.nda
-        == tbl_out.wf_slice_stride.t0.nda
-    )
-    assert np.all(tbl_out.waveform.dt.nda == tbl_out.wf_slice_stride.dt.nda / 2)
 
 
 def test_processor_kwarg_assignment(geds_raw_tbl):
@@ -461,10 +459,6 @@ def test_proc_chain_where(spms_raw_tbl):
     assert np.all(np.where(wf < 0, 0, wf) == lh5_out["test1"].values[0])
     assert np.all(np.where(wf < 0, wf, 0) == lh5_out["test2"].values[0])
     tp_min = lh5_out["tp_min"].nda
-    print(spms_raw_tbl)
-    print(len(spms_raw_tbl))
-    print(lh5_out)
-    print(len(lh5_out))
     assert lh5_out["test3"].attrs["units"] == "nanosecond"
     assert lh5_out["test3"].nda[0] == tp_min[0] and lh5_out["test3"].nda[1] == 1
     assert lh5_out["test4"].attrs["units"] == "nanosecond"

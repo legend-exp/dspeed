@@ -23,7 +23,6 @@ from typing import Any
 
 import lgdo
 import numpy as np
-from lgdo import lh5
 from numba import guvectorize
 from pint import Quantity, Unit
 from yaml import safe_load

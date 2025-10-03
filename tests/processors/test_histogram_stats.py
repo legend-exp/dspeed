@@ -136,7 +136,6 @@ def test_histogram_peakstats_dsp(lgnd_test_data, tmptestdir):
 
 
 def test_histogram_stats_dsp(lgnd_test_data, tmptestdir):
-    dsp_file = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp_histogram_stats.lh5"
     dsp_config = {
         "outputs": ["hist_weights", "hist_borders", "mode_out", "max_out", "fwhm_out"],
         "processors": {
