@@ -46,8 +46,6 @@ def convolve_wf(
     if len(kernel) > len(w_in):
         raise DSPFatal("The filter is longer than the input waveform")
 
-    extension_length = 0
-
     if chr(mode_in) == "f":
         mode = "full"
         if len(w_out) != len(w_in) + len(kernel) - 1:
@@ -66,24 +64,10 @@ def convolve_wf(
             raise DSPFatal(
                 "Output waveform has length {len(w_out)}; expect {max(len(w_in), len(kernel))}"
             )
-    elif chr(mode_in) == "r":
-        extension_length = int(len(kernel) / 2) + 1
-
-        reflected_front = np.flip(w_in[0:extension_length])
-        reflected_end = np.flip(w_in[-extension_length:])
-
-        # Extend the signal
-
-        extended_signal = w_in
-        extended_signal = np.concatenate((extended_signal, reflected_end), axis=None)
-        extended_signal = np.concatenate((reflected_front, extended_signal), axis=None)
-
-        mode = "same"
-
     else:
         raise DSPFatal("Invalid mode")
 
-    w_out[:] = np.convolve(w_in, kernel, mode=mode)[extension_length:-extension_length]
+    w_out[:] = np.convolve(w_in, kernel, mode=mode)
 
 
 @dspeed_guvectorize(
