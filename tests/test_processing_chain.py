@@ -2,11 +2,42 @@ import lgdo
 import numpy as np
 import pytest
 
+from dspeed import build_dsp
 from dspeed.errors import ProcessingChainError
-from dspeed.processing_chain import build_processing_chain
 
 
 def test_waveform_slicing(geds_raw_tbl):
+    dsp_config = {
+        "outputs": ["waveform", "wf_sample", "wf_slice", "wf_slice_stride"],
+        "processors": {
+            "wf_sample": {"function": "waveform[50]"},
+            "wf_slice": {"function": "waveform[50:100]"},
+            "wf_slice_stride": {"function": "waveform[50:100:2]"},
+        },
+    }
+    tbl_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=10)
+
+    assert isinstance(tbl_out.waveform, lgdo.WaveformTable)
+    assert isinstance(tbl_out.wf_sample, lgdo.Array)
+    assert isinstance(tbl_out.wf_slice, lgdo.WaveformTable)
+    assert isinstance(tbl_out.wf_slice_stride, lgdo.WaveformTable)
+
+    assert np.all(tbl_out.waveform.values[:, 50] == tbl_out.wf_sample)
+    assert np.all(tbl_out.waveform.values[:, 50:100] == tbl_out.wf_slice.values)
+    assert np.all(
+        tbl_out.waveform.t0.nda + 50 * tbl_out.waveform.dt.nda
+        == tbl_out.wf_slice.t0.nda
+    )
+    assert np.all(tbl_out.waveform.dt.nda == tbl_out.wf_slice.dt.nda)
+    assert np.all(
+        tbl_out.waveform.values[:, 50:100:2] == tbl_out.wf_slice_stride.values
+    )
+    assert np.all(
+        tbl_out.waveform.t0.nda + 50 * tbl_out.waveform.dt.nda
+        == tbl_out.wf_slice_stride.t0.nda
+    )
+    assert np.all(tbl_out.waveform.dt.nda == tbl_out.wf_slice_stride.dt.nda / 2)
+
     dsp_config = {
         "outputs": ["wf_blsub"],
         "processors": {
@@ -18,8 +49,7 @@ def test_waveform_slicing(geds_raw_tbl):
             },
         },
     }
-    proc_chain, _, tbl_out = build_processing_chain(geds_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    tbl_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
 
     assert list(tbl_out.keys()) == ["wf_blsub"]
     assert isinstance(tbl_out["wf_blsub"], lgdo.WaveformTable)
@@ -36,8 +66,7 @@ def test_waveform_slicing(geds_raw_tbl):
             },
         },
     }
-    proc_chain, _, tbl_out = build_processing_chain(geds_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    tbl_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
 
     assert list(tbl_out.keys()) == ["wf_blsub"]
     assert isinstance(tbl_out["wf_blsub"], lgdo.WaveformTable)
@@ -57,12 +86,78 @@ def test_processor_none_arg(geds_raw_tbl):
             }
         },
     }
-    proc_chain, _, _ = build_processing_chain(geds_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    build_dsp(raw_in=geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
 
     dsp_config["processors"]["wf_cum"]["args"][2] = "None"
-    proc_chain, _, _ = build_processing_chain(geds_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    build_dsp(raw_in=geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
+
+
+def test_numpy_math_constants_dsp(lgnd_test_data):
+    dsp_config = {
+        "outputs": ["timestamp", "calc1", "calc2", "calc3", "calc4", "calc5", "calc6"],
+        "processors": {
+            "calc1": "np.pi*timestamp",
+            "calc2": "np.pi",
+            "calc3": "np.pi*np.e",
+            "calc4": "np.nan",
+            "calc5": "np.inf",
+            "calc6": "np.nan*timestamp",
+        },
+    }
+
+    f_raw = lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5")
+    dsp_out = build_dsp(raw_in=f_raw, dsp_config=dsp_config)
+    df = dsp_out["geds"]["dsp"].view_as("pd")
+
+    assert (df["calc1"] == np.pi * df["timestamp"]).all()
+    assert (df["calc2"] == np.pi).all()
+    assert (df["calc3"] == np.pi * np.e).all()
+    assert (np.isnan(df["calc4"])).all()
+    assert (np.isinf(df["calc5"])).all()
+    assert (np.isnan(df["calc6"])).all()
+
+
+def test_list_parsing(lgnd_test_data, tmptestdir):
+    dsp_config = {
+        "outputs": ["wf_out", "ievt"],
+        "processors": {
+            "a1": "[1,2,3,4,5]",
+            "a2": "[6,7,8,9,10]",
+            "wf_out": "a1+a2",
+        },
+    }
+
+    raw_in = lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5")
+    dsp_out = build_dsp(raw_in=raw_in, dsp_config=dsp_config, n_entries=1)
+    assert np.all(dsp_out["geds"]["dsp"]["wf_out"].nda == np.array([7, 9, 11, 13, 15]))
+
+
+def test_comparators():
+    dsp_config = {
+        "outputs": ["eq", "neq", "gt", "gte", "lt", "lte"],
+        "processors": {
+            "eq": "w_in == 5",
+            "neq": "w_in != 5",
+            "gt": "w_in > 5",
+            "gte": "w_in >= 5",
+            "lt": "w_in < 5",
+            "lte": "w_in <= 5",
+        },
+    }
+    w_in = np.arange(10)
+    tbl_in = lgdo.types.Table(
+        {"w_in": lgdo.types.ArrayOfEqualSizedArrays(nda=w_in.reshape((1, 10)))}
+    )
+    tbl_out = build_dsp(tbl_in, dsp_config=dsp_config, n_entries=1)
+
+    assert set(tbl_out.keys()) == {"eq", "neq", "gt", "gte", "lt", "lte"}
+    assert all([tbl_out[k].nda.dtype == np.dtype("bool") for k in tbl_out.keys()])
+    assert all(tbl_out["eq"].nda[0] == (w_in == 5))
+    assert all(tbl_out["neq"].nda[0] == (w_in != 5))
+    assert all(tbl_out["gt"].nda[0] == (w_in > 5))
+    assert all(tbl_out["gte"].nda[0] == (w_in >= 5))
+    assert all(tbl_out["lt"].nda[0] == (w_in < 5))
+    assert all(tbl_out["lte"].nda[0] == (w_in <= 5))
 
 
 def test_processor_kwarg_assignment(geds_raw_tbl):
@@ -78,13 +173,11 @@ def test_processor_kwarg_assignment(geds_raw_tbl):
             }
         },
     }
-    proc_chain, _, _ = build_processing_chain(geds_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
 
     dsp_config["processors"]["wf_cum"]["args"][1] = "dtypo=None"
-    proc_chain, _, _ = build_processing_chain(geds_raw_tbl, dsp_config)
     with pytest.raises(TypeError):
-        proc_chain.execute(0, 1)
+        build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
 
 
 def test_processor_dtype_arg(geds_raw_tbl):
@@ -100,8 +193,7 @@ def test_processor_dtype_arg(geds_raw_tbl):
             }
         },
     }
-    proc_chain, _, _ = build_processing_chain(geds_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
 
 
 def test_scipy_gauss_filter(geds_raw_tbl):
@@ -123,8 +215,7 @@ def test_scipy_gauss_filter(geds_raw_tbl):
             }
         },
     }
-    proc_chain, _, _ = build_processing_chain(geds_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
 
 
 def test_histogram_processor_fixed_width(spms_raw_tbl):
@@ -139,8 +230,7 @@ def test_histogram_processor_fixed_width(spms_raw_tbl):
             }
         },
     }
-    proc_chain, _, _ = build_processing_chain(spms_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
 
 
 def test_processor_variable_array_output(spms_raw_tbl):
@@ -166,9 +256,7 @@ def test_processor_variable_array_output(spms_raw_tbl):
             }
         },
     }
-
-    proc_chain, _, _ = build_processing_chain(spms_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
 
 
 def test_proc_chain_unit_conversion(spms_raw_tbl):
@@ -197,8 +285,7 @@ def test_proc_chain_unit_conversion(spms_raw_tbl):
             },
         },
     }
-    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
     assert lh5_out["a_unitless"][0] == lh5_out["a_ns"][0]
     assert lh5_out["a_unitless"][0] == lh5_out["a_us"][0]
     assert lh5_out["a_unitless"][0] == lh5_out["a_ghz"][0]
@@ -266,8 +353,7 @@ def test_proc_chain_coordinate_grid(spms_raw_tbl):
         },
     }
 
-    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
     assert lh5_out["a_window"][0] == lh5_out["a_downsample"][0]
     assert lh5_out["tp_window"][0] == lh5_out["tp"][0]
     assert -128 < lh5_out["tp_downsample"][0] - lh5_out["tp"][0] < 128
@@ -285,8 +371,7 @@ def test_proc_chain_round(spms_raw_tbl):
         },
     }
 
-    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
     wf = spms_raw_tbl["waveform"].values[0]
     assert np.all(np.rint(wf / 4) * 4 == lh5_out["w_round"].values[0])
     assert np.all(np.floor(wf / 4) * 4 == lh5_out["w_floor"].values[0])
@@ -324,8 +409,7 @@ def test_proc_chain_round(spms_raw_tbl):
         },
     }
 
-    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
     tp = lh5_out["tp_max"][0]
     assert np.rint(tp) == lh5_out["t_round"][0]
     assert np.floor(tp) == lh5_out["t_floor"][0]
@@ -370,8 +454,7 @@ def test_proc_chain_where(spms_raw_tbl):
         },
     }
 
-    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
-    proc_chain.execute(0, 2)
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=2)
     wf = spms_raw_tbl["waveform"].values[0]
     assert np.all(np.where(wf < 0, 0, wf) == lh5_out["test1"].values[0])
     assert np.all(np.where(wf < 0, wf, 0) == lh5_out["test2"].values[0])
@@ -385,9 +468,7 @@ def test_proc_chain_where(spms_raw_tbl):
     assert lh5_out["test6"].attrs["units"] == "nanosecond"
     assert lh5_out["test6"].nda[0] == 1000 and lh5_out["test6"].nda[1] == tp_min[1]
     with pytest.raises(ProcessingChainError):
-        proc_chain, _, lh5_out = build_processing_chain(
-            spms_raw_tbl, dsp_config, outputs=["test7"]
-        )
+        lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, outputs=["test7"])
 
     # test with variable and variable
     dsp_config = {
@@ -410,14 +491,14 @@ def test_proc_chain_where(spms_raw_tbl):
     }
 
     with pytest.raises(ProcessingChainError):
-        proc_chain, _, lh5_out = build_processing_chain(
-            spms_raw_tbl, dsp_config, outputs=["test1"]
-        )
+        lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, outputs=["test1"])
 
-    proc_chain, _, lh5_out = build_processing_chain(
-        spms_raw_tbl, dsp_config, outputs=["test2", "w_win1", "w_win2"]
+    lh5_out = build_dsp(
+        spms_raw_tbl,
+        dsp_config=dsp_config,
+        outputs=["test2", "w_win1", "w_win2"],
+        n_entries=2,
     )
-    proc_chain.execute(0, 2)
     assert (
         np.all(lh5_out["test2"].values[0] == lh5_out["w_win1"].values[0])
         and lh5_out["test2"].t0[0] == lh5_out["w_win1"].t0[0]
@@ -428,14 +509,14 @@ def test_proc_chain_where(spms_raw_tbl):
     )
 
     with pytest.raises(ProcessingChainError):
-        proc_chain, _, lh5_out = build_processing_chain(
-            spms_raw_tbl, dsp_config, outputs=["test3"]
-        )
+        lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, outputs=["test3"])
 
-    proc_chain, _, lh5_out = build_processing_chain(
-        spms_raw_tbl, dsp_config, outputs=["test4", "tp_min", "tp_max"]
+    lh5_out = build_dsp(
+        spms_raw_tbl,
+        dsp_config=dsp_config,
+        outputs=["test4", "tp_min", "tp_max"],
+        n_entries=2,
     )
-    proc_chain.execute(0, 2)
     assert lh5_out["test4"].attrs["units"] == "nanosecond"
     assert np.all(lh5_out["test4"].nda[0] == lh5_out["tp_min"].nda[0])
     assert np.all(lh5_out["test4"].nda[1] == lh5_out["tp_max"].nda[1])
@@ -450,10 +531,12 @@ def test_proc_chain_where(spms_raw_tbl):
             "test5": "where(eventnumber==0, 10*ns, 10*m, dtype='f')",
         }
     }
-    proc_chain, _, lh5_out = build_processing_chain(
-        spms_raw_tbl, dsp_config, outputs=["test1", "test2", "test3", "test4"]
+    lh5_out = build_dsp(
+        spms_raw_tbl,
+        dsp_config=dsp_config,
+        outputs=["test1", "test2", "test3", "test4"],
+        n_entries=2,
     )
-    proc_chain.execute(0, 2)
     assert lh5_out["test1"].attrs["units"] == "nanosecond"
     assert lh5_out["test1"].nda[0] == 10 and lh5_out["test1"].nda[1] == 1000
     assert lh5_out["test2"].attrs["units"] == "nanosecond"
@@ -462,9 +545,7 @@ def test_proc_chain_where(spms_raw_tbl):
     assert lh5_out["test3"].nda[0] == 1000 and lh5_out["test3"].nda[1] == 10
     assert lh5_out["test4"].nda[0] == 10 and lh5_out["test4"].nda[1] == 1000
     with pytest.raises(ProcessingChainError):
-        proc_chain, _, lh5_out = build_processing_chain(
-            spms_raw_tbl, dsp_config, outputs=["test5"]
-        )
+        lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, outputs=["test5"])
 
     # test a if b else c form
     dsp_config = {
@@ -474,8 +555,7 @@ def test_proc_chain_where(spms_raw_tbl):
         },
     }
 
-    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
     wf = spms_raw_tbl["waveform"].values[0]
     assert np.all(np.where(wf < 0, 0, wf) == lh5_out["test"].values[0])
 
@@ -492,8 +572,7 @@ def test_proc_chain_isnan():
     tb = lgdo.Table(
         {"input": lgdo.Array(np.array([1.0, 0.0, np.inf, -np.inf, np.nan]))}
     )
-    proc_chain, _, lh5_out = build_processing_chain(tb, dsp_config)
-    proc_chain.execute()
+    lh5_out = build_dsp(tb, dsp_config=dsp_config)
     assert np.all(
         np.array([False, False, False, False, True]) == lh5_out["test_nan"].nda
     )
@@ -508,8 +587,7 @@ def test_proc_chain_as_type(spms_raw_tbl):
         "processors": {"waveform_32": "astype(waveform, 'float32')"},
     }
 
-    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
     assert np.all(
         spms_raw_tbl["waveform"].values[0] == lh5_out["waveform_32"].values[0]
     )
@@ -541,8 +619,7 @@ def test_output_types(spms_raw_tbl):
         },
     }
 
-    proc_chain, _, lh5_out = build_processing_chain(spms_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
     assert isinstance(lh5_out["n_max_out"], lgdo.Array)
     assert isinstance(lh5_out["wf_out"], lgdo.WaveformTable)
     assert isinstance(lh5_out["aoa_out"], lgdo.ArrayOfEqualSizedArrays)
@@ -562,8 +639,7 @@ def test_output_attrs(geds_raw_tbl):
             }
         },
     }
-    proc_chain, _, lh5_out = build_processing_chain(geds_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    lh5_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
     assert lh5_out["wf_blsub"].attrs["test_attr"] == "This is a test"
 
 
@@ -579,13 +655,10 @@ def test_database_params(geds_raw_tbl):
             },
         },
     }
-
-    proc_chain, _, lh5_out = build_processing_chain(geds_raw_tbl, dsp_config)
-    proc_chain.execute(0, 1)
+    lh5_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
     assert lh5_out["test"][0] == 8
 
-    proc_chain, _, lh5_out = build_processing_chain(
-        geds_raw_tbl, dsp_config, db_dict={"a": 2, "c": 0}
+    lh5_out = build_dsp(
+        geds_raw_tbl, dsp_config=dsp_config, database={"a": 2, "c": 0}, n_entries=1
     )
-    proc_chain.execute(0, 1)
     assert lh5_out["test"][0] == 3
