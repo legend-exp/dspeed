@@ -2235,7 +2235,6 @@ def build_processing_chain(
     outputs: list[str] = None,
     buffer_len: int = 3200,
     block_width: int = 16,
-    lh5_in_aux: lgdo.Table = None,
 ) -> tuple[ProcessingChain, list[str], lgdo.Table]:
     """Produces a :class:`ProcessingChain` object and an LGDO
     :class:`~lgdo.types.table.Table` for output parameters from an input LGDO
