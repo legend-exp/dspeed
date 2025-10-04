@@ -58,6 +58,7 @@ def build_dsp(
         skip channels that are not found in ``chan_config`` The format is as follows:
 
         .. code-block:: json
+            :force:
 
             {
                "inputs" : [
@@ -114,11 +115,12 @@ def build_dsp(
         can be used to override certain patterns. For example:
 
         .. code-block:: JSON
-        {
-            "ch1*": "config1.json",
-            "ch2000000": "config2.json",
-            "ch2*": "config3.json"
-        }
+
+            {
+                "ch1*": "config1.json",
+                "ch2000000": "config2.json",
+                "ch2*": "config3.json"
+            }
 
         will process all channels beginning with 2, except for 2000000, with config3.
     """

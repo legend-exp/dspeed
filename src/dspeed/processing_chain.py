@@ -2247,6 +2247,7 @@ def build_processing_chain(
         parameter from raw parameters. The format is as follows:
 
         .. code-block:: json
+            :force:
 
             {
                 "name1, name2" : {
@@ -2261,29 +2262,29 @@ def build_processing_chain(
                 ...
             }
 
-          - ``name1, name2`` -- dictionary. key contains comma-separated
-            names of parameters computed
+        - ``name1, name2`` -- dictionary. key contains comma-separated
+          names of parameters computed
 
-            - ``function`` -- string, name of function to call.  Function
-              should implement the :class:`numpy.gufunc` interface, a factory
-              function returning a ``gufunc``, or an arbitrary function that
-              can be mapped onto a ``gufunc``
-            - ``module`` -- string, name of module containing function
-            - ``args``-- list of strings or numerical values. Contains
-              list of names of computed and input parameters or
-              constant values used as inputs to function. Note that
-              outputs should be fed by reference as args! Arguments read
-              from the database are prepended with ``db``.
-            - ``kwargs`` -- dictionary. Keyword arguments for
-              :meth:`ProcesssingChain.add_processor`.
-            - ``init_args`` --  list of strings or numerical values. List
-              of names of computed and input parameters or constant values
-              used to initialize a :class:`numpy.gufunc` via a factory
-              function
-            - ``unit`` -- list of strings. Units for parameters
-            - ``defaults`` -- dictionary. Default value to be used for
-              arguments read from the database
-          - The dictionary can also be nested in another, keyed as ``processors``
+          - ``function`` -- string, name of function to call.  Function
+            should implement the :class:`numpy.gufunc` interface, a factory
+            function returning a ``gufunc``, or an arbitrary function that
+            can be mapped onto a ``gufunc``
+          - ``module`` -- string, name of module containing function
+          - ``args``-- list of strings or numerical values. Contains
+            list of names of computed and input parameters or
+            constant values used as inputs to function. Note that
+            outputs should be fed by reference as args! Arguments read
+            from the database are prepended with ``db``.
+          - ``kwargs`` -- dictionary. Keyword arguments for
+            :meth:`ProcesssingChain.add_processor`.
+          - ``init_args`` --  list of strings or numerical values. List
+            of names of computed and input parameters or constant values
+            used to initialize a :class:`numpy.gufunc` via a factory
+            function
+          - ``unit`` -- list of strings. Units for parameters
+          - ``defaults`` -- dictionary. Default value to be used for
+            arguments read from the database
+        - The dictionary can also be nested in another, keyed as ``processors``
 
     tb_in
         input table. This table will be linked to use as inputs when
