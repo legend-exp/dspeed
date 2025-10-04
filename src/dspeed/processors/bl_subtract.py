@@ -23,17 +23,18 @@ def bl_subtract(w_in: np.ndarray, a_baseline: float, w_out: np.ndarray) -> None:
     w_out
         the output waveform with the baseline subtracted.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_bl": {
-            "function": "bl_subtract",
-            "module": "dspeed.processors",
-            "args": ["waveform", "baseline", "wf_bl"],
-            "unit": "ADC"
-        }
+        wf_bl:
+          function: bl_subtract
+          module: dspeed.processors
+          args:
+            - waveform
+            - baseline
+            - wf_bl
     """
     w_out[:] = np.nan
 

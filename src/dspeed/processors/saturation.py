@@ -32,17 +32,19 @@ def saturation(
     n_hi_out
         the output number of samples at the maximum
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "sat_lo, sat_hi": {
-            "function": "saturation",
-            "module": "dspeed.processors",
-            "args": ["waveform", "16", "sat_lo", "sat_hi"],
-            "unit": "ADC"
-        }
+        sat_lo, sat_hi:
+          function: saturation
+          module: dspeed.processors
+          args:
+            - waveform
+            - 16
+            - sat_lo
+            - sat_hi
     """
     n_lo_out[0] = np.nan
     n_hi_out[0] = np.nan

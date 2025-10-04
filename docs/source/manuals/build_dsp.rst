@@ -117,7 +117,7 @@ Writing custom processors
         """One-liner description of the processor.
 
         Add here a more detailed description of what the processor does.
-        Document input parameters in the "Parameters" section. Add a JSON
+        Document input parameters in the "Parameters" section. Add a YAML
         example for ProcessingChain configuration in the last section.
 
         Parameters
@@ -133,17 +133,20 @@ Writing custom processors
         t_out
             an output scalar value in the time domain
 
-        JSON Configuration Example
+        YAML Configuration Example
         --------------------------
 
-        .. code-block :: json
+        .. code-block:: yaml
 
-            "wf_bl": {
-                "function": "the_processor_template",
-                "module": "dspeed.processors",
-                "args": ["waveform", "t_a", "a_b", "wf_filtered", "t_result"],
-                "unit": "ADC"
-            }
+            wf_bl:
+              function: the_processor_template
+              module: dspeed.processors
+              args:
+                - waveform
+                - t_a
+                - a_b
+                - wf_filtered
+                - t_result
         """
 
         # 5) Initialize output parameters
@@ -166,7 +169,7 @@ Writing custom processors
         #   output parameters to propagate the failure throughout the processing chain.
         # - In-range checks.  Check if indexes are within 0 and len(waveform),
         #   amplitudes are positive, etc.  A failure of this check implies errors in
-        #   the DSP JSON config file.  Abort the analysis immediately.
+        #   the DSP YAML config file.  Abort the analysis immediately.
         #
         if np.isnan(w_in).any() or np.isnan(t_in) or np.isnan(a_in):
             return

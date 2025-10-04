@@ -1,46 +1,21 @@
-import os
-
 import numpy as np
 import pytest
-from lgdo import lh5
 
 from dspeed import build_dsp
 from dspeed.errors import DSPFatal
-from dspeed.processors.histogram import histogram_around_mode
+from dspeed.processors.histogram import histogram, histogram_around_mode
 
 
-def test_histogram_fixed_width(lgnd_test_data, tmptestdir):
-    dsp_file = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp.lh5"
-    dsp_config = {
-        "outputs": ["hist_weights", "hist_borders"],
-        "processors": {
-            "hist_weights , hist_borders": {
-                "function": "histogram",
-                "module": "dspeed.processors.histogram",
-                "args": ["waveform", "hist_weights(100)", "hist_borders(101)"],
-                "unit": ["none", "ADC"],
-            }
-        },
-    }
-    build_dsp(
-        f_raw=lgnd_test_data.get_path(
-            "lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"
-        ),
-        f_dsp=dsp_file,
-        dsp_config=dsp_config,
-        write_mode="r",
-    )
-    assert os.path.exists(dsp_file)
+def test_histogram_fixed_width(compare_numba_vs_python):
+    vals = np.arange(100) * 2 / 3
+    with pytest.raises(DSPFatal):
+        histogram(vals, np.zeros(10), np.zeros(10))
 
-    df = lh5.read_as(
-        "geds/dsp/", dsp_file, "pd", field_mask=["hist_weights", "hist_borders"]
-    )
-
-    assert len(df["hist_weights"][0]) + 1 == len(df["hist_borders"][0])
-    for i in range(2, len(df["hist_borders"][0])):
-        a = df["hist_borders"][0][i - 1] - df["hist_borders"][0][i - 2]
-        b = df["hist_borders"][0][i] - df["hist_borders"][0][i - 1]
-        assert round(a, 2) == round(b, 2)
+    hist_weights = np.zeros(66)
+    hist_edges = np.zeros(67)
+    histogram(vals, hist_weights, hist_edges)
+    assert all(hist_edges == np.arange(67))
+    assert all(hist_weights[0::2] == 2) and all(hist_weights[1::2] == 1)
 
 
 def test_histogram_around_mode_basic(compare_numba_vs_python):
@@ -101,7 +76,6 @@ def test_histogram_around_mode_basic(compare_numba_vs_python):
 
 
 def test_histogram_around_mode_dsp(lgnd_test_data, tmptestdir):
-    dsp_file = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp_hist_around_mode.lh5"
     dsp_config = {
         "outputs": ["hist_weights", "hist_borders"],
         "processors": {
@@ -119,19 +93,10 @@ def test_histogram_around_mode_dsp(lgnd_test_data, tmptestdir):
             }
         },
     }
-    build_dsp(
-        f_raw=lgnd_test_data.get_path(
-            "lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"
-        ),
-        f_dsp=dsp_file,
+    df = build_dsp(
+        lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
         dsp_config=dsp_config,
-        write_mode="r",
-    )
-    assert os.path.exists(dsp_file)
-
-    df = lh5.read_as(
-        "geds/dsp/", dsp_file, "pd", field_mask=["hist_weights", "hist_borders"]
-    )
+    )["geds/dsp"]
 
     # Check bin count and alignment
     assert len(df["hist_weights"][0]) + 1 == len(df["hist_borders"][0])

@@ -34,17 +34,21 @@ def time_point_thresh(
     t_out
         the index where the waveform value crosses the threshold.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "tp_0": {
-            "function": "time_point_thresh",
-            "module": "dspeed.processors",
-            "args": ["wf_atrap", "bl_std", "tp_start", 0, "tp_0"],
-            "unit": "ns"
-        }
+        tp_0:
+          function: time_point_thresh
+          module: dspeed.processors
+          args:
+            - wf_atrap
+            - bl_std
+            - tp_start
+            - 0
+            - tp_0
+          unit: ns
     """
     t_out[0] = np.nan
 
@@ -134,17 +138,22 @@ def interpolated_time_point_thresh(
     t_out
         the index where the waveform value crosses the threshold.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "tp_0": {
-            "function": "time_point_thresh",
-            "module": "dspeed.processors",
-            "args": ["wf_atrap", "bl_std", "tp_start", 0, "'l'", "tp_0"],
-            "unit": "ns"
-        }
+        tp_0:
+          function: time_point_thresh
+          module: dspeed.processors
+          args:
+            - wf_atrap
+            - bl_std
+            - tp_start
+            - 0
+            - "'l'"
+            - tp_0
+          unit: ns
     """
     t_out[0] = np.nan
 
@@ -253,17 +262,22 @@ def multi_time_point_thresh(
     t_out
         the index where the waveform value crosses the threshold.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "tp_0": {
-            "function": "time_point_thresh",
-            "module": "dspeed.processors",
-            "args": ["wf_atrap", "bl_std", "tp_start", 0, "'l'", "tp_0"],
-            "unit": "ns"
-        }
+        tp_0:
+          function: time_point_thresh
+          module: dspeed.processors
+          args:
+            - wf_atrap
+            - bl_std
+            - tp_start
+            - 0
+            - "'l'"
+            - tp_0
+          unit: ns
     """
     t_out[:] = np.nan
 
@@ -413,17 +427,23 @@ def bi_level_zero_crossing_time_points(
         Arrays of fixed length (padded with :any:`numpy.nan`) that hold the
         indices of the identified trigger times.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "trig_times_out": {
-            "function": "multi_trigger_time",
-            "module": "dspeed.processors",
-            "args": ["wf_rc_cr2", "5", "-10", 0, "n_crossings", "polarity_out(20, vector_len=n_crossings)", "trig_times_out(20, vector_len=n_crossings)"],
-            "unit": "ns"
-        }
+        trig_times_out:
+          function: multi_trigger_time
+          module: dspeed.processors
+          args:
+            - wf_rc_cr2
+            - 5
+            - -10
+            - 0
+            - n_crossings
+            - "polarity_out(20, vector_len=n_crossings)"
+            - "trig_times_out(20, vector_len=n_crossings)"
+          unit: ns
     """
     # prepare output
     t_trig_times_out[:] = np.nan

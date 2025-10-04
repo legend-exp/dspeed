@@ -23,17 +23,19 @@ def time_over_threshold(w_in: np.ndarray, a_threshold: float, n_samples: float) 
     n_samples
         the number of samples over the threshold.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "t_sat": {
-            "function": "time_over_threshold",
-            "module": "dspeed.processors",
-            "args": ["wf_pz", "a_threshold", "t_sat"],
-            "unit": "ns"
-        }
+        t_sat:
+          function: time_over_threshold
+          module: dspeed.processors
+          args:
+            - wf_pz
+            - a_threshold
+            - t_sat
+          unit: ns
     """
     if np.isnan(w_in).any() or np.isnan(a_threshold):
         n_samples[0] = np.nan

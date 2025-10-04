@@ -1,8 +1,5 @@
-import os
-
 import numpy as np
 import pytest
-from lgdo import lh5
 
 from dspeed import build_dsp
 from dspeed.errors import DSPFatal
@@ -95,7 +92,6 @@ def test_histogram_peakstats_skipzeroes(compare_numba_vs_python):
 
 
 def test_histogram_peakstats_dsp(lgnd_test_data, tmptestdir):
-    dsp_file = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp_peakstats.lh5"
     dsp_config = {
         "outputs": ["hist_weights", "hist_borders", "mode_out", "width_out"],
         "processors": {
@@ -127,17 +123,10 @@ def test_histogram_peakstats_dsp(lgnd_test_data, tmptestdir):
             },
         },
     }
-    build_dsp(
-        f_raw=lgnd_test_data.get_path(
-            "lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"
-        ),
-        f_dsp=dsp_file,
+    df = build_dsp(
+        lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
         dsp_config=dsp_config,
-        write_mode="r",
-    )
-    assert os.path.exists(dsp_file)
-
-    df = lh5.read_as("geds/dsp/", dsp_file, "pd", field_mask=["mode_out", "width_out"])
+    )["geds/dsp"]
 
     # Check that mode_out and width_out are finite and positive for the first event
     assert np.isfinite(df["mode_out"][0])
@@ -146,7 +135,6 @@ def test_histogram_peakstats_dsp(lgnd_test_data, tmptestdir):
 
 
 def test_histogram_stats_dsp(lgnd_test_data, tmptestdir):
-    dsp_file = f"{tmptestdir}/LDQTA_r117_20200110T105115Z_cal_geds__numpy_test_dsp_histogram_stats.lh5"
     dsp_config = {
         "outputs": ["hist_weights", "hist_borders", "mode_out", "max_out", "fwhm_out"],
         "processors": {
@@ -177,19 +165,10 @@ def test_histogram_stats_dsp(lgnd_test_data, tmptestdir):
             },
         },
     }
-    build_dsp(
-        f_raw=lgnd_test_data.get_path(
-            "lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"
-        ),
-        f_dsp=dsp_file,
+    df = build_dsp(
+        lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
         dsp_config=dsp_config,
-        write_mode="r",
-    )
-    assert os.path.exists(dsp_file)
-
-    df = lh5.read_as(
-        "geds/dsp/", dsp_file, "pd", field_mask=["mode_out", "max_out", "fwhm_out"]
-    )
+    )["geds/dsp"]
 
     # Check that mode_out, max_out, and fwhm_out are finite for the first event
     assert np.isfinite(df["mode_out"][0])

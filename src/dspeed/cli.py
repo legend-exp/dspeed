@@ -180,7 +180,7 @@ def dspeed_cli():
             lh5_tables=args.hdf5_groups,
             database=args.database,
             outputs=args.output_pars,
-            n_max=args.max_rows,
+            n_entries=args.max_rows,
             write_mode=args.writemode,
             buffer_len=args.chunk,
             block_width=args.block,
