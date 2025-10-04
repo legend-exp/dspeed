@@ -5,13 +5,13 @@
       "function": "gaussian_filter1d",
       "module": "dspeed.processors.gaussian_filter1d",
       "args": [
-        "db.gaus.width",
-        "db.gaus.trunc",
+        "db.gauss.width",
+        "db.gauss.trunc",
         "gaus_kernel(round(db.gauss.trunc * db.gauss.width + 0.5)*2+1 , 'd')"
       ],
       "defaults": {
-        "db.gaus.width": 1,
-        "db.gaus.trunc": 4
+        "db.gauss.width": 1,
+        "db.gauss.trunc": 4
       }
     },
     "wf_gaus": {
