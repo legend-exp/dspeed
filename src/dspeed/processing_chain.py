@@ -2229,8 +2229,8 @@ class LGDOWaveformIOManager(IOManager):
 
 
 def build_processing_chain(
+    tb_in: lgdo.Table,
     processors: dict | str,
-    tb_in: lgdo.Table = None,
     db_dict: dict = None,
     outputs: list[str] = None,
     buffer_len: int = 3200,
@@ -2324,6 +2324,11 @@ def build_processing_chain(
     else:
         raise ValueError("processors must be a dict, json/yaml file, or None")
 
+    if outputs is None:
+        if "outputs" not in processors:
+            raise ValueError("outputs not provided")
+        outputs = processors["outputs"]
+
     if "processors" in processors:
         processors = processors["processors"]
 
@@ -2344,7 +2349,8 @@ def build_processing_chain(
             processors[key] = node
 
         if "function" not in node:
-            raise ProcessingChainError
+            raise ProcessingChainError(key)
+            #raise ProcessingChainError
         function = node["function"]
         f_parse = ast.parse(function, mode="eval").body
 

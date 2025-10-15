@@ -289,6 +289,7 @@ def build_dsp(
                     db_node = db_dict
                     for db_key in file.split(".")[1:]:
                         db_node = db_node[db_key]
+                    file = db_node
                     log.debug(f"database lookup: found {db_node} for {file}")
                 except (KeyError, TypeError):
                     raise ProcessingChainError(f"did not find {file} in database.")
@@ -297,8 +298,9 @@ def build_dsp(
             if db_parser.fullmatch(group):
                 try:
                     db_node = db_dict
-                    for db_key in file.split(".")[1:]:
+                    for db_key in group.split(".")[1:]:
                         db_node = db_node[db_key]
+                    group = db_node
                     log.debug(f"database lookup: found {db_node} for {group}")
                 except (KeyError, TypeError):
                     raise ProcessingChainError(f"did not find {group} in database.")
@@ -353,8 +355,8 @@ def build_dsp(
 
         # Setup processing chain
         proc_chain, field_mask, tb_out = build_processing_chain(
-            processors,
             tb_in,
+            processors,
             db_dict=db_dict,
             outputs=outputs,
             buffer_len=buffer_len,
