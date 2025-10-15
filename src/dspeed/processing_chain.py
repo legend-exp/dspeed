@@ -2349,8 +2349,7 @@ def build_processing_chain(
             processors[key] = node
 
         if "function" not in node:
-            raise ProcessingChainError(key)
-            #raise ProcessingChainError
+            raise ProcessingChainError
         function = node["function"]
         f_parse = ast.parse(function, mode="eval").body
 
