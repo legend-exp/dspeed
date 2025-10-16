@@ -54,6 +54,7 @@ def wf_correction(
        }
     """
 
+    w_out[:] = np.nan
     if np.isnan(w_in).any():
         return
 
