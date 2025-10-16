@@ -24,7 +24,7 @@ def test_wf_correction(compare_numba_vs_python):
     w_in = np.ones(len_wf, dtype=np.float32)
     w_corr[1] = np.nan
     result = compare_numba_vs_python(wf_correction, w_in, w_corr, 0, 2, w_out)[-1]
-    assert np.array_equal(result, expected)
+    assert np.all(np.isnan(result))
 
     # tests on start_idx
     w_corr = np.zeros(len_corr, dtype=np.float32)
