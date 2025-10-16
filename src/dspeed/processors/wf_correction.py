@@ -22,6 +22,37 @@ def wf_correction(
     stop_idx: int,
     w_out: np.ndarray,
 ) -> None:
+    """Waveform correction.
+
+    Note
+    ----
+    This processor correct the input waveform by applying a correction.
+
+    Parameters
+    ----------
+    w_in
+        the input waveform.
+    w_corr
+        correction array.
+    start_idx
+        index to start the correction.
+    stop_idx
+        index to stop the correction.
+    w_out
+        corrected waveform.
+
+    YAML Configuration Example
+    --------------------------
+
+    .. code-block:: yaml
+
+      "w_corr": {
+          "function": "wf_correction",
+          "module": "dspeed.processors",
+          "args": ["w_in", "w_corr", 0, 2, "w_out"],
+          "unit": "ADC"
+       }
+    """
 
     if np.isnan(w_in).any():
         return
