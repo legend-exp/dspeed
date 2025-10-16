@@ -143,6 +143,32 @@ def test_aux_inputs(lgnd_test_data, dsp_test_file_geds):
     )
     assert np.all(np.isclose(dsp_out["geds"]["dsp"]["compare"], 0))
 
+    # Test using database inputs
+    dsp_config = {
+        "inputs": [{"file": "db.file", "group": "db.group", "suffix": "1"}],
+        "outputs": ["compare", "tp_max1", "tp_max2"],
+        "processors": {
+            "tp_min2, tp_max2, wf_min2, wf_max2": {
+                "function": "min_max",
+                "module": "dspeed.processors",
+                "args": ["waveform", "tp_min2", "tp_max2", "wf_min2", "wf_max2"],
+                "unit": ["ns", "ns", "ADC", "ADC"],
+            },
+            "compare": "tp_max1 - tp_max2",
+        },
+    }
+
+    dsp_out = build_dsp(
+        raw_in,
+        lh5_tables="geds/raw",
+        dsp_config=dsp_config,
+        database= { "geds": {
+            "file": dsp_test_file_geds,
+            "group": "geds/dsp",
+        } }
+    )
+    assert np.all(np.isclose(dsp_out["geds"]["dsp"]["compare"], 0))
+
 
 @pytest.fixture(scope="session")
 def dsp_test_file_spm(lgnd_test_data, tmptestdir):
