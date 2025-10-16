@@ -359,7 +359,6 @@ def build_dsp(
             tb_in,
             db_dict=db_dict,
             outputs=outputs,
-            buffer_len=buffer_len,
             block_width=block_width,
         )
 
