@@ -2323,6 +2323,11 @@ def build_processing_chain(
     else:
         raise ValueError("processors must be a dict, json/yaml file, or None")
 
+    if outputs is None:
+        if "outputs" not in processors:
+            raise ValueError("outputs not provided")
+        outputs = processors["outputs"]
+
     if "processors" in processors:
         processors = processors["processors"]
 
