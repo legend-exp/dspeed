@@ -162,10 +162,12 @@ def test_aux_inputs(lgnd_test_data, dsp_test_file_geds):
         raw_in,
         lh5_tables="geds/raw",
         dsp_config=dsp_config,
-        database= { "geds": {
-            "file": dsp_test_file_geds,
-            "group": "geds/dsp",
-        } }
+        database={
+            "geds": {
+                "file": dsp_test_file_geds,
+                "group": "geds/dsp",
+            }
+        },
     )
     assert np.all(np.isclose(dsp_out["geds"]["dsp"]["compare"], 0))
 
