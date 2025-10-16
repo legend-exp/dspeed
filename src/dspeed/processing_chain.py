@@ -2233,7 +2233,6 @@ def build_processing_chain(
     tb_in: lgdo.Table = None,
     db_dict: dict = None,
     outputs: list[str] = None,
-    buffer_len: int = 3200,
     block_width: int = 16,
 ) -> tuple[ProcessingChain, list[str], lgdo.Table]:
     """Produces a :class:`ProcessingChain` object and an LGDO
@@ -2327,6 +2326,7 @@ def build_processing_chain(
     if "processors" in processors:
         processors = processors["processors"]
 
+    buffer_len = len(tb_in) if tb_in is not None else 1
     proc_chain = ProcessingChain(block_width, buffer_len)
 
     # prepare the processor list
@@ -2692,8 +2692,6 @@ def build_processing_chain(
                 f"'{copy_par}' not found in input files or dsp config. Building output without it!"
             )
         else:
-            if len(tb_in) < len(tb_out):
-                tb_out.resize(len(tb_in))
             tb_out.add_field(copy_par, tb_in[copy_par])
 
     # finally, add the output buffers to tb_out and the proc chain
