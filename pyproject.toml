@@ -39,7 +39,7 @@ dependencies=[
     "colorlog",
     "h5py>=3.2",
     "iminuit",
-    "legend-pydataobj>=1.5.0a1",
+    "legend-pydataobj>=1.16.0",
     "matplotlib",
     "numba!=0.53.*,!=0.54.*",
     "numpy",
