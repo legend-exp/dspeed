@@ -2332,7 +2332,7 @@ def build_processing_chain(
     if "processors" in processors:
         processors = processors["processors"]
 
-    proc_chain = ProcessingChain(block_width, buffer_len)
+    proc_chain = ProcessingChain(block_width, len(tb_in))
 
     # prepare the processor list
     multi_out_procs = {}
@@ -2688,7 +2688,7 @@ def build_processing_chain(
             ) from e
 
     # build the output buffers
-    tb_out = lgdo.Table(size=buffer_len)
+    tb_out = lgdo.Table(size=len(tb_in))
 
     # add inputs that are directly copied
     for copy_par in copy_par_list:
