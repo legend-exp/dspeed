@@ -2229,8 +2229,8 @@ class LGDOWaveformIOManager(IOManager):
 
 
 def build_processing_chain(
-    tb_in: lgdo.Table,
     processors: dict | str,
+    tb_in: lgdo.Table = None,
     db_dict: dict = None,
     outputs: list[str] = None,
     block_width: int = 16,
@@ -2688,7 +2688,7 @@ def build_processing_chain(
             ) from e
 
     # build the output buffers
-    tb_out = lgdo.Table(buffer_len)
+    tb_out = lgdo.Table(size=buffer_len)
 
     # add inputs that are directly copied
     for copy_par in copy_par_list:
