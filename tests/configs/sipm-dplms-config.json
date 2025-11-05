@@ -14,7 +14,7 @@
       "args": [
         "db.gauss.width",
         "db.gauss.trunc",
-        "gaus_kernel(round(db.gauss.trunc * db.gauss.width + 0.5)*2+1 , 'd')"
+        "gaus_kernel(shape=round(db.gauss.trunc * db.gauss.width + 0.5)*2+1 ,  dtype='d')"
       ],
       "defaults": {
         "db.gauss.width": 1,
