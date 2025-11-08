@@ -35,13 +35,23 @@
 # performed with NumPy's built in convolution function.
 from __future__ import annotations
 
-import numpy
+import numpy as np
 from numba import guvectorize
 
 from dspeed.utils import numba_defaults_kwargs as nb_kwargs
 
 
-def gaussian_filter1d(sigma: int, truncate: float = 4.0) -> numpy.ndarray:
+@guvectorize(
+    [
+        "void(float32, float32, float32[:])",
+        "void(float64, float64, float64[:])",
+    ],
+    "(),(),(n)",
+    **nb_kwargs(
+        forceobj=True,
+    ),
+)
+def gaussian_filter1d(sigma: int, truncate: float, weights: np.ndarray) -> None:
     """1-D Gaussian filter.
 
     Note
@@ -58,75 +68,13 @@ def gaussian_filter1d(sigma: int, truncate: float = 4.0) -> numpy.ndarray:
         truncate the filter at this many standard deviations.
     """
 
-    def _gaussian_kernel1d(sigma, radius):
-        """
-        Computes a 1-D Gaussian convolution kernel.
-        """
-        sigma2 = sigma * sigma
-        x = numpy.arange(-radius, radius + 1)
-        phi_x = numpy.exp(-0.5 / sigma2 * x**2)
-        phi_x = phi_x / phi_x.sum()
-        return phi_x
-
-    sd = float(sigma)
-
     # Make the radius of the filter equal to truncate standard deviations
-
+    sd = float(sigma)
     lw = int(truncate * sd + 0.5)
 
-    # Since we are calling correlate, not convolve, revert the kernel
+    sigma2 = sigma * sigma
+    x = np.arange(-lw, lw + 1)
+    phi_x = np.exp(-0.5 / sigma2 * x**2)
+    phi_x = phi_x / phi_x.sum()
 
-    weights = _gaussian_kernel1d(sigma, lw)[::-1]
-    weights = numpy.asarray(weights, dtype=numpy.float64)
-
-    # Find the length of the kernel so we can reflect the signal an appropriate amount
-
-    extension_length = int(len(weights) / 2) + 1
-
-    @guvectorize(
-        [
-            "void(float32[:], float32[:])",
-            "void(float64[:], float64[:])",
-            "void(int32[:], int32[:])",
-            "void(int64[:], int64[:])",
-        ],
-        "(n),(m)",
-        **nb_kwargs(
-            forceobj=True,
-        ),
-    )
-    def gaussian_filter1d_out(wf_in, wf_out):
-        # Have to create an array to enable the reflect mode
-        # Extend the signal on the left and right by at least half of the length of the kernel
-
-        wf_in = numpy.asarray(wf_in)
-
-        # Short warning message if kernel is larger than signal, in which case signal can't be convolved
-
-        if len(wf_in) < extension_length:
-            raise ValueError(
-                "Kernel calculated was larger than signal, try again with smaller parameters"
-            )
-
-        # This mode extends as a reflection
-        # ‘reflect’ (d c b a | a b c d | d c b a)
-        # The input is extended by reflecting about the edge of the last pixel. This mode is also
-        # sometimes referred to as half-sample symmetric.
-
-        reflected_front = numpy.flip(wf_in[0:extension_length])
-        reflected_end = numpy.flip(wf_in[-extension_length:])
-
-        # Extend the signal
-
-        extended_signal = wf_in
-        extended_signal = numpy.concatenate((extended_signal, reflected_end), axis=None)
-        extended_signal = numpy.concatenate(
-            (reflected_front, extended_signal), axis=None
-        )
-        output = numpy.correlate(extended_signal, weights, mode="same")
-
-        # Now extract the original signal length
-
-        wf_out[:] = output[extension_length:-extension_length]
-
-    return gaussian_filter1d_out
+    weights[:] = np.asarray(phi_x, dtype=np.float64)
