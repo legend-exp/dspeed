@@ -418,6 +418,7 @@ def build_dsp(
                     lh5_file=dsp_out,
                     wo_mode="o" if write_mode == "u" else "a",
                     write_start=i_start + i_entry,
+                    n_rows=len(tb_in)
                 )
             else:
                 tb_fill.append(tb_out)
