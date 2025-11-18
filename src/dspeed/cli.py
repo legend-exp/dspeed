@@ -57,7 +57,7 @@ def dspeed_cli():
     parser.add_argument(
         "--config",
         "-c",
-        nargs="*,
+        nargs="*",
         required=True,
         help=""""JSON file holding configuration of signal processing
                  routines""",
