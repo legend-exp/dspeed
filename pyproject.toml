@@ -37,6 +37,7 @@ requires-python = ">=3.9"
 dependencies=[
     "PyWavelets",
     "colorlog",
+    "dbetto",
     "h5py>=3.2",
     "iminuit",
     "legend-pydataobj>=1.16.0",
