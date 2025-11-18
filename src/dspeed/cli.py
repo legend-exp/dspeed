@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from dbetto import Props
 
 from . import __version__, build_dsp, logging
 
@@ -55,6 +56,7 @@ def dspeed_cli():
     parser.add_argument(
         "--config",
         "-c",
+        nargs="*,
         required=True,
         help=""""JSON file holding configuration of signal processing
                  routines""",
@@ -172,11 +174,13 @@ def dspeed_cli():
             basename = basename.removesuffix("_raw")
             out_files.append(f"{basename}_dsp.lh5")
 
+    config = Props.read_from(args.config)
+
     for i in range(len(args.raw_lh5_file)):
         build_dsp(
             args.raw_lh5_file[i],
             out_files[i],
-            args.config,
+            config,
             lh5_tables=args.hdf5_groups,
             database=args.database,
             outputs=args.output_pars,
