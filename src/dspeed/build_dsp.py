@@ -330,7 +330,9 @@ def build_dsp(
 
         # Get outputs from config if they weren't provided
         if outputs is None:
-            outputs = this_config["outputs"]
+            _outputs = this_config["outputs"]
+        else:
+            _outputs = outputs
 
         # resize inputs, get table and iterable versions
         if n_entries is None:
@@ -358,7 +360,7 @@ def build_dsp(
             processors,
             tb_in,
             db_dict=db_dict,
-            outputs=outputs,
+            outputs=_outputs,
             block_width=block_width,
         )
 
@@ -416,6 +418,7 @@ def build_dsp(
                     lh5_file=dsp_out,
                     wo_mode="o" if write_mode == "u" else "a",
                     write_start=i_start + i_entry,
+                    n_rows=len(tb_in),
                 )
             else:
                 tb_fill.append(tb_out)
