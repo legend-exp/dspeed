@@ -23,15 +23,16 @@ def fft(w_in, dft_out):
     dft_out
         output discrete fourier transform
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "dft": {
-            "function": "dspeed.processors.fft",
-            "args": ["wf", "dft(len(wf)//2+1, period=1/wf.period/len(wf)"],
-        }
+        dft:
+            function: dspeed.processors.fft
+            args:
+              - wf
+              - dft(len(wf)//2+1, period=1/wf.period/len(wf)
     """
     if not len(w_in) // 2 + 1 == len(dft_out):
         raise DSPFatal(f"Size of fft must be len(w_in)//2+1 = {len(w_in)//2+1}")
@@ -59,15 +60,16 @@ def ifft(dft_in, w_out):
     w_out
         output waveform
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "waveform": {
-            "function": "dspeed.processors.ifft",
-            "args": ["dft", "waveform((len(dft)-1)*2, period=2/dft.period/len(dft)"],
-        }
+        waveform:
+            function: dspeed.processors.ifft
+            args:
+              - dft
+              - waveform((len(dft)-1)*2, period=2/dft.period/len(dft)
     """
     if not (len(dft_in) - 1) * 2 == len(w_out):
         raise DSPFatal(f"Size of wf must be (len(dft_in)-1)*2 = {(len(dft_in)-1)*2}")
@@ -101,15 +103,16 @@ def psd(w_in, psd_out):
     psd_out
         output discrete power spectrum
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "psd": {
-            "function": "dspeed.processors.psd",
-            "args": ["wf", "psd(len(wf)//2+1, period=1/wf.period/len(wf)"],
-        }
+        psd:
+            function: dspeed.processors.psd
+            args:
+              - wf
+              - psd(len(wf)//2+1, period=1/wf.period/len(wf)
     """
     if not len(w_in) // 2 + 1 == len(psd_out):
         raise DSPFatal(f"Size of psd must be len(w_in)//2+1 = {len(w_in)//2+1}")
