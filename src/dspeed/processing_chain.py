@@ -2247,26 +2247,16 @@ def build_processing_chain(
 
         .. code-block:: yaml
 
-            outputs:
-              - par1
-              - par2
+            outputs: [par1, par2]
             processors:
               "name1, name2":
                 function: func1
                 module: mod1
-                args:
-                  - arg1
-                  - 3
-                  - arg2
+                args: [arg1, 3, arg2]
                 kwargs:
                   key1: val1
-                init_args:
-                  - arg1
-                  - 3
-                  - arg2
-                unit:
-                  - u1
-                  - u2
+                init_args: [arg1, 3, arg2]
+                unit: [u1 u2]
                 defaults:
                   arg1: defval1
 
