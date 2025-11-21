@@ -5,15 +5,16 @@ import logging
 import math
 import string
 import sys
+from collections.abc import Collection, Mapping
 
 import lgdo
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas
-import pint
 from cycler import cycler
 from lgdo.lh5 import LH5Iterator
+from lgdo.types import Table
 from matplotlib.lines import Line2D
+from pint import Quantity, Unit
 
 from ..processing_chain import build_processing_chain
 from ..units import unit_registry as ureg
@@ -32,22 +33,22 @@ class WaveformBrowser:
 
     def __init__(
         self,
-        files_in: str | list[str] | LH5Iterator,  # noqa: F821
-        lh5_group: str | list[str] = "",
+        raw_in: str | Collection[str] | LH5Iterator | Table,
+        lh5_group: str | Collection[str] = "",
         base_path: str = "",
-        entry_list: list[int] | list[list[int]] = None,
-        entry_mask: list[int] | list[list[int]] = None,
-        dsp_config: dict | str = None,
-        database: str | dict = None,
-        aux_values: pandas.DataFrame = None,
-        lines: str | list[str] = None,
-        styles: dict[str, list] | str = None,
-        legend: str | list[str] = None,
-        legend_opts: dict = None,
+        entry_list: Collection[int] | Collection[Collection[int]] = None,
+        entry_mask: Collection[bool] | Collection[Collection[bool]] = None,
+        dsp_config: str | Mapping = None,
+        database: str | Mapping = None,
+        aux_values: Mapping[np.ndarray] = None,
+        lines: str | Collection[str] = None,
+        styles: Mapping[str, Collection] | str = None,
+        legend: str | Collection[str] = None,
+        legend_opts: Mapping = None,
         n_drawn: int = 1,
-        x_unit: pint.Unit | str = None,
-        x_lim: tuple[float | str | pint.Quantity] = None,
-        y_lim: tuple[float | str | pint.Quantity] = None,
+        x_unit: str | Unit = None,
+        x_lim: Collection[float | str | Quantity] = None,
+        y_lim: Collection[float | str | Quantity] = None,
         norm: str = None,
         align: str = None,
         buffer_len: int = 128,
@@ -56,9 +57,9 @@ class WaveformBrowser:
         """
         Parameters
         ----------
-        files_in
-            name of file or list of files to browse. Can use wildcards. Can
-            also pass an LH5Iterator
+        raw_in
+            raw data with waveforms. Can be a file or list of lh5 files
+            (requires use of lh5_group argument), an LH5Iterator
 
         lh5_group
             HDF5 base group(s) to read containing a LGDO table that contains
@@ -67,7 +68,7 @@ class WaveformBrowser:
             the same group will be assigned to each file found
 
         base_path
-            base path for file. See :class:`~lgdo.lh5.LH5Store`.
+            base path for files. See :class:`~lgdo.lh5.LH5Store`.
 
         entry_list
             list of event indices to draw. If it is a nested list, use local
@@ -157,18 +158,15 @@ class WaveformBrowser:
         self.next_entry = 0
 
         # data i/o initialization
-        if isinstance(files_in, LH5Iterator):
-            self.lh5_it = files_in
+        if isinstance(raw_in, LH5Iterator):
+            self.lh5_it = raw_in
         else:
-            # HACK: do not read VOV "tracelist", cannot be handled correctly by LH5Iterator
-            # remove this hack once VOV support is properly implemented
             self.lh5_it = LH5Iterator(
-                files_in,
+                raw_in,
                 lh5_group,
                 base_path=base_path,
                 entry_list=entry_list,
                 entry_mask=entry_mask,
-                field_mask={"tracelist": False},
                 buffer_len=buffer_len,
             )
 
@@ -203,7 +201,7 @@ class WaveformBrowser:
             self.lines = {line: [] for line in lines}
 
         # styles
-        if isinstance(styles, (list, tuple)):
+        if isinstance(styles, Collection) and not isinstance(styles, str):
             self.styles = [None for _ in self.lines]
             for i, sty in enumerate(styles):
                 if isinstance(sty, str):
@@ -252,7 +250,7 @@ class WaveformBrowser:
                 legend_format += f"{st}{{{name}:{form}{cv}}}"
             self.legend_format.append(legend_format)
 
-        self.legend_kwargs = legend_opts if isinstance(legend_opts, dict) else {}
+        self.legend_kwargs = legend_opts if isinstance(legend_opts, Mapping) else {}
 
         # make processing chain and output buffer
         outputs = list(self.lines) + list(self.legend_vals)
@@ -266,8 +264,8 @@ class WaveformBrowser:
             outputs = [o for o in outputs if o not in self.aux_vals]
 
         self.proc_chain, field_mask, self.lh5_out = build_processing_chain(
-            self.lh5_in,
             dsp_config,
+            self.lh5_in,
             db_dict=database,
             outputs=outputs,
             block_width=block_width,
@@ -356,7 +354,7 @@ class WaveformBrowser:
         self.n_stored = 0
 
     def find_entry(
-        self, entry: int | list[int], append: bool = True, safe: bool = False
+        self, entry: int | Collection[int], append: bool = True, safe: bool = False
     ) -> None:
         """Find the requested data associated with entry in input files and
         place store it internally without drawing it.
@@ -514,13 +512,13 @@ class WaveformBrowser:
 
         leg_handles = []
         leg_labels = []
-        if not isinstance(self.styles, list):
+        if not isinstance(self.styles, Collection):
             styles = self.styles
 
         # draw lines
         default_style = itertools.cycle(cycler(plt.rcParams["axes.prop_cycle"]))
         for i, lines in enumerate(self.lines.values()):
-            if isinstance(self.styles, list):
+            if isinstance(self.styles, Collection):
                 styles = self.styles[i]
             else:
                 styles = self.styles
@@ -596,7 +594,7 @@ class WaveformBrowser:
 
     def draw_entry(
         self,
-        entry: int | list[int],
+        entry: int | Collection[int],
         append: bool = False,
         clear: bool = True,
         safe: bool = False,

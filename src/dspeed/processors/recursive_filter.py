@@ -1,3 +1,5 @@
+"""Processors implementing recursive digital filters."""
+
 from __future__ import annotations
 
 import numpy as np

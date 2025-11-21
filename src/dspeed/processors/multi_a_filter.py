@@ -1,3 +1,5 @@
+"""Processors implementing multi-A trapezoidal filters."""
+
 import numpy as np
 from numba import guvectorize
 
