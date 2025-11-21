@@ -25,17 +25,18 @@ def pole_zero(w_in: np.ndarray, t_tau: float, w_out: np.ndarray) -> None:
     w_out
         the pole-zero cancelled waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_pz": {
-            "function": "pole_zero",
-            "module": "dspeed.processors",
-            "args": ["wf_bl", "400*us", "wf_pz"],
-            "unit": "ADC"
-        }
+      wf_pz:
+        function: pole_zero
+        module: dspeed.processors
+        args:
+          - wf_bl
+          - "400*us"
+          - wf_pz
     """
     w_out[:] = np.nan
 
@@ -94,17 +95,21 @@ def double_pole_zero(
     w_out
         the pole-zero cancelled waveform.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_pz": {
-            "function": "double_pole_zero",
-            "module": "dspeed.processors",
-            "args": ["wf_bl", "400*us", "20*us", "0.02", "True","wf_pz"],
-            "unit": "ADC"
-        }
+      wf_pz:
+        function: double_pole_zero
+        module: dspeed.processors
+        args:
+          - wf_bl
+          - "400*us"
+          - "20*us"
+          - "0.02"
+          - "True"
+          - wf_pz
 
     Notes
     -----

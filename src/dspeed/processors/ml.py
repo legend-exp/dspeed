@@ -2,29 +2,34 @@
 Module containing ml processors, the dsp config can be used to combine these into a neural
 network a simple example would be:
 
-.. code-block :: json
+.. code-block:: yaml
 
-    "layer_1": {
-        "function": "normalisation_layer",
-        "module": "dspeed.processors",
-        "args": ["wf_blsub", "db.mean", "db.variance", "layer_1"],
-        "unit": "ADC"
-    }
-
-    "layer_2": {
-        "function": "dense_layer_with_bias",
-        "module": "dspeed.processors",
-        "args": ["layer_1", "db.kernel", "db.bias", "'r'", "layer_2"],
-        "unit": "ADC"
-    }
-
-    "classifier": {
-        "function": "dense_layer_with_bias",
-        "module": "dspeed.processors",
-        "args": ["layer_2", "db.kernel", "db.bias","'s'", "classifier"],
-        "unit": "ADC"
-    }
-
+    layer_1:
+      function: normalisation_layer
+      module: dspeed.processors
+      args:
+        - wf_blsub
+        - db.mean
+        - db.variance
+        - layer_1
+    layer_2:
+      function: dense_layer_with_bias
+      module: dspeed.processors
+      args:
+        - layer_1
+        - db.kernel
+        - db.bias
+        - "'r'"
+        - layer_2
+    classifier:
+      function: dense_layer_with_bias
+      module: dspeed.processors
+      args:
+        - layer_2
+        - db.kernel
+        - db.bias
+        - "'s'"
+        - classifier
 """
 
 from __future__ import annotations
@@ -114,17 +119,19 @@ def dense_layer_no_bias(
     x_out
         the output vector shape m.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "layer_1": {
-            "function": "dense_layer_no_bias",
-            "module": "dspeed.processors",
-            "args": ["wf_blsub", "db.kernel", "'s'", "layer_1"],
-            "unit": "ADC"
-        }
+        layer_1:
+          function: dense_layer_no_bias
+          module: dspeed.processors
+          args:
+            - wf_blsub
+            - db.kernel
+            - "'s'"
+            - layer_1
     """
 
     x_out[:] = np.nan
@@ -183,17 +190,20 @@ def dense_layer_with_bias(
     x_out
         the output vector shape m.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "layer_1": {
-            "function": "dense_layer_with_bias",
-            "module": "dspeed.processors",
-            "args": ["wf_blsub", "db.kernel", "db.bias", "'s'", "layer_1"],
-            "unit": "ADC"
-        }
+        layer_1:
+          function: dense_layer_with_bias
+          module: dspeed.processors
+          args:
+            - wf_blsub
+            - db.kernel
+            - db.bias
+            - "'s'"
+            - layer_1
     """
 
     x_out[:] = np.nan
@@ -246,17 +256,19 @@ def classification_layer_no_bias(
     x_out
         the output value.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "classifier": {
-            "function": "dense_layer_with_bias",
-            "module": "dspeed.processors",
-            "args": ["wf_blsub", "db.kernel", "'s'", "classifier"],
-            "unit": "ADC"
-        }
+        classifier:
+          function: dense_layer_with_bias
+          module: dspeed.processors
+          args:
+            - wf_blsub
+            - db.kernel
+            - "'s'"
+            - classifier
     """
     x_out[0] = np.nan
 
@@ -315,17 +327,20 @@ def classification_layer_with_bias(
     x_out
         the output value.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "classifier": {
-            "function": "dense_layer_with_bias",
-            "module": "dspeed.processors",
-            "args": ["wf_blsub", "db.kernel", "db.bias","'s'", "classifier"],
-            "unit": "ADC"
-        }
+        classifier:
+          function: dense_layer_with_bias
+          module: dspeed.processors
+          args:
+            - wf_blsub
+            - db.kernel
+            - db.bias
+            - "'s'"
+            - classifier
     """
     x_out[0] = np.nan
 
@@ -374,16 +389,18 @@ def normalisation_layer(
     x_out
         the output vector shape n.
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
 
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "wf_normed": {
-            "function": "normalisation_layer",
-            "module": "dspeed.processors",
-            "args": ["wf_blsub", "db.mean", "db.variance", "wf_normed"],
-            "unit": "ADC"
-        }
+        wf_normed:
+          function: normalisation_layer
+          module: dspeed.processors
+          args:
+            - wf_blsub
+            - db.mean
+            - db.variance
+            - wf_normed
     """
     x_out[:] = (x_in - means) / np.sqrt(variances)

@@ -8,11 +8,23 @@
     "trigger_pos_dplms"
   ],
   "processors": {
-    "wf_gaus": {
+    "gaus_kernel": {
       "function": "gaussian_filter1d",
       "module": "dspeed.processors.gaussian_filter1d",
-      "args": ["waveform", "wf_gaus(len(waveform))"],
-      "init_args": ["1", "4.0"],
+      "args": [
+        "db.gauss.width",
+        "db.gauss.trunc",
+        "gaus_kernel(shape=round(db.gauss.trunc * db.gauss.width + 0.5)*2+1 ,  dtype='d')"
+      ],
+      "defaults": {
+        "db.gauss.width": 1,
+        "db.gauss.trunc": 4
+      }
+    },
+    "wf_gaus": {
+      "function": "reflected_convolve_wf",
+      "module": "dspeed.processors.convolutions",
+      "args": ["waveform", "gaus_kernel", "wf_gaus(len(waveform))"],
       "unit": "ADC"
     },
     "curr": {

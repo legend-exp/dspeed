@@ -15,15 +15,17 @@ def tf_model(filepath: str) -> GUFuncWrapper:
         name of keras file containing model
 
 
-    JSON Configuration Example
+    YAML Configuration Example
     --------------------------
-    .. code-block :: json
+    .. code-block:: yaml
 
-        "classifier":{
-            "function": "dspeed.processors.tf_model",
-            "args": ["input", "output"],
-            "init_args": ["'model.keras'"]
-        }
+        classifier:
+          function: dspeed.processors.tf_model
+          args:
+            - input
+            - output
+          init_args:
+            - "'model.keras'"
     """
     import tensorflow as tf
 

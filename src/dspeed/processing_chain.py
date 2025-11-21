@@ -8,6 +8,7 @@ from __future__ import annotations
 import ast
 import importlib
 import itertools as it
+import json
 import logging
 import re
 import time
@@ -22,10 +23,9 @@ from typing import Any
 
 import lgdo
 import numpy as np
-from lgdo import LGDO, lh5
 from numba import guvectorize
 from pint import Quantity, Unit
-from yaml import dump, safe_load
+from yaml import safe_load
 
 from . import processors
 from .errors import DSPFatal, ProcessingChainError
@@ -34,7 +34,6 @@ from .utils import ProcChainVarBase
 from .utils import numba_defaults_kwargs as nb_kwargs
 
 log = logging.getLogger("dspeed")
-sto = lh5.LH5Store()
 
 # Filler value for variables to be automatically deduced later
 auto = "auto"
@@ -254,11 +253,10 @@ class ProcChainVar(ProcChainVarBase):
         super().__setattr__(name, value)
 
     def _make_buffer(self) -> np.ndarray:
-        shape = (
-            self.shape
-            if self.is_const
-            else (self.proc_chain._block_width,) + self.shape
-        )
+        if self.is_const:
+            shape = (1,) + self.shape
+        else:
+            shape = (self.proc_chain._block_width,) + self.shape
         len = np.prod(shape)
         # Flattened array, with padding to allow memory alignment
         buf = np.zeros(len + 64 // self.dtype.itemsize, dtype=self.dtype)
@@ -509,8 +507,8 @@ class ProcessingChain:
         param.is_const = True
 
         if isinstance(val, Quantity):
-            unit = val.unit
-            val = val.magnitude
+            unit = val.u
+            val = val.m
 
         val = np.array(val, dtype=dtype)
 
@@ -520,8 +518,8 @@ class ProcessingChain:
         return param
 
     def link_input_buffer(
-        self, varname: str, buff: np.ndarray | LGDO = None
-    ) -> np.ndarray | LGDO:
+        self, varname: str, buff: np.ndarray | lgdo.LGDO = None
+    ) -> np.ndarray | lgdo.LGDO:
         """Link an input buffer to a variable.
 
         Parameters
@@ -600,8 +598,8 @@ class ProcessingChain:
         return buff
 
     def link_output_buffer(
-        self, varname: str, buff: np.ndarray | LGDO = None
-    ) -> np.ndarray | LGDO:
+        self, varname: str, buff: np.ndarray | lgdo.LGDO = None
+    ) -> np.ndarray | lgdo.LGDO:
         """Link an output buffer to a variable.
 
         Parameters
@@ -714,7 +712,10 @@ class ProcessingChain:
         if stop is None:
             stop = self._buffer_len
         for i in range(start, stop, self._block_width):
-            self._execute_procs(i, min(i + self._block_width, stop))
+            try:
+                self._execute_procs(i, min(i + self._block_width, stop))
+            except IndexError:
+                break
 
     def get_variable(
         self, expr: str, get_names_only: bool = False, expr_only: bool = False
@@ -938,46 +939,10 @@ class ProcessingChain:
                     ret = ret.to(ureg.dimensionless).magnitude
                 return ret
 
-            name = "(" + op_form.format(str(lhs), str(rhs)) + ")"
-            if isinstance(lhs, ProcChainVar) and isinstance(rhs, ProcChainVar):
-                if is_in_pint(lhs.unit) and is_in_pint(rhs.unit):
-                    unit = op(Quantity(lhs.unit), Quantity(rhs.unit)).u
-                    if unit == ureg.dimensionless:
-                        unit = None
-                elif lhs.unit is not None and rhs.unit is not None:
-                    if type(node.op) in (ast.Mult, ast.Div, ast.FloorDiv):
-                        unit = op_form.format(str(lhs.unit), str(rhs.unit))
-                    else:
-                        unit = str(lhs.unit)
-                elif lhs.unit is not None:
-                    unit = lhs.unit
-                else:
-                    unit = rhs.unit
-                # If both vars are coordinates, this is probably not a coord.
-                # If one var is a coord, this is probably a coord
-                out = ProcChainVar(
-                    self,
-                    name,
-                    grid=None if lhs.is_coord and rhs.is_coord else auto,
-                    is_coord=(
-                        False if lhs.is_coord is True and rhs.is_coord is True else auto
-                    ),
-                    unit=unit,
-                )
-            elif isinstance(lhs, ProcChainVar):
-                out = ProcChainVar(
-                    self,
-                    name,
-                    unit=lhs.unit,
-                    is_coord=lhs.is_coord,
-                )
-            else:
-                out = ProcChainVar(
-                    self,
-                    name,
-                    unit=rhs.unit,
-                    is_coord=rhs.is_coord,
-                )
+            out = ProcChainVar(
+                self,
+                "(" + op_form.format(str(lhs), str(rhs)) + ")",
+            )
 
             proc_man = ProcessorManager(self, op, [lhs, rhs, out])
             self._proc_managers.append(proc_man)
@@ -1077,8 +1042,9 @@ class ProcessingChain:
         # for name.attribute
         elif isinstance(node, ast.Attribute):
             # If we are looking for an attribute of a module (e.g. np.pi)
-            if node.value.id in self.module_list:
-                mod = self.module_list[node.value.id]
+            module = expr[node.value.col_offset : node.value.end_col_offset]
+            if module in self.module_list:
+                mod = self.module_list[module]
                 attr = getattr(mod, node.attr)
                 if not isinstance(attr, Real):
                     raise ProcessingChainError(
@@ -1220,7 +1186,7 @@ class ProcessingChain:
             return None
         if not isinstance(var, ProcChainVar):
             if isinstance(var, Quantity):
-                return fun(var.m, float(to_nearest / var.u))
+                return fun(float(var / to_nearest.u), to_nearest.m) * to_nearest.u
             else:
                 return fun(var, to_nearest)
         else:
@@ -1446,8 +1412,10 @@ class ProcessingChain:
             list: The loaded data.
         """
 
+        from lgdo import lh5
+
         try:
-            loaded_data = sto.read(path_in_file, path_to_file)
+            loaded_data = lh5.read(path_in_file, path_to_file)
             if isinstance(loaded_data, lgdo.types.Scalar):
                 loaded_data = loaded_data.value
             else:
@@ -1983,12 +1951,17 @@ class LGDOArrayIOManager(IOManager):
             )
 
     def read(self, start: int, end: int) -> None:
+        if start >= len(self.io_array):
+            raise IndexError
         end = min(end, len(self.io_array))
         self.raw_var[0 : end - start, ...] = self.io_array[start:end, ...]
 
     def write(self, start: int, end: int) -> None:
         self.io_array.resize(end)
-        self.io_array[start:end, ...] = self.raw_var[0 : end - start, ...]
+        if self.var.is_const:
+            self.io_array[start:end, ...] = self.raw_var[...]
+        else:
+            self.io_array[start:end, ...] = self.raw_var[0 : end - start, ...]
 
     def __str__(self) -> str:
         return f"{self.var} linked to lgdo.Array(shape={self.io_array.shape}, dtype={self.io_array.dtype}, attrs={self.io_array.attrs})"
@@ -2043,15 +2016,14 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
             )
 
     def read(self, start: int, end: int) -> None:
+        if start >= len(self.io_array):
+            raise IndexError
         end = min(end, len(self.io_array))
         self.raw_var[0 : end - start, ...] = self.io_array[start:end, ...]
 
     def write(self, start: int, end: int) -> None:
         self.io_array.resize(end)
-        if self.var.is_const:
-            self.io_array[start:end, ...] = self.raw_var[...]
-        else:
-            self.io_array[start:end, ...] = self.raw_var[0 : end - start, ...]
+        self.io_array[start:end, ...] = self.raw_var[0 : end - start, ...]
 
     def __str__(self) -> str:
         return f"{self.var} linked to lgdo.ArrayOfEqualSizedArrays(shape={self.io_array.shape}, dtype={self.io_array.dtype}, attrs={self.io_array.attrs})"
@@ -2147,6 +2119,8 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             prev_cl = cl
 
     def read(self, start: int, end: int) -> None:
+        if start >= len(self.io_vov):
+            raise IndexError
         end = min(end, len(self.io_vov))
         self.raw_var = 0 if np.issubdtype(self.raw_var.dtype, np.integer) else np.nan
         LGDOVectorOfVectorsIOManager._vov2nda(
@@ -2233,10 +2207,14 @@ class LGDOWaveformIOManager(IOManager):
         self.io_wf.dt_units = dt_units
 
     def read(self, start: int, end: int) -> None:
+        if start >= len(self.io_wf):
+            raise IndexError
+        end = min(end, len(self.io_wf))
         self.wf_var[0 : end - start, ...] = self.io_wf.values[start:end, ...]
         self.t0_var[0 : end - start, ...] = self.io_wf.t0[start:end, ...]
 
     def write(self, start: int, end: int) -> None:
+        self.io_wf.resize(end)
         self.io_wf.values[start:end, ...] = self.wf_var[0 : end - start, ...]
         if self.variable_t0:
             self.io_wf.t0[start:end, ...] = self.t0_var[0 : end - start, ...]
@@ -2251,32 +2229,27 @@ class LGDOWaveformIOManager(IOManager):
 
 
 def build_processing_chain(
-    lh5_in: lgdo.Table,
-    dsp_config: dict | str,
+    processors: dict | str,
+    tb_in: lgdo.Table = None,
     db_dict: dict = None,
     outputs: list[str] = None,
     block_width: int = 16,
 ) -> tuple[ProcessingChain, list[str], lgdo.Table]:
-    """Produces a :class:`ProcessingChain` object and an LH5
-    :class:`~lgdo.types.table.Table` for output parameters from an input LH5
+    """Produces a :class:`ProcessingChain` object and an LGDO
+    :class:`~lgdo.types.table.Table` for output parameters from an input LGDO
     :class:`~lgdo.types.table.Table` and a JSON or YAML recipe.
 
     Parameters
     ----------
-    lh5_in
-        HDF5 table from which raw data is read. At least one row of entries
-        should be read in prior to calling this!
-
-    dsp_config
+    processors
         A dictionary or YAML/JSON filename containing the recipes for computing DSP
         parameter from raw parameters. The format is as follows:
 
         .. code-block:: json
+            :force:
 
             {
-               "outputs" : [ "par1", "par2" ]
-               "processors" : {
-                  "name1, name2" : {
+                "name1, name2" : {
                     "function" : "func1"
                     "module" : "mod1"
                     "args" : ["arg1", 3, "arg2"]
@@ -2284,47 +2257,45 @@ def build_processing_chain(
                     "init_args" : ["arg1", 3, "arg2"]
                     "unit" : ["u1", "u2"]
                     "defaults" : {"arg1": "defval1"}
-                  }
-               }
+                },
+                ...
             }
 
-        - ``outputs`` -- list of output parameters (strings) to compute by
-          default. See `outputs` argument
-        - ``processors`` -- configuration dictionary
+        - ``name1, name2`` -- dictionary. key contains comma-separated
+          names of parameters computed
 
-          - ``name1, name2`` -- dictionary. key contains comma-separated
-            names of parameters computed
+          - ``function`` -- string, name of function to call.  Function
+            should implement the :class:`numpy.gufunc` interface, a factory
+            function returning a ``gufunc``, or an arbitrary function that
+            can be mapped onto a ``gufunc``
+          - ``module`` -- string, name of module containing function
+          - ``args``-- list of strings or numerical values. Contains
+            list of names of computed and input parameters or
+            constant values used as inputs to function. Note that
+            outputs should be fed by reference as args! Arguments read
+            from the database are prepended with ``db``.
+          - ``kwargs`` -- dictionary. Keyword arguments for
+            :meth:`ProcesssingChain.add_processor`.
+          - ``init_args`` --  list of strings or numerical values. List
+            of names of computed and input parameters or constant values
+            used to initialize a :class:`numpy.gufunc` via a factory
+            function
+          - ``unit`` -- list of strings. Units for parameters
+          - ``defaults`` -- dictionary. Default value to be used for
+            arguments read from the database
+        - The dictionary can also be nested in another, keyed as ``processors``
 
-            - ``function`` -- string, name of function to call.  Function
-              should implement the :class:`numpy.gufunc` interface, a factory
-              function returning a ``gufunc``, or an arbitrary function that
-              can be mapped onto a ``gufunc``
-            - ``module`` -- string, name of module containing function
-            - ``args``-- list of strings or numerical values. Contains
-              list of names of computed and input parameters or
-              constant values used as inputs to function. Note that
-              outputs should be fed by reference as args! Arguments read
-              from the database are prepended with ``db``.
-            - ``kwargs`` -- dictionary. Keyword arguments for
-              :meth:`ProcesssingChain.add_processor`.
-            - ``init_args`` --  list of strings or numerical values. List
-              of names of computed and input parameters or constant values
-              used to initialize a :class:`numpy.gufunc` via a factory
-              function
-            - ``unit`` -- list of strings. Units for parameters
-            - ``defaults`` -- dictionary. Default value to be used for
-              arguments read from the database
-
+    tb_in
+        input table. This table will be linked to use as inputs when
+        executing processors. Can be empty (for now), as long as fields
+        and attrs are set.
     db_dict
         A nested :class:`dict` pointing to values for database arguments. As
         instance, if a processor uses the argument ``db.trap.risetime``, it
         will look up ``db_dict['trap']['risetime']`` and use the found value.
-        If no value is found, use the default defined in `dsp_config`.
-
+        If no value is found, use the default defined in `processors`.
     outputs
-        List of parameters to put in the output LH5 table. If ``None``,
-        use the parameters in the ``"outputs"`` list from `dsp_config`.
-
+        List of parameters to put in the output LGDO table.
     block_width
         number of entries to process at once. To optimize performance,
         a multiple of 16 is preferred, but if performance is not an issue
@@ -2332,33 +2303,39 @@ def build_processing_chain(
 
     Returns
     -------
-    (proc_chain, field_mask, lh5_out)
+    (proc_chain, field_mask, tb_out)
         - `proc_chain` -- :class:`ProcessingChain` object that is executed
-        - `field_mask` -- list of input fields that are used
-        - `lh5_out` -- output :class:`~lgdo.table.Table` containing processed
-          values
+        - `field_mask` -- list of names of input fields that will be used.
+          This can be used to ensure only needed values are read in.
+        - `tb_out` -- output :class:`~lgdo.table.Table` with size 0, with
+          fields and attrs set up to contain outputs
     """
-    proc_chain = ProcessingChain(block_width, lh5_in.size)
+    db_parser = re.compile(r"(?![^\w_.])db\.[\w_.]+")
 
-    if isinstance(dsp_config, str):
-        with open(lh5.utils.expand_path(dsp_config)) as f:
-            dsp_config = safe_load(f)
-    elif dsp_config is None:
-        dsp_config = {"outputs": [], "processors": {}}
-    elif isinstance(dsp_config, MutableMapping):
+    if isinstance(processors, str):
+        with open(processors) as f:
+            processors = safe_load(f)
+    elif processors is None:
+        processors = {}
+    elif isinstance(processors, MutableMapping):
         # We don't want to modify the input!
-        dsp_config = deepcopy(dsp_config)
+        processors = deepcopy(processors)
     else:
-        raise ValueError("dsp_config must be a dict, json/yaml file, or None")
+        raise ValueError("processors must be a dict, json/yaml file, or None")
 
     if outputs is None:
-        outputs = dsp_config["outputs"]
+        if "outputs" not in processors:
+            raise ValueError("outputs not provided")
+        outputs = processors["outputs"]
 
-    processors = dsp_config["processors"]
+    if "processors" in processors:
+        processors = processors["processors"]
+
+    buffer_len = len(tb_in) if tb_in is not None else 1
+    proc_chain = ProcessingChain(block_width, buffer_len)
 
     # prepare the processor list
     multi_out_procs = {}
-    db_parser = re.compile(r"(?![^\w_.])db\.[\w_.]+")
     for key, node in processors.items():
         # if we have multiple outputs, add each to the processesors list
         keys = [k for k in re.split(",| ", key) if k != ""]
@@ -2370,11 +2347,74 @@ def build_processing_chain(
         if isinstance(node, str):
             node = {"function": node}
             processors[key] = node
-        if "args" in node:
-            args = node["args"]
-        else:
-            args = [node["function"]]
 
+        if "function" not in node:
+            raise ProcessingChainError
+        function = node["function"]
+        f_parse = ast.parse(function, mode="eval").body
+
+        mod_err_str = f"Module specified twice for parameter {key}"
+        args_err_str = (
+            f"Cannot specify arguments if function is expr for parameter {key}"
+        )
+        if isinstance(f_parse, ast.Name):
+            pass
+        elif isinstance(f_parse, ast.Attribute):
+            module = function[f_parse.value.col_offset : f_parse.value.end_col_offset]
+            if module in ProcessingChain.module_list and "args" not in node:
+                # this is an attribute like np.pi
+                node["module"] = None
+                node["args"] = [function]
+            else:
+                node["function"] = f_parse.attr
+                if "module" in node:
+                    raise ProcessingChainError(mod_err_str)
+                node["module"] = module
+        elif isinstance(f_parse, ast.Call):
+            # this is a function. Parse arguments from here
+            if "args" in node:
+                raise ProcessingChainError(args_err_str)
+
+            if (
+                isinstance(f_parse.func, ast.Name)
+                and f_parse.func.id in ProcessingChain.func_list
+                and "module" not in node
+            ):
+                # this should be treated as an inline expression assignment
+                node["module"] = None
+                node["args"] = [function]
+            elif isinstance(f_parse.func, ast.Name):
+                node["function"] = f_parse.func.id
+                node["args"] = [
+                    function[a.col_offset : a.end_col_offset]
+                    for a in f_parse.args + f_parse.keywords
+                ]
+            elif isinstance(f_parse.func, ast.Attribute):
+                node["function"] = f_parse.func.attr
+                if "module" in node:
+                    raise ProcessingChainError(mod_err_str)
+                mod = f_parse.func.value
+                node["module"] = function[mod.col_offset : mod.end_col_offset]
+                node["args"] = [
+                    function[a.col_offset : a.end_col_offset]
+                    for a in f_parse.args + f_parse.keywords
+                ]
+        else:
+            # this is an expression that ProcessingChain will try to parse
+            if "args" in node:
+                raise ProcessingChainError(args_err_str)
+            if "module" in node:
+                raise ProcessingChainError(mod_err_str)
+            node["module"] = None
+            node["args"] = [function]
+
+        if "module" not in node:
+            raise ProcessingChainError(f"Could not find module for parameter {key}")
+        if "args" not in node:
+            raise ProcessingChainError(f"Could not find args for parameter {key}")
+
+        # substitute database values in arguments
+        args = node["args"]
         for i, arg in enumerate(args):
             if not isinstance(arg, str):
                 continue
@@ -2476,15 +2516,12 @@ def build_processing_chain(
     log.debug(f"copied output parameters: {copy_par_list}")
     log.debug(f"processed output parameters: {out_par_list}")
 
-    # Now add all of the input buffers from lh5_in (and also the clk time)
+    # Now add all of the input buffers from tb_in
     for input_par in input_par_list:
-        buf_in = lh5_in.get(input_par)
-        if buf_in is None:
-            log.warning(
-                f"I don't know what to do with '{input_par}'. Building output without it!"
-            )
+        if input_par not in tb_in:
+            log.warning(f"'{input_par}' not found in input files or dsp config.")
         try:
-            proc_chain.link_input_buffer(input_par, buf_in)
+            proc_chain.link_input_buffer(input_par, tb_in[input_par])
         except Exception as e:
             raise ProcessingChainError(
                 f"Exception raised while linking input buffer '{input_par}'."
@@ -2497,36 +2534,30 @@ def build_processing_chain(
             # if we are invoking a built in expression, have the parser
             # add it to the processing chain, and then add a new variable
             # that shares its buffer
-            if "args" not in recipe:
-                fun_str = recipe if isinstance(recipe, str) else recipe["function"]
-                fun_var = proc_chain.get_variable(fun_str)
-                if not isinstance(fun_var, ProcChainVar):
-                    raise ProcessingChainError(
-                        f"Could not find function {recipe['function']}"
+            if recipe["module"] is None:
+                assert len(recipe["args"]) == 1
+                fun_var = proc_chain.get_variable(recipe["args"][0])
+                if isinstance(fun_var, ProcChainVar):
+                    new_var = proc_chain.add_variable(
+                        name=proc_par,
+                        dtype=fun_var.dtype,
+                        shape=fun_var.shape,
+                        grid=fun_var.grid,
+                        unit=fun_var.unit,
+                        is_coord=fun_var.is_coord,
                     )
-                new_var = proc_chain.add_variable(
-                    name=proc_par,
-                    dtype=fun_var.dtype,
-                    shape=fun_var.shape,
-                    grid=fun_var.grid,
-                    unit=fun_var.unit,
-                    is_coord=fun_var.is_coord,
-                )
-                new_var._buffer = fun_var._buffer
+                    new_var._buffer = fun_var._buffer
+
+                else:
+                    new_var = proc_chain.set_constant(
+                        varname=proc_par,
+                        val=fun_var,
+                    )
                 log.debug(f"setting {new_var} = {fun_var}")
                 continue
 
-            if "module" in recipe:
-                module = importlib.import_module(recipe["module"])
-                func = getattr(module, recipe["function"])
-            else:
-                p = recipe["function"].rfind(".")
-                if p < 0:
-                    raise ProcessingChainError(
-                        f"Must provide a module for function {recipe['function']}"
-                    )
-                module = importlib.import_module(recipe["function"][:p])
-                func = getattr(module, recipe["function"][p + 1 :])
+            module = importlib.import_module(recipe["module"])
+            func = getattr(module, recipe["function"])
 
             args = recipe["args"]
             new_vars = [k for k in re.split(",| ", proc_par) if k != ""]
@@ -2556,7 +2587,10 @@ def build_processing_chain(
                 init_args_in = recipe["init_args"]
                 init_args = []
                 init_kwargs = {}
-                for _, arg in enumerate(init_args_in):
+                for arg in init_args_in:
+                    if not isinstance(arg, str):
+                        pass
+
                     for db_var in db_parser.findall(arg):
                         try:
                             db_node = db_dict
@@ -2649,23 +2683,23 @@ def build_processing_chain(
 
         except Exception as e:
             raise ProcessingChainError(
-                "Exception raised while attempting to add processor:\n" + dump(recipe)
+                "Exception raised while attempting to add processor:\n"
+                + json.dumps(recipe, indent=2)
             ) from e
 
     # build the output buffers
-    lh5_out = lgdo.Table(size=proc_chain._buffer_len)
+    tb_out = lgdo.Table(size=buffer_len)
 
     # add inputs that are directly copied
     for copy_par in copy_par_list:
-        buf_in = lh5_in.get(copy_par)
-        if buf_in is None:
+        if copy_par not in tb_in:
             log.warning(
-                f"Did not find {copy_par} in either input file or parameter list. Building output without it!"
+                f"'{copy_par}' not found in input files or dsp config. Building output without it!"
             )
         else:
-            lh5_out.add_field(copy_par, buf_in)
+            tb_out.add_field(copy_par, tb_in[copy_par])
 
-    # finally, add the output buffers to lh5_out and the proc chain
+    # finally, add the output buffers to tb_out and the proc chain
     for out_par in out_par_list:
         try:
             buf_out = proc_chain.link_output_buffer(out_par)
@@ -2673,11 +2707,13 @@ def build_processing_chain(
             if isinstance(recipe, str):
                 recipe = processors[recipe]
             buf_out.attrs.update(recipe.get("lh5_attrs", {}))
-            lh5_out.add_field(out_par, buf_out)
+            buf_out.resize(len(tb_out))
+            tb_out.add_field(out_par, buf_out)
         except Exception as e:
             raise ProcessingChainError(
                 f"Exception raised while linking output buffer {out_par}."
             ) from e
 
     field_mask = input_par_list + copy_par_list
-    return (proc_chain, field_mask, lh5_out)
+
+    return (proc_chain, field_mask, tb_out)

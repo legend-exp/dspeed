@@ -206,3 +206,66 @@ def convolve_damped_oscillator(
     for i in range(len(w_in)):
         w_out[i:] += np.real(cn) * w_in[: len(w_in) - i]
         cn *= c
+
+
+@guvectorize(
+    [
+        "void(float32[:], float32[:], float32[:])",
+        "void(float64[:], float64[:], float64[:])",
+    ],
+    "(n),(m),(p)",
+    **nb_kwargs(
+        forceobj=True,
+    ),
+)
+def reflected_convolve_wf(
+    w_in: np.ndarray, kernel: np.array, w_out: np.ndarray
+) -> None:
+    """
+    Convolve a waveform with a kernel using reflection padding at the boundaries.
+
+    This function extends the input waveform by reflecting its edges before
+    convolution to minimize boundary artifacts. The reflection length is
+    determined by the kernel size.
+
+    Parameters
+    ----------
+    w_in : np.ndarray
+        The input waveform to be convolved.
+    kernel : np.ndarray
+        The convolution kernel. Must be shorter than or equal to w_in.
+    w_out : np.ndarray
+        Output array for the filtered waveform. Will be filled with the
+        convolution result, or NaN if inputs are invalid.
+
+    Raises
+    ------
+    DSPFatal
+        If the kernel length exceeds the input waveform length.
+
+    Notes
+    -----
+    - If either w_in or kernel contains NaN values, w_out is set to NaN.
+    - Uses 'reflect' mode padding to extend the signal at boundaries.
+    - The extension length is (len(kernel) // 2) + 1 on each side.
+    """
+
+    w_out[:] = np.nan
+
+    if np.isnan(w_in).any():
+        return
+
+    if np.isnan(kernel).any():
+        return
+
+    if len(kernel) > len(w_in):
+        raise DSPFatal("The filter is longer than the input waveform")
+
+    extension_length = int(len(kernel) / 2) + 1
+
+    # Extend the signal
+    extended_signal = np.pad(w_in, extension_length, mode="reflect")
+
+    w_out[:] = np.convolve(extended_signal, kernel, mode="same")[
+        extension_length:-extension_length
+    ]
