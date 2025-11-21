@@ -1,3 +1,5 @@
+"""Convolution-based waveform filter processors."""
+
 from __future__ import annotations
 
 import numpy as np

@@ -1,3 +1,5 @@
+"""Processors for applying moving window average convolution to waveforms."""
+
 from __future__ import annotations
 
 import numpy as np

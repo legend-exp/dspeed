@@ -1,3 +1,5 @@
+"""Helpers for running non-negative least-squares optimizations."""
+
 from __future__ import annotations
 
 import numpy as np

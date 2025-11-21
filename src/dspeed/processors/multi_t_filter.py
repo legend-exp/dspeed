@@ -1,3 +1,5 @@
+"""Processors for identifying multiple leading edges in waveforms."""
+
 from __future__ import annotations
 
 import numpy as np

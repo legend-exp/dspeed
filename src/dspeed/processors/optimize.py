@@ -1,3 +1,5 @@
+"""Processors for identifying optimal pole-zero coefficients."""
+
 from __future__ import annotations
 
 from typing import Callable

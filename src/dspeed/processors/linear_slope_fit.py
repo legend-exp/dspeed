@@ -1,3 +1,5 @@
+"""Processors for fitting a linear slope to waveform segments."""
+
 from __future__ import annotations
 
 import numpy as np

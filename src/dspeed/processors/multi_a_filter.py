@@ -1,3 +1,5 @@
+"""Processors for identifying multiple maxima and their amplitudes in a waveform."""
+
 import numpy as np
 from numba import guvectorize
 

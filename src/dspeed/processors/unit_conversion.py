@@ -1,3 +1,5 @@
+"""Unit conversion helpers for processing chain coordinate systems."""
+
 from __future__ import annotations
 
 import numpy as np

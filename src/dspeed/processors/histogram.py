@@ -1,3 +1,5 @@
+"""Histogramming utilities for waveform-derived quantities."""
+
 from __future__ import annotations
 
 import numpy as np
