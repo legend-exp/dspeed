@@ -1,4 +1,4 @@
-"""TensorFlow model inference processors for DSP pipelines."""
+"""Generate a processor from a tensorflow model stored in a keras file."""
 
 from __future__ import annotations
 
@@ -8,8 +8,7 @@ from ..utils import GUFuncWrapper
 
 
 def tf_model(filepath: str) -> GUFuncWrapper:
-    """
-    Initializer to load a tensorflow model to use in a ProcessingChain
+    """Initializer to load a TensorFlow model to use in a ProcessingChain.
 
     Parameters
     ----------

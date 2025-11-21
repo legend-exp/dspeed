@@ -1,4 +1,4 @@
-"""Processors that apply saturation limits and checks to waveforms."""
+"""Processors that check for samples at saturation limit."""
 
 from __future__ import annotations
 

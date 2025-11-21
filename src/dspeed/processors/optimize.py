@@ -1,4 +1,4 @@
-"""Optimization utilities for DSP parameter tuning."""
+"""Processors for identifying optimal pole-zero coefficients."""
 
 from __future__ import annotations
 

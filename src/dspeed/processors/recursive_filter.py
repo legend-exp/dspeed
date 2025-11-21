@@ -1,4 +1,4 @@
-"""Processors implementing recursive digital filters."""
+"""Generic processors used to implement recursive digital filters from poles and zeros."""
 
 from __future__ import annotations
 

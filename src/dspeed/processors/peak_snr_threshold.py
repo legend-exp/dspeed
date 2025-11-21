@@ -1,4 +1,4 @@
-"""Processors applying peak signal-to-noise ratio thresholds."""
+"""Processors for identifying significant local minima."""
 
 from __future__ import annotations
 

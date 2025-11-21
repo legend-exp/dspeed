@@ -1,4 +1,4 @@
-"""Processors performing running-sum (presum) operations."""
+"""Processors for down-sampling waveform using pre-summing."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Processors rounding values to the nearest discrete step."""
+"""Processors for rounding values to multiples of provided value."""
 
 from __future__ import annotations
 
