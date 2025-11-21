@@ -1,3 +1,5 @@
+"""Fast fourier transform processors"""
+
 from __future__ import annotations
 
 import numpy as np
