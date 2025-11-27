@@ -64,6 +64,8 @@ from importlib import import_module
 # Mapping from function to name of module in which it is defined
 # To add a new function to processors, it must be added here!
 _modules = {
+    "mean": "arithmetic",
+    "sum": "arithmetic",
     "bl_subtract": "bl_subtract",
     "convolve_damped_oscillator": "convolutions",
     "convolve_exp": "convolutions",
