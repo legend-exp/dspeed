@@ -131,6 +131,7 @@ _modules = {
     "saturation": "saturation",
     "soft_pileup_corr": "soft_pileup_corr",
     "soft_pileup_corr_bl": "soft_pileup_corr",
+    "sort_wf": "sort_wf",
     "svm_predict": "svm",
     "tf_model": "tf_model",
     "time_over_threshold": "time_over_threshold",
