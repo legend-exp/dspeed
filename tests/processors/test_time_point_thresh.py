@@ -85,6 +85,35 @@ def test_time_point_thresh(compare_numba_vs_python):
     w_in = np.concatenate([np.arange(-1, 5, 1), np.arange(-1, 5, 1)], dtype="float")
     assert compare_numba_vs_python(time_point_thresh, w_in, 3, 0, 1) == 4.0
 
+    # Test polarity-checking behavior: waveform falls through threshold
+    # [5, 4, 3, 2, 1, 0, -1] - threshold 2.5 walking forward from 0
+    # time_point_thresh now detects falling crossings too
+    # Should find the crossing at index 2 where w_in[2]=3 and w_in[3]=2
+    # Falling condition: 3.0 >= 2.5 (true) and 2.5 > 2.0 (true)
+    w_falling = np.array([5.0, 4.0, 3.0, 2.0, 1.0, 0.0, -1.0])
+    assert compare_numba_vs_python(time_point_thresh, w_falling, 2.5, 0, 1) == 2.0
+
+    # Test polarity-checking behavior: waveform that starts below threshold and rises
+    # [0, 1, 2, 3, 4, 5] - threshold 2.5 walking forward from 0
+    # time_point_thresh finds the rising crossing at index 2 (w_in[2]=2 <= 2.5 < w_in[3]=3)
+    w_rising = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+    assert compare_numba_vs_python(time_point_thresh, w_rising, 2.5, 0, 1) == 2.0
+
+    # Test negative polarity: waveform rises through negative threshold
+    # [-5, -4, -3, -2, -1, 0] - threshold -2.5 walking forward from 0
+    # The waveform rises from -5 to 0, crossing -2.5 between indices 2 and 3
+    # Rising condition: w_in[2]=-3 <= -2.5 (true) and -2.5 < w_in[3]=-2 (true)
+    # Note: -3 < -2.5 < -2 (ordering on number line)
+    w_neg_rising = np.array([-5.0, -4.0, -3.0, -2.0, -1.0, 0.0])
+    assert compare_numba_vs_python(time_point_thresh, w_neg_rising, -2.5, 0, 1) == 2.0
+
+    # Test negative polarity: waveform falls through negative threshold
+    # [0, -1, -2, -3, -4, -5] - threshold -2.5 walking forward from 0
+    # The waveform falls from 0 to -5, crossing -2.5 between indices 2 and 3
+    # Should find the falling crossing at index 2 (w_in[2]=-2 >= -2.5 > w_in[3]=-3)
+    w_neg_falling = np.array([0.0, -1.0, -2.0, -3.0, -4.0, -5.0])
+    assert compare_numba_vs_python(time_point_thresh, w_neg_falling, -2.5, 0, 1) == 2.0
+
 
 def test_interpolated_time_point_thresh(compare_numba_vs_python):
     """Testing function for the interpolated_time_point_thresh processor."""
