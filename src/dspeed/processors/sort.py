@@ -11,7 +11,7 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
     "(n)->(n)",
     **nb_kwargs,
 )
-def sort_wf(w_in: np.ndarray, w_out: np.ndarray) -> None:
+def sort(w_in: np.ndarray, w_out: np.ndarray) -> None:
     """Return a sorted array using :func:`numpy.sort`.
 
     Parameters
@@ -27,7 +27,7 @@ def sort_wf(w_in: np.ndarray, w_out: np.ndarray) -> None:
     .. code-block:: yaml
 
         wf_sorted:
-          function: sort_wf
+          function: sort
           module: dspeed.processors
           args:
             - waveform
