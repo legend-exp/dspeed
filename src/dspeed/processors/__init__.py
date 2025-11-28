@@ -141,6 +141,7 @@ _modules = {
     "interpolated_time_point_thresh": "time_point_thresh",
     "multi_time_point_thresh": "time_point_thresh",
     "time_point_thresh": "time_point_thresh",
+    "time_point_thresh_nopol": "time_point_thresh",
     "asym_trap_filter": "trap_filters",
     "trap_filter": "trap_filters",
     "trap_norm": "trap_filters",
