@@ -39,18 +39,18 @@ def test_sum_empty_range(compare_numba_vs_python):
 @pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
 def test_mean_basic(compare_numba_vs_python):
     """Test basic mean functionality."""
-    # Mean of entire array: 15/(5-1) = 15/4 = 3.75
+    # Mean of entire array: 15/5 = 3
     w_in = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     result = compare_numba_vs_python(mean, w_in, np.nan, np.nan)
-    assert np.isclose(result, 3.75)
+    assert np.isclose(result, 3.0)
 
 
 def test_mean_with_range(compare_numba_vs_python):
     """Test mean with specified range."""
     w_in = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    # Mean from index 1 to 3 (inclusive) = (2 + 3 + 4) / (3-1) = 9/2 = 4.5
+    # Mean from index 1 to 3 (inclusive) = (2 + 3 + 4) / 3 = 3
     result = compare_numba_vs_python(mean, w_in, 1.0, 3.0)
-    assert np.isclose(result, 4.5)
+    assert np.isclose(result, 3.0)
 
 
 @pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
@@ -87,10 +87,10 @@ def test_mean_boundary_conditions(compare_numba_vs_python):
     w_in = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     # Test with negative start (should be clamped to 0)
     result = compare_numba_vs_python(mean, w_in, -1.0, 2.0)
-    # Mean of indices 0, 1, 2 = (1 + 2 + 3) / (2-0) = 6/2 = 3
-    assert np.isclose(result, 3.0)
+    # Mean of indices 0, 1, 2 = (1 + 2 + 3) / 3 = 2
+    assert np.isclose(result, 2.0)
 
     # Test with end past array length (should be clamped to len-1)
     result = compare_numba_vs_python(mean, w_in, 2.0, 10.0)
-    # Mean of indices 2, 3, 4 = (3 + 4 + 5) / (4-2) = 12/2 = 6
-    assert np.isclose(result, 6.0)
+    # Mean of indices 2, 3, 4 = (3 + 4 + 5) / 3 = 4
+    assert np.isclose(result, 4.0)

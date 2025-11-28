@@ -86,7 +86,7 @@ def mean(w_in: np.ndarray, a: float, b: float, result: float) -> None:
     b
         the ending index (inclusive). If NaN, defaults to len(w_in) - 1.
     result
-        the mean of w_in[a:b+1], which is sum(w_in[a:b+1]) / (b - a).
+        the mean of w_in[a:b+1], which is sum(w_in[a:b+1]) / (b - a + 1).
 
     YAML Configuration Example
     --------------------------
@@ -123,4 +123,4 @@ def mean(w_in: np.ndarray, a: float, b: float, result: float) -> None:
     for i in range(start, end + 1):
         total += w_in[i]
 
-    result[0] = total / (end - start)
+    result[0] = total / (end - start + 1)
