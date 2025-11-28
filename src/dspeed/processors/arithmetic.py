@@ -24,9 +24,9 @@ def sum(w_in: np.ndarray, a: float, b: float, result: float) -> None:
     a
         the starting index (inclusive). If NaN, defaults to 0.
     b
-        the ending index (exclusive). If NaN, defaults to len(w_in).
+        the ending index (inclusive). If NaN, defaults to len(w_in) - 1.
     result
-        the sum of w_in[a:b].
+        the sum of w_in[a:b+1].
 
     YAML Configuration Example
     --------------------------
@@ -50,18 +50,17 @@ def sum(w_in: np.ndarray, a: float, b: float, result: float) -> None:
         return
 
     start = 0 if np.isnan(a) else int(a)
-    end = len(w_in) if np.isnan(b) else int(b)
+    end = len(w_in) - 1 if np.isnan(b) else int(b)
 
     if start < 0:
         start = 0
-    if end > len(w_in):
-        end = len(w_in)
-    if start >= end:
-        result[0] = 0.0
+    if end > len(w_in) - 1:
+        end = len(w_in) - 1
+    if start > end:
         return
 
     total = 0.0
-    for i in range(start, end):
+    for i in range(start, end + 1):
         total += w_in[i]
 
     result[0] = total
@@ -85,9 +84,9 @@ def mean(w_in: np.ndarray, a: float, b: float, result: float) -> None:
     a
         the starting index (inclusive). If NaN, defaults to 0.
     b
-        the ending index (exclusive). If NaN, defaults to len(w_in).
+        the ending index (inclusive). If NaN, defaults to len(w_in) - 1.
     result
-        the mean of w_in[a:b], which is sum(w_in[a:b]) / (b - a).
+        the mean of w_in[a:b+1], which is sum(w_in[a:b+1]) / (b - a + 1).
 
     YAML Configuration Example
     --------------------------
@@ -111,18 +110,17 @@ def mean(w_in: np.ndarray, a: float, b: float, result: float) -> None:
         return
 
     start = 0 if np.isnan(a) else int(a)
-    end = len(w_in) if np.isnan(b) else int(b)
+    end = len(w_in) - 1 if np.isnan(b) else int(b)
 
     if start < 0:
         start = 0
-    if end > len(w_in):
-        end = len(w_in)
-    if start >= end:
-        result[0] = np.nan
+    if end > len(w_in) - 1:
+        end = len(w_in) - 1
+    if start > end:
         return
 
     total = 0.0
-    for i in range(start, end):
+    for i in range(start, end + 1):
         total += w_in[i]
 
-    result[0] = total / (end - start)
+    result[0] = total / (end - start + 1)
