@@ -19,7 +19,7 @@ def time_point_thresh(
     w_in: np.ndarray, a_threshold: float, t_start: int, walk_forward: int, t_out: float
 ) -> None:
     """Find the index where the waveform value crosses above the threshold, walking
-    either forward or backward from the starting index. Find only crossings where the 
+    either forward or backward from the starting index. Find only crossings where the
     waveform is rising through the threshold when moving forward in time (polarity check).
     Return the waveform index just before the threshold crossing (i.e. below the threshold
     when searching forward and above the threshold when searching backward).
@@ -82,7 +82,8 @@ def time_point_thresh(
             if w_in[i - 1] < a_threshold <= w_in[i]:
                 t_out[0] = i
                 return
-            
+
+
 @guvectorize(
     [
         "void(float32[:], float32, float32, float32, float32[:])",
@@ -148,8 +149,8 @@ def time_point_thresh_nopol(
         raise DSPFatal("The starting index is out of range")
 
     if int(walk_forward) == 1:
-        for i in range(int(t_start), len(w_in) - 1, 1):
-            if w_in[i] <= a_threshold:
+        for i in range(int(t_start), len(w_in) - 2, 1):
+            if w_in[i + 1] <= a_threshold:
                 t_out[0] = i
                 return
     else:
