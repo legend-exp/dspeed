@@ -18,10 +18,11 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
 def time_point_thresh(
     w_in: np.ndarray, a_threshold: float, t_start: int, walk_forward: int, t_out: float
 ) -> None:
-    """Find the index where the waveform value crosses the threshold, walking
-    either forward or backward from the starting index, including a polarity check.
-    This means that it will only find crossings where the waveform is rising
-    through the threshold when moving forward in time.
+    """Find the index where the waveform value crosses above the threshold, walking
+    either forward or backward from the starting index. Find only crossings where the
+    waveform is rising through the threshold when moving forward in time (polarity check).
+    Return the waveform index just before the threshold crossing (i.e. below the threshold
+    when searching forward and above the threshold when searching backward).
 
     Parameters
     ----------
@@ -94,9 +95,10 @@ def time_point_thresh(
 def time_point_thresh_nopol(
     w_in: np.ndarray, a_threshold: float, t_start: int, walk_forward: int, t_out: float
 ) -> None:
-    """Find the index where the waveform value crosses the threshold, walking
+    """Find the index where the waveform value crosses below a threshold, walking
     either forward or backward from the starting index, without polarity check.
-    This means that it will find the first crossing of the threshold in the specified direction, regardless of whether the waveform is rising or falling.
+    I.e., find the first crossing in the specified direction, regardless of whether the waveform is rising or falling.
+    Return the waveform index just above the threshold crossing.
 
     Parameters
     ----------
@@ -147,7 +149,7 @@ def time_point_thresh_nopol(
         raise DSPFatal("The starting index is out of range")
 
     if int(walk_forward) == 1:
-        for i in range(int(t_start), len(w_in) - 1, 1):
+        for i in range(int(t_start), len(w_in) - 2, 1):
             if w_in[i + 1] <= a_threshold:
                 t_out[0] = i
                 return
