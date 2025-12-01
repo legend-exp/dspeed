@@ -81,7 +81,8 @@ def time_point_thresh(
             if w_in[i - 1] < a_threshold <= w_in[i]:
                 t_out[0] = i
                 return
-            
+
+
 @guvectorize(
     [
         "void(float32[:], float32, float32, float32, float32[:])",
@@ -147,7 +148,7 @@ def time_point_thresh_nopol(
 
     if int(walk_forward) == 1:
         for i in range(int(t_start), len(w_in) - 1, 1):
-            if w_in[i] <= a_threshold:
+            if w_in[i + 1] <= a_threshold:
                 t_out[0] = i
                 return
     else:
