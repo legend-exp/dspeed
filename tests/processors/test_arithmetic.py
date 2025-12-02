@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from dspeed.processors import mean, sum
+from dspeed.processors import mean, mean_below_threshold, sum
 
 
 @pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
@@ -9,31 +9,23 @@ def test_sum_basic(compare_numba_vs_python):
     """Test basic sum functionality."""
     # Test sum of entire array
     w_in = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    result = compare_numba_vs_python(sum, w_in, np.nan, np.nan)
+    result = compare_numba_vs_python(sum, w_in)
     assert np.isclose(result, 15.0)
-
-
-def test_sum_with_range(compare_numba_vs_python):
-    """Test sum with specified range."""
-    w_in = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    # Sum from index 1 to 3 (inclusive) = 2 + 3 + 4 = 9
-    result = compare_numba_vs_python(sum, w_in, 1.0, 3.0)
-    assert np.isclose(result, 9.0)
 
 
 @pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
 def test_sum_with_nan_input(compare_numba_vs_python):
     """Test sum returns nan if input contains nan."""
     w_in = np.array([1.0, 2.0, np.nan, 4.0, 5.0])
-    result = compare_numba_vs_python(sum, w_in, np.nan, np.nan)
+    result = compare_numba_vs_python(sum, w_in)
     assert np.isnan(result)
 
 
-def test_sum_empty_range(compare_numba_vs_python):
-    """Test sum returns nan when start > end."""
-    w_in = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    result = compare_numba_vs_python(sum, w_in, 3.0, 2.0)
-    assert np.isnan(result)
+def test_sum_single_element(compare_numba_vs_python):
+    """Test sum with single element array."""
+    w_in = np.array([42.0])
+    result = compare_numba_vs_python(sum, w_in)
+    assert np.isclose(result, 42.0)
 
 
 @pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
@@ -41,15 +33,7 @@ def test_mean_basic(compare_numba_vs_python):
     """Test basic mean functionality."""
     # Mean of entire array: 15/5 = 3
     w_in = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    result = compare_numba_vs_python(mean, w_in, np.nan, np.nan)
-    assert np.isclose(result, 3.0)
-
-
-def test_mean_with_range(compare_numba_vs_python):
-    """Test mean with specified range."""
-    w_in = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    # Mean from index 1 to 3 (inclusive) = (2 + 3 + 4) / 3 = 3
-    result = compare_numba_vs_python(mean, w_in, 1.0, 3.0)
+    result = compare_numba_vs_python(mean, w_in)
     assert np.isclose(result, 3.0)
 
 
@@ -57,40 +41,77 @@ def test_mean_with_range(compare_numba_vs_python):
 def test_mean_with_nan_input(compare_numba_vs_python):
     """Test mean returns nan if input contains nan."""
     w_in = np.array([1.0, 2.0, np.nan, 4.0, 5.0])
-    result = compare_numba_vs_python(mean, w_in, np.nan, np.nan)
+    result = compare_numba_vs_python(mean, w_in)
     assert np.isnan(result)
 
 
-def test_mean_empty_range(compare_numba_vs_python):
-    """Test mean returns nan when start > end."""
+def test_mean_single_element(compare_numba_vs_python):
+    """Test mean with single element array."""
+    w_in = np.array([42.0])
+    result = compare_numba_vs_python(mean, w_in)
+    assert np.isclose(result, 42.0)
+
+
+@pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
+def test_mean_below_threshold_basic(compare_numba_vs_python):
+    """Test basic mean_below_threshold functionality."""
+    # Values below 4.0: 1, 2, 3. Mean = (1 + 2 + 3) / 3 = 2
     w_in = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    result = compare_numba_vs_python(mean, w_in, 3.0, 2.0)
-    assert np.isnan(result)
-
-
-def test_sum_boundary_conditions(compare_numba_vs_python):
-    """Test sum with boundary conditions."""
-    w_in = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    # Test with negative start (should be clamped to 0)
-    result = compare_numba_vs_python(sum, w_in, -1.0, 2.0)
-    # Sum of indices 0, 1, 2 = 1 + 2 + 3 = 6
-    assert np.isclose(result, 6.0)
-
-    # Test with end past array length (should be clamped to len-1)
-    result = compare_numba_vs_python(sum, w_in, 2.0, 10.0)
-    # Sum of indices 2, 3, 4 = 3 + 4 + 5 = 12
-    assert np.isclose(result, 12.0)
-
-
-def test_mean_boundary_conditions(compare_numba_vs_python):
-    """Test mean with boundary conditions."""
-    w_in = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    # Test with negative start (should be clamped to 0)
-    result = compare_numba_vs_python(mean, w_in, -1.0, 2.0)
-    # Mean of indices 0, 1, 2 = (1 + 2 + 3) / 3 = 2
+    result = compare_numba_vs_python(mean_below_threshold, w_in, 4.0)
     assert np.isclose(result, 2.0)
 
-    # Test with end past array length (should be clamped to len-1)
-    result = compare_numba_vs_python(mean, w_in, 2.0, 10.0)
-    # Mean of indices 2, 3, 4 = (3 + 4 + 5) / 3 = 4
-    assert np.isclose(result, 4.0)
+
+@pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
+def test_mean_below_threshold_all_above(compare_numba_vs_python):
+    """Test mean_below_threshold when all values are above threshold."""
+    # All values >= 10.0, should return NaN
+    w_in = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
+    result = compare_numba_vs_python(mean_below_threshold, w_in, 10.0)
+    assert np.isnan(result)
+
+
+@pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
+def test_mean_below_threshold_all_below(compare_numba_vs_python):
+    """Test mean_below_threshold when all values are below threshold."""
+    # All values < 100.0. Mean = 15 / 5 = 3
+    w_in = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    result = compare_numba_vs_python(mean_below_threshold, w_in, 100.0)
+    assert np.isclose(result, 3.0)
+
+
+@pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
+def test_mean_below_threshold_with_nan_input(compare_numba_vs_python):
+    """Test mean_below_threshold returns nan if input contains nan."""
+    w_in = np.array([1.0, 2.0, np.nan, 4.0, 5.0])
+    result = compare_numba_vs_python(mean_below_threshold, w_in, 4.0)
+    assert np.isnan(result)
+
+
+@pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
+def test_mean_below_threshold_with_nan_threshold(compare_numba_vs_python):
+    """Test mean_below_threshold returns nan if threshold is nan."""
+    w_in = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    result = compare_numba_vs_python(mean_below_threshold, w_in, np.nan)
+    assert np.isnan(result)
+
+
+def test_mean_below_threshold_negative_values(compare_numba_vs_python):
+    """Test mean_below_threshold with negative values."""
+    # Values below 0.0: -2, -1. Mean = (-2 + -1) / 2 = -1.5
+    w_in = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])
+    result = compare_numba_vs_python(mean_below_threshold, w_in, 0.0)
+    assert np.isclose(result, -1.5)
+
+
+def test_mean_below_threshold_single_element_below(compare_numba_vs_python):
+    """Test mean_below_threshold with single element below threshold."""
+    w_in = np.array([42.0])
+    result = compare_numba_vs_python(mean_below_threshold, w_in, 50.0)
+    assert np.isclose(result, 42.0)
+
+
+def test_mean_below_threshold_single_element_above(compare_numba_vs_python):
+    """Test mean_below_threshold with single element above threshold."""
+    w_in = np.array([42.0])
+    result = compare_numba_vs_python(mean_below_threshold, w_in, 30.0)
+    assert np.isnan(result)

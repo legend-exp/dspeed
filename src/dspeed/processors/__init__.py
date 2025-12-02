@@ -65,6 +65,7 @@ from importlib import import_module
 # To add a new function to processors, it must be added here!
 _modules = {
     "mean": "arithmetic",
+    "mean_below_threshold": "arithmetic",
     "sum": "arithmetic",
     "bl_subtract": "bl_subtract",
     "convolve_damped_oscillator": "convolutions",
