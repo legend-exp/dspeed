@@ -8,25 +8,21 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
 
 @guvectorize(
     [
-        "void(float32[:], float32, float32, float32[:])",
-        "void(float64[:], float64, float64, float64[:])",
+        "void(float32[:], float32[:])",
+        "void(float64[:], float64[:])",
     ],
-    "(n),(),()->()",
+    "(n)->()",
     **nb_kwargs,
 )
-def sum(w_in: np.ndarray, a: float, b: float, result: float) -> None:
+def sum(w_in: np.ndarray, result: float) -> None:
     """Sum the waveform values from index a to b.
 
     Parameters
     ----------
     w_in
-        the input waveform.
-    a
-        the starting index (inclusive). If NaN, defaults to 0.
-    b
-        the ending index (inclusive). If NaN, defaults to len(w_in) - 1.
+        the input waveform
     result
-        the sum of w_in[a:b+1].
+        the sum of all values in w_in.
 
     YAML Configuration Example
     --------------------------
@@ -38,8 +34,6 @@ def sum(w_in: np.ndarray, a: float, b: float, result: float) -> None:
           module: dspeed.processors
           args:
             - waveform
-            - "np.nan"
-            - "np.nan"
             - wf_sum
           unit:
             - ADC
@@ -49,8 +43,8 @@ def sum(w_in: np.ndarray, a: float, b: float, result: float) -> None:
     if np.isnan(w_in).any():
         return
 
-    start = 0 if np.isnan(a) else int(a)
-    end = len(w_in) - 1 if np.isnan(b) else int(b)
+    start = 0
+    end = len(w_in) - 1
 
     if start < 0:
         start = 0
@@ -68,25 +62,21 @@ def sum(w_in: np.ndarray, a: float, b: float, result: float) -> None:
 
 @guvectorize(
     [
-        "void(float32[:], float32, float32, float32[:])",
-        "void(float64[:], float64, float64, float64[:])",
+        "void(float32[:], float32[:])",
+        "void(float64[:], float64[:])",
     ],
-    "(n),(),()->()",
+    "(n)->()",
     **nb_kwargs,
 )
-def mean(w_in: np.ndarray, a: float, b: float, result: float) -> None:
-    """Calculate the mean of waveform values from index a to b.
+def mean(w_in: np.ndarray, result: float) -> None:
+    """Calculate the mean of waveform values.
 
     Parameters
     ----------
     w_in
         the input waveform.
-    a
-        the starting index (inclusive). If NaN, defaults to 0.
-    b
-        the ending index (inclusive). If NaN, defaults to len(w_in) - 1.
     result
-        the mean of w_in[a:b+1], which is sum(w_in[a:b+1]) / (b - a + 1).
+        the mean of all values in w_in.
 
     YAML Configuration Example
     --------------------------
@@ -98,8 +88,6 @@ def mean(w_in: np.ndarray, a: float, b: float, result: float) -> None:
           module: dspeed.processors
           args:
             - waveform
-            - "np.nan"
-            - "np.nan"
             - wf_mean
           unit:
             - ADC
@@ -109,8 +97,8 @@ def mean(w_in: np.ndarray, a: float, b: float, result: float) -> None:
     if np.isnan(w_in).any():
         return
 
-    start = 0 if np.isnan(a) else int(a)
-    end = len(w_in) - 1 if np.isnan(b) else int(b)
+    start = 0
+    end = len(w_in) - 1
 
     if start < 0:
         start = 0
