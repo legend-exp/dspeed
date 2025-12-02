@@ -122,9 +122,7 @@ def mean(w_in: np.ndarray, result: float) -> None:
     "(n),()->()",
     **nb_kwargs,
 )
-def mean_below_threshold(
-    w_in: np.ndarray, threshold: float, result: float
-) -> None:
+def mean_below_threshold(w_in: np.ndarray, threshold: float, result: float) -> None:
     """Calculate the mean of waveform values that are below a threshold.
 
     Parameters
