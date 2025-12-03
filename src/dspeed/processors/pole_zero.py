@@ -1,3 +1,5 @@
+"""Pole-zero cancellation processors for waveform shaping."""
+
 from __future__ import annotations
 
 import numpy as np

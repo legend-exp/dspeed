@@ -1,3 +1,5 @@
+"""Conditional selection processor that wraps :func:`numpy.where`."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -17,17 +19,18 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
     **nb_kwargs,
 )
 def where(condition, a, b, out):
-    """Return elements chosen from x or y depending on condition.
+    """Return elements chosen from ``a`` or ``b`` depending on ``condition``.
 
-    Parameters:
-        condition:
-            boolean array to select which input to use
-        a:
-            input to use if condition is ``True``
-        b:
-            input to use if condition is ``False``
-        output:
-            array containing output values
+    Parameters
+    ----------
+    condition
+        Boolean mask that selects which input to use.
+    a
+        Value to emit wherever ``condition`` is ``True``.
+    b
+        Value to emit wherever ``condition`` is ``False``.
+    out
+        Destination array that receives the selected values.
 
     YAML Configuration Example
     --------------------------

@@ -1,3 +1,5 @@
+"""Processors that inject parameterized photomultiplier pulses into waveforms."""
+
 from __future__ import annotations
 
 import numpy as np

@@ -1,3 +1,5 @@
+"""Processors that inject analytic pulses into waveforms."""
+
 from __future__ import annotations
 
 from math import exp, log

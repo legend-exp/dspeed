@@ -1,3 +1,5 @@
+"""Processors implementing RC-CR^2 shaping filters."""
+
 from __future__ import annotations
 
 import numpy as np

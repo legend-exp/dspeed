@@ -1,3 +1,5 @@
+"""Trapezoidal filter utilities and processors."""
+
 from __future__ import annotations
 
 import numpy as np

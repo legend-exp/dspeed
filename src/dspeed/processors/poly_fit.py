@@ -1,3 +1,5 @@
+"""Polynomial fitting processors for waveforms."""
+
 from __future__ import annotations
 
 import numpy as np

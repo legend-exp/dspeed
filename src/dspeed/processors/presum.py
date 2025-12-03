@@ -1,3 +1,5 @@
+"""Processors for down-sampling waveform using pre-summing."""
+
 from __future__ import annotations
 
 import numpy as np

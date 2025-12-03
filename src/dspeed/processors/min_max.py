@@ -1,3 +1,5 @@
+"""Processors computing minimum and maximum waveform statistics."""
+
 from __future__ import annotations
 
 import numpy as np

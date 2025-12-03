@@ -1,3 +1,5 @@
+"""Processors computing time-over-threshold metrics."""
+
 from __future__ import annotations
 
 import numpy as np
