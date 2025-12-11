@@ -20,8 +20,11 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
 def time_point_thresh(
     w_in: np.ndarray, a_threshold: float, t_start: int, walk_forward: int, t_out: float
 ) -> None:
-    """Find the index where the waveform value crosses the threshold, walking
-    either forward or backward from the starting index.
+    """Find the index where the waveform value crosses above the threshold, walking
+    either forward or backward from the starting index. Find only crossings where the
+    waveform is rising through the threshold when moving forward in time (polarity check).
+    Return the waveform index just before the threshold crossing (i.e. below the threshold
+    when searching forward and above the threshold when searching backward).
 
     Parameters
     ----------
@@ -79,6 +82,82 @@ def time_point_thresh(
     else:
         for i in range(int(t_start), 0, -1):
             if w_in[i - 1] < a_threshold <= w_in[i]:
+                t_out[0] = i
+                return
+
+
+@guvectorize(
+    [
+        "void(float32[:], float32, float32, float32, float32[:])",
+        "void(float64[:], float64, float64, float64, float64[:])",
+    ],
+    "(n),(),(),()->()",
+    **nb_kwargs,
+)
+def time_point_thresh_nopol(
+    w_in: np.ndarray, a_threshold: float, t_start: int, walk_forward: int, t_out: float
+) -> None:
+    """Find the index where the waveform value crosses below a threshold, walking
+    either forward or backward from the starting index, without polarity check.
+    I.e., find the first crossing in the specified direction, regardless of whether the waveform is rising or falling.
+    Return the waveform index just above the threshold crossing.
+
+    Parameters
+    ----------
+    w_in
+        the input waveform.
+    a_threshold
+        the threshold value.
+    t_start
+        the starting index.
+    walk_forward
+        the backward (``0``) or forward (``1``) search direction.
+    t_out
+        the index where the waveform value crosses the threshold.
+
+    YAML Configuration Example
+    --------------------------
+
+    .. code-block:: yaml
+
+        tp_0:
+          function: time_point_thresh
+          module: dspeed.processors
+          args:
+            - wf_atrap
+            - bl_std
+            - tp_start
+            - 0
+            - tp_0
+          unit: ns
+    """
+    t_out[0] = np.nan
+
+    if (
+        np.isnan(w_in).any()
+        or np.isnan(a_threshold)
+        or np.isnan(t_start)
+        or np.isnan(walk_forward)
+    ):
+        return
+
+    if np.floor(t_start) != t_start:
+        raise DSPFatal("The starting index must be an integer")
+
+    if np.floor(walk_forward) != walk_forward:
+        raise DSPFatal("The search direction must be an integer")
+
+    if int(t_start) < 0 or int(t_start) >= len(w_in):
+        raise DSPFatal("The starting index is out of range")
+
+    if int(walk_forward) == 1:
+        for i in range(int(t_start), len(w_in) - 2, 1):
+            if w_in[i + 1] <= a_threshold:
+                t_out[0] = i
+                return
+    else:
+        for i in range(int(t_start), 0, -1):
+            if w_in[i - 1] < a_threshold:
                 t_out[0] = i
                 return
 

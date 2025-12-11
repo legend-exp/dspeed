@@ -64,6 +64,9 @@ from importlib import import_module
 # Mapping from function to name of module in which it is defined
 # To add a new function to processors, it must be added here!
 _modules = {
+    "mean": "arithmetic",
+    "mean_below_threshold": "arithmetic",
+    "sum": "arithmetic",
     "bl_subtract": "bl_subtract",
     "convolve_damped_oscillator": "convolutions",
     "convolve_exp": "convolutions",
@@ -134,6 +137,7 @@ _modules = {
     "saturation": "saturation",
     "soft_pileup_corr": "soft_pileup_corr",
     "soft_pileup_corr_bl": "soft_pileup_corr",
+    "sort": "sort",
     "svm_predict": "svm",
     "tf_model": "tf_model",
     "time_over_threshold": "time_over_threshold",
@@ -141,6 +145,7 @@ _modules = {
     "interpolated_time_point_thresh": "time_point_thresh",
     "multi_time_point_thresh": "time_point_thresh",
     "time_point_thresh": "time_point_thresh",
+    "time_point_thresh_nopol": "time_point_thresh",
     "asym_trap_filter": "trap_filters",
     "trap_filter": "trap_filters",
     "trap_norm": "trap_filters",
