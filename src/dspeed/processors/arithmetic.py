@@ -5,6 +5,7 @@ from numba import guvectorize
 
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
+
 @guvectorize(
     [
         "void(float32[:], float32, float32[:])",
