@@ -57,6 +57,26 @@ def test_build_dsp_errors(lgnd_test_data, tmptestdir):
         )
 
 
+def test_build_dsp_copy_inputs(lgnd_test_data):
+    # Test processing chain that simply copies values from input file
+    raw_path = lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5")
+    raw_group = "geds/raw"
+    raw_tb = lh5.read(raw_group, raw_path)
+
+    dsp_config = { "outputs": ["timestamp", "baseline"], "processors":{} }
+    dsp_tb = build_dsp(
+        raw_path,
+        dsp_config = dsp_config,
+        lh5_tables = raw_group,
+        buffer_len=10,
+    )
+    dsp_tb = dsp_tb["geds/dsp"]
+
+    assert np.all(dsp_tb.baseline.nda == raw_tb.baseline.nda)
+    assert all(dsp_tb.baseline.attrs[k] == v for k, v in raw_tb.baseline.attrs.items())
+    assert np.all(dsp_tb.timestamp.nda == raw_tb.timestamp.nda)
+    assert all(dsp_tb.timestamp.attrs[k] == v for k, v in raw_tb.timestamp.attrs.items())
+
 # test different input types
 def test_dsp_in_types(lgnd_test_data):
     # input from file
