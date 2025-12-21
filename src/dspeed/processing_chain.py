@@ -414,8 +414,8 @@ class ProcessingChain:
         # list of processors with variables they are called on
         self._proc_managers = []
         # lists of I/O managers that handle copying data to/from external memory buffers
-        self._input_managers = []
-        self._output_managers = []
+        self._input_managers = {}
+        self._output_managers = {}
 
         self._block_width = block_width
         self._buffer_len = buffer_len
@@ -517,10 +517,13 @@ class ProcessingChain:
         log.debug(f"set constant: {param.description()} = {val}")
         return param
 
-    def link_input_buffer(
-        self, varname: str, buff: np.ndarray | lgdo.LGDO = None
+    def link_io_buffer(
+        self,
+        varname: str,
+        buff: np.ndarray | lgdo.LGDO = None,
+        output: bool = False,
     ) -> np.ndarray | lgdo.LGDO:
-        """Link an input buffer to a variable.
+        """Link an IO buffer to a variable.
 
         Parameters
         ----------
@@ -531,6 +534,8 @@ class ProcessingChain:
         buff
             object to use as input buffer. If ``None``, create a new buffer
             with a similar shape to the variable.
+        output
+            if True, link as an output buffer; if False (default) link as input
 
         Returns
         -------
@@ -541,6 +546,8 @@ class ProcessingChain:
         var = self.get_variable(varname, expr_only=True)
         if var is None:
             var = self.add_variable(varname)
+
+        io_managers = self._output_managers if output else self._input_managers
 
         if not isinstance(var, ProcChainVar):
             raise ProcessingChainError(
@@ -576,6 +583,12 @@ class ProcessingChain:
             else:
                 buff = np.ndarray((self._buffer_len,) + var.shape, dtype)
 
+        # If io manager exists, update it to pro
+        if varname in io_managers:
+            out_man = io_managers[varname]
+            out_man.set_buffer(buff)
+            return buff
+
         # Add the buffer to the input buffers list
         if isinstance(buff, np.ndarray):
             out_man = NumpyIOManager(buff, var)
@@ -593,89 +606,21 @@ class ProcessingChain:
             )
 
         log.debug(f"added input buffer: {out_man}")
-        self._input_managers.append(out_man)
+        io_managers[varname] = out_man
 
         return buff
+
+    def link_input_buffer(
+        self, varname: str, buff: np.ndarray | lgdo.LGDO = None
+    ) -> np.ndarray | lgdo.LGDO:
+        """See :meth:`link_io_buffer`"""
+        return self.link_io_buffer(varname, buff, output=False)
 
     def link_output_buffer(
         self, varname: str, buff: np.ndarray | lgdo.LGDO = None
     ) -> np.ndarray | lgdo.LGDO:
-        """Link an output buffer to a variable.
-
-        Parameters
-        ----------
-        varname
-            name of internal variable to copy into buffer at the end of
-            processor execution. If variable does not yet exist, it will be
-            created with a similar shape to the provided buffer.
-        buff
-            object to use as output buffer. If ``None``, create a new buffer
-            with a similar shape to the variable.
-
-        Returns
-        -------
-        buffer
-            `buff` or newly allocated output buffer.
-        """
-        self._validate_name(varname, raise_exception=True)
-        var = self.get_variable(varname, expr_only=True)
-        if var is None:
-            var = self.add_variable(varname)
-
-        if not isinstance(var, ProcChainVar):
-            raise ProcessingChainError(
-                "must link an output buffer to a processing chain variable"
-            )
-
-        # Create output buffer that will be linked and returned if none exists
-        if buff is None:
-            dtype = var.get_buffer().dtype
-
-            if var is None:
-                raise ProcessingChainError(
-                    varname + " does not exist and no buffer was provided"
-                )
-            elif (
-                isinstance(var.grid, CoordinateGrid)
-                and len(var.shape) == 1
-                and not var.is_coord
-            ):
-                buff = lgdo.WaveformTable(
-                    size=self._buffer_len, wf_len=var.shape[0], dtype=dtype
-                )
-            elif len(var.shape) == 0:
-                buff = lgdo.Array(shape=(self._buffer_len), dtype=dtype)
-            elif var.vector_len is not None:
-                buff = lgdo.VectorOfVectors(
-                    shape_guess=(self._buffer_len, *var.shape), dtype=dtype
-                )
-            elif len(var.shape) > 0:
-                buff = lgdo.ArrayOfEqualSizedArrays(
-                    shape=(self._buffer_len, *var.shape), dtype=dtype
-                )
-            else:
-                buff = np.ndarray((self._buffer_len,) + var.shape, dtype)
-
-        # Add the buffer to the output buffers list
-        if isinstance(buff, np.ndarray):
-            out_man = NumpyIOManager(buff, var)
-        elif isinstance(buff, lgdo.ArrayOfEqualSizedArrays):
-            out_man = LGDOArrayOfEqualSizedArraysIOManager(buff, var)
-        elif isinstance(buff, lgdo.VectorOfVectors):
-            out_man = LGDOVectorOfVectorsIOManager(buff, var)
-        elif isinstance(buff, lgdo.Array):
-            out_man = LGDOArrayIOManager(buff, var)
-        elif isinstance(buff, lgdo.WaveformTable):
-            out_man = LGDOWaveformIOManager(buff, var)
-        else:
-            raise ProcessingChainError(
-                "could not link output buffer of unknown type", str(buff)
-            )
-
-        log.debug(f"added output buffer: {out_man}")
-        self._output_managers.append(out_man)
-
-        return buff
+        """See :meth:`link_io_buffer`"""
+        return self.link_io_buffer(varname, buff, output=True)
 
     def add_processor(
         self,
@@ -716,6 +661,49 @@ class ProcessingChain:
                 self._execute_procs(i, min(i + self._block_width, stop))
             except IndexError:
                 break
+
+    def __call__(self, tb_in: lgdo.Table, out: lgdo.Table = None) -> lgdo.Table:
+        """Run the processing chain on `tb_in`.
+
+        Parameters
+        ----------
+        tb_in
+            Input Table to read input values from. Expect column for each
+            variable linked to an input.
+        out
+            Output Table to write output values to. Expect column for each
+            variable linked to an output. If ``None``, create a new output
+            Table.
+
+        Returns
+        -------
+        out
+        """
+        self._buffer_len = len(tb_in)
+
+        # link input buffers to columns of tb_in
+        for varname in self._input_managers:
+            if varname not in tb_in:
+                raise ProcessingChainError(f"Require column {varname} in tb_in")
+            self.link_input_buffer(varname, tb_in[varname])
+
+        if out is None:
+            # Create new Table for output buffers
+            out = lgdo.Table(
+                {
+                    varname: self.link_output_buffer(varname)
+                    for varname in self._output_managers
+                }
+            )
+        else:
+            # Link output buffers to columns of out
+            for varname in self._output_managers:
+                if varname not in out:
+                    raise ProcessingChainError(f"Require column {varname} in out")
+                self.link_output_buffer(varname, out[varname])
+
+        self.execute()
+        return out
 
     def get_variable(
         self, expr: str, get_names_only: bool = False, expr_only: bool = False
@@ -1108,7 +1096,7 @@ class ProcessingChain:
         their paired arg tuples, copy from variables to list of output buffers.
         """
         # Copy input buffers into proc chain buffers
-        for in_man in self._input_managers:
+        for in_man in self._input_managers.values():
             in_man.read(begin, end)
 
         # Loop through processors and run each one
@@ -1121,7 +1109,7 @@ class ProcessingChain:
                 raise e
 
         # copy from processing chain buffers into output buffers
-        for out_man in self._output_managers:
+        for out_man in self._output_managers.values():
             out_man.write(begin, end)
 
     def __str__(self) -> str:
@@ -1856,15 +1844,23 @@ class IOManager(metaclass=ABCMeta):
     """
 
     @abstractmethod
+    def set_buffer(self, io_buf) -> None:
+        """Set IO buffer to read from/write to"""
+        pass
+
+    @abstractmethod
     def read(self, start: int, end: int) -> None:
+        """Read from IO buffer into variable buffer"""
         pass
 
     @abstractmethod
     def write(self, start: int, end: int) -> None:
+        """Write from variable buffer to IO buffer"""
         pass
 
     @abstractmethod
     def __str__(self) -> str:
+        """Description of IO manager"""
         pass
 
 
@@ -1877,15 +1873,20 @@ class NumpyIOManager(IOManager):
 
         var.update_auto(dtype=io_buf.dtype, shape=io_buf.shape[1:])
 
-        if var.shape != io_buf.shape[1:] or var.dtype != io_buf.dtype:
+        self.var = var
+        self.raw_var = var.buffer
+        self.set_buffer(io_buf)
+
+    def set_buffer(self, io_buf: np.ndarray) -> None:
+        assert isinstance(io_buf, np.ndarray)
+
+        if self.var.shape != io_buf.shape[1:] or self.var.dtype != io_buf.dtype:
             raise ProcessingChainError(
                 f"numpy.array<{self.io_buf.shape}>({{{self.io_buf.dtype}}}@{self.io_buf.data}) "
                 "is not compatible with variable {self.var}"
             )
 
         self.io_buf = io_buf
-        self.var = var
-        self.raw_var = var.buffer
 
     def read(self, start: int, end: int) -> None:
         np.copyto(
@@ -1933,22 +1934,30 @@ class LGDOArrayIOManager(IOManager):
         elif isinstance(var.unit, str) and unit is None:
             unit = var.unit
 
-        if "units" not in io_array.attrs and unit is not None:
-            io_array.attrs["units"] = str(unit)
-
-        self.io_array = io_array
         self.var = var
         self.raw_var = var.get_buffer(unit)
+        self.set_buffer(io_array)
+
+    def set_buffer(self, io_array):
+        assert isinstance(io_array, lgdo.Array)
+
+        if "units" not in io_array.attrs and self.var.unit is not None:
+            if isinstance(self.var.unit, Quantity):
+                io_array.attrs["units"] = str(self.var.unit.u)
+            else:
+                io_array.attrs["units"] = str(self.var.unit)
 
         if (
-            self.var.shape != self.io_array.nda.shape[1:]
-            or self.raw_var.dtype != self.io_array.dtype
+            self.var.shape != io_array.nda.shape[1:]
+            or self.raw_var.dtype != io_array.dtype
         ):
             raise ProcessingChainError(
                 f"LGDO object "
                 f"{self.io_array.form_datatype()} is "
                 f"incompatible with {str(self.var)}"
             )
+
+        self.io_array = io_array
 
     def read(self, start: int, end: int) -> None:
         if start >= len(self.io_array):
@@ -1970,7 +1979,9 @@ class LGDOArrayIOManager(IOManager):
 class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
     r""":class:`IOManager` for buffers that are :class:`lgdo.ArrayOfEqualSizedArray`\ s."""
 
-    def __init__(self, io_array: np.ArrayOfEqualSizedArrays, var: ProcChainVar) -> None:
+    def __init__(
+        self, io_array: lgdo.ArrayOfEqualSizedArrays, var: ProcChainVar
+    ) -> None:
         assert isinstance(io_array, lgdo.ArrayOfEqualSizedArrays) and isinstance(
             var, ProcChainVar
         )
@@ -1998,22 +2009,28 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
         elif isinstance(var.unit, str) and unit is None:
             unit = var.unit
 
-        if "units" not in io_array.attrs and unit is not None:
-            io_array.attrs["units"] = str(unit)
-
-        self.io_array = io_array
         self.var = var
         self.raw_var = var.get_buffer(unit)
+        self.set_buffer(io_array)
+
+    def set_buffer(self, io_array: lgdo.ArrayOfEqualSizedArrays):
+        if "units" not in io_array.attrs and self.var.unit is not None:
+            if isinstance(self.var.unit, Quantity):
+                io_array.attrs["units"] = str(self.var.unit.u)
+            else:
+                io_array.attrs["units"] = str(self.var.unit)
 
         if (
-            self.var.shape != self.io_array.nda.shape[1:]
-            or self.raw_var.dtype != self.io_array.dtype
+            self.var.shape != io_array.nda.shape[1:]
+            or self.raw_var.dtype != io_array.dtype
         ):
             raise ProcessingChainError(
                 f"LGDO object "
                 f"{self.io_buf.form_datatype()} is "
                 f"incompatible with {str(self.var)}"
             )
+
+        self.io_array = io_array
 
     def read(self, start: int, end: int) -> None:
         if start >= len(self.io_array):
@@ -2033,11 +2050,19 @@ class LGDOVectorOfVectorsIOManager(IOManager):
     r""":class:`IOManager` for buffers that are :class:`lgdo.VectorOfVectors`\ s."""
 
     def __init__(self, io_vov: lgdo.VectorOfVectors, var: ProcChainVar) -> None:
-        assert (
-            isinstance(io_vov, lgdo.VectorOfVectors)
-            and isinstance(var, ProcChainVar)
-            and var.vector_len is not None
+        assert isinstance(io_vov, lgdo.VectorOfVectors) and isinstance(
+            var, ProcChainVar
         )
+
+        if var.vector_len is None:
+            var.vector_len = ProcChainVar(
+                proc_chain=var.proc_chain,
+                name=f"len({var.name})",
+                shape=(),
+                dtype="uint32",
+                grid=None,
+                unit=None,
+            )
 
         if not np.issubdtype(var.vector_len.dtype, np.integer):
             raise ProcessingChainError(
@@ -2067,23 +2092,31 @@ class LGDOVectorOfVectorsIOManager(IOManager):
         elif isinstance(var.unit, str) and unit is None:
             unit = var.unit
 
-        if "units" not in io_vov.attrs and unit is not None:
-            io_vov.attrs["units"] = str(unit)
-
-        self.io_vov = io_vov
-        self.io_vov.flattened_data.resize(
-            len(self.io_vov) * np.prod(var.buffer.shape[1:]), trim=True
-        )
         self.var = var
         self.raw_var = var.get_buffer(unit)
         self.len_var = var.vector_len.get_buffer()
+        self.set_buffer(io_vov)
 
-        if self.raw_var.dtype != self.io_vov.dtype:
+    def set_buffer(self, io_vov: lgdo.VectorOfVectors):
+        assert isinstance(io_vov, lgdo.VectorOfVectors)
+
+        if "units" not in io_vov.attrs and self.var.unit is not None:
+            if isinstance(self.var.unit, Quantity):
+                io_vov.attrs["units"] = str(self.var.unit.u)
+            else:
+                io_vov.attrs["units"] = str(self.var.unit)
+
+        if self.raw_var.dtype != io_vov.dtype:
             raise ProcessingChainError(
                 f"LGDO object "
                 f"{self.io_vov.flattened_data.form_datatype()} is "
                 f"incompatible with {str(self.var)}"
             )
+
+        self.io_vov = io_vov
+        self.io_vov.flattened_data.resize(
+            len(self.io_vov) * np.prod(self.var.buffer.shape[1:]), trim=True
+        )
 
     @guvectorize(
         [
@@ -2122,13 +2155,13 @@ class LGDOVectorOfVectorsIOManager(IOManager):
         if start >= len(self.io_vov):
             raise IndexError
         end = min(end, len(self.io_vov))
-        self.raw_var = 0 if np.issubdtype(self.raw_var.dtype, np.integer) else np.nan
+        self.raw_var[:] = 0 if np.issubdtype(self.raw_var.dtype, np.integer) else np.nan
         LGDOVectorOfVectorsIOManager._vov2nda(
-            self.io_vov.flattened_data,
-            self.io_vov.cumulative_length,
+            self.io_vov.flattened_data.nda,
+            self.io_vov.cumulative_length.nda[start:end],
             self.io_vov.cumulative_length[start - 1] if start > 0 else 0,
-            self.len_var,
-            self.raw_var,
+            self.len_var[: end - start],
+            self.raw_var[: end - start, :],
         )
 
     def write(self, start: int, end: int) -> None:
@@ -2150,8 +2183,6 @@ class LGDOWaveformIOManager(IOManager):
             variable, ProcChainVar
         )
 
-        self.io_wf = wf_table
-
         dt_units = wf_table.dt_units
         t0_units = wf_table.t0_units
         if dt_units is None:
@@ -2168,12 +2199,12 @@ class LGDOWaveformIOManager(IOManager):
             and t0_units in ureg
         ):
             grid = CoordinateGrid(
-                ureg.Quantity(self.io_wf.dt[0], dt_units),
+                ureg.Quantity(wf_table.dt[0], dt_units),
                 ProcChainVar(
                     variable.proc_chain,
                     variable.name + "_dt",
                     shape=(),
-                    dtype=self.io_wf.t0.dtype,
+                    dtype=wf_table.t0.dtype,
                     grid=None,
                     unit=dt_units,
                     is_coord=True,
@@ -2184,8 +2215,8 @@ class LGDOWaveformIOManager(IOManager):
 
         self.var = variable
         self.var.update_auto(
-            shape=self.io_wf.values.shape[1:],
-            dtype=self.io_wf.values.dtype,
+            shape=wf_table.values.shape[1:],
+            dtype=wf_table.values.dtype,
             grid=grid,
             unit=wf_table.values_units,
             is_coord=False,
@@ -2199,12 +2230,26 @@ class LGDOWaveformIOManager(IOManager):
 
         self.t0_var = self.var.grid.get_offset(t0_units)
         self.variable_t0 = isinstance(self.t0_var, np.ndarray)
-        if not self.variable_t0:
-            self.io_wf.t0[:] = self.t0_var
-        self.io_wf.t0_units = t0_units
+        self.set_buffer(wf_table)
 
+    def set_buffer(self, wf_table):
+        if not isinstance(wf_table, lgdo.WaveformTable):
+            raise ValueError(f"IO buffer for {self.var} is not a WaveformTable")
+
+        if "units" not in wf_table.attrs and self.var.unit is not None:
+            if isinstance(self.var.unit, Quantity):
+                wf_table.attrs["units"] = str(self.var.unit.u)
+            else:
+                wf_table.attrs["units"] = str(self.var.unit)
+
+        self.io_wf = wf_table
+        if not self.variable_t0:
+            self.io_wf.t0[:] = self.var.offset
+
+        dt_units = self.var.period.u
         self.io_wf.dt[:] = self.var.grid.get_period(dt_units)
         self.io_wf.dt_units = dt_units
+        self.io_wf.t0_units = dt_units
 
     def read(self, start: int, end: int) -> None:
         if start >= len(self.io_wf):
@@ -2695,10 +2740,20 @@ def build_processing_chain(
     for copy_par in copy_par_list:
         if copy_par not in tb_in:
             log.warning(
-                f"'{copy_par}' not found in input files or dsp config. Building output without it!"
+                f"'{copy_par}' not found in input files or dsp . Building output without it!"
             )
-        else:
-            tb_out.add_field(copy_par, tb_in[copy_par])
+            continue
+
+        try:
+            proc_chain.link_input_buffer(copy_par, tb_in[copy_par])
+            buf_out = proc_chain.link_output_buffer(copy_par)
+            buf_out.attrs.update(tb_in[copy_par].attrs)
+            buf_out.resize(len(tb_out))
+            tb_out.add_field(copy_par, buf_out)
+        except Exception as e:
+            raise ProcessingChainError(
+                f"Exception raised while linking copy buffer '{copy_par}'."
+            ) from e
 
     # finally, add the output buffers to tb_out and the proc chain
     for out_par in out_par_list:
