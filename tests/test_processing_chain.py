@@ -119,17 +119,19 @@ def test_numpy_math_constants_dsp(lgnd_test_data):
 
 def test_list_parsing(lgnd_test_data, tmptestdir):
     dsp_config = {
-        "outputs": ["wf_out", "ievt"],
+        "outputs": ["a1", "a2", "wf_out", "ievt"],
         "processors": {
             "a1": "[1,2,3,4,5]",
-            "a2": "[6,7,8,9,10]",
-            "wf_out": "a1+a2",
+            "a2": "[[1, 2], [3, 4]]",
+            "wf_out": "a1+[6,7,8,9,10]",
         },
     }
 
     raw_in = lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5")
     dsp_out = build_dsp(raw_in=raw_in, dsp_config=dsp_config, n_entries=1)
-    assert np.all(dsp_out["geds"]["dsp"]["wf_out"].nda == np.array([7, 9, 11, 13, 15]))
+    assert np.all(dsp_out.geds.dsp.a1.nda == np.array([1, 2, 3, 4, 5]))
+    assert np.all(dsp_out.geds.dsp.a2.nda == np.array([[1, 2], [3, 4]]))
+    assert np.all(dsp_out.geds.dsp.wf_out.nda == np.array([7, 9, 11, 13, 15]))
 
 
 def test_comparators():

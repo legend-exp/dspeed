@@ -797,10 +797,7 @@ class ProcessingChain:
             npparr = np.array(
                 ast.literal_eval(expr[node.col_offset : node.end_col_offset])
             )
-            if len(npparr.shape) == 1:
-                return npparr
-            else:
-                raise ProcessingChainError("only 1D arrays are supported: " + expr)
+            return npparr
 
         elif isinstance(node, ast.Constant):
             return node.value
