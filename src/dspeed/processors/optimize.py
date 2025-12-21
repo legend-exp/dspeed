@@ -9,8 +9,8 @@ from iminuit import Minuit
 from numba import guvectorize
 
 from ..errors import DSPFatal
+from ..processors import double_pole_zero, pole_zero
 from ..utils import numba_defaults_kwargs as nb_kwargs
-from .pole_zero import double_pole_zero, pole_zero
 
 
 class Model:

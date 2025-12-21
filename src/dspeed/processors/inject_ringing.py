@@ -6,8 +6,8 @@ import numpy as np
 from numba import guvectorize
 
 from ..errors import DSPFatal
+from ..processors import convolve_damped_oscillator
 from ..utils import numba_defaults_kwargs as nb_kwargs
-from .convolutions import convolve_damped_oscillator
 
 
 @guvectorize(
