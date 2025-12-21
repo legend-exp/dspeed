@@ -21,7 +21,9 @@ def time_point_thresh(
     w_in: np.ndarray, a_threshold: float, t_start: int, walk_forward: int, t_out: float
 ) -> None:
     """Find the index where the waveform value crosses the threshold, walking
-    either forward or backward from the starting index.
+    either forward or backward from the starting index. Find crossings where the
+    waveform crosses through the threshold in either direction when moving forward in time.
+    Return the waveform index just before the threshold crossing.
 
     Parameters
     ----------
@@ -73,12 +75,19 @@ def time_point_thresh(
 
     if int(walk_forward) == 1:
         for i in range(int(t_start), len(w_in) - 1, 1):
-            if w_in[i] <= a_threshold < w_in[i + 1]:
+            # Check for crossing in either direction
+            if (w_in[i] <= a_threshold < w_in[i + 1]) or (
+                w_in[i] >= a_threshold > w_in[i + 1]
+            ):
                 t_out[0] = i
                 return
     else:
         for i in range(int(t_start), 0, -1):
-            if w_in[i - 1] < a_threshold <= w_in[i]:
+            # Check for threshold crossing (in either direction) that occurred
+            # when moving forward in time, detected while walking backward
+            if (w_in[i - 1] < a_threshold <= w_in[i]) or (
+                w_in[i - 1] > a_threshold >= w_in[i]
+            ):
                 t_out[0] = i
                 return
 
@@ -173,12 +182,19 @@ def interpolated_time_point_thresh(
     i_cross = -1
     if walk_forward > 0:
         for i in range(int(t_start), len(w_in) - 1, 1):
-            if w_in[i] <= a_threshold < w_in[i + 1]:
+            # Check for crossing in either direction
+            if (w_in[i] <= a_threshold < w_in[i + 1]) or (
+                w_in[i] >= a_threshold > w_in[i + 1]
+            ):
                 i_cross = i
                 break
     else:
         for i in range(int(t_start), 1, -1):
-            if w_in[i - 1] < a_threshold <= w_in[i]:
+            # Check for threshold crossing (in either direction) that occurred
+            # when moving forward in time, detected while walking backward
+            if (w_in[i - 1] < a_threshold <= w_in[i]) or (
+                w_in[i - 1] > a_threshold >= w_in[i]
+            ):
                 i_cross = i - 1
                 break
 
