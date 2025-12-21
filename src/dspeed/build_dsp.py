@@ -402,7 +402,7 @@ def build_dsp(
                 lh5_it.current_i_entry if isinstance(lh5_it, lh5.LH5Iterator) else 0
             )
             try:
-                proc_chain.execute(0, len(tb_in))
+                proc_chain(tb_in, tb_out)
             except DSPFatal as e:
                 # Update the wf_range to reflect the file position
                 e.wf_range = f"{i_entry}-{i_entry+len(tb_in)}"

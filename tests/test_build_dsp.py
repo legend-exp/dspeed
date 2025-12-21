@@ -7,6 +7,7 @@ from lgdo import Struct, Table, VectorOfVectors, lh5
 from test_utils import isclose
 
 from dspeed import build_dsp
+from dspeed.units import unit_registry as ureg
 
 config_dir = Path(__file__).parent / "configs"
 
@@ -92,6 +93,8 @@ def test_build_dsp_io(lgnd_test_data):
     assert np.all(dsp_tb.waveform.values.nda == raw_tb.waveform.values.nda)
     assert np.all(dsp_tb.waveform.dt.nda == raw_tb.waveform.dt.nda)
     assert np.all(dsp_tb.waveform.t0.nda == raw_tb.waveform.t0.nda)
+    assert np.all(ureg(dsp_tb.waveform.dt_units) == ureg(raw_tb.waveform.dt_units))
+    assert np.all(ureg(dsp_tb.waveform.t0_units) == ureg(raw_tb.waveform.t0_units))
     assert all(dsp_tb.waveform.attrs[k] == v for k, v in raw_tb.waveform.attrs.items())
 
     assert np.all(
