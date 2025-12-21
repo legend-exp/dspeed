@@ -57,25 +57,56 @@ def test_build_dsp_errors(lgnd_test_data, tmptestdir):
         )
 
 
-def test_build_dsp_copy_inputs(lgnd_test_data):
+def test_build_dsp_io(lgnd_test_data):
     # Test processing chain that simply copies values from input file
-    raw_path = lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5")
+    raw_path = lgnd_test_data.get_path(
+        "lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"
+    )
     raw_group = "geds/raw"
     raw_tb = lh5.read(raw_group, raw_path)
 
-    dsp_config = { "outputs": ["timestamp", "baseline"], "processors":{} }
+    dsp_config = {
+        "outputs": ["baseline", "timestamp", "waveform", "tracelist"],
+        "processors": {},
+    }
     dsp_tb = build_dsp(
         raw_path,
-        dsp_config = dsp_config,
-        lh5_tables = raw_group,
-        buffer_len=10,
+        dsp_config=dsp_config,
+        lh5_tables=raw_group,
+        buffer_len=20,
     )
     dsp_tb = dsp_tb["geds/dsp"]
 
+    # print(dsp_tb)
+    # for k, v in raw_tb.items():
+    #    print(k, v)
+    # raise
     assert np.all(dsp_tb.baseline.nda == raw_tb.baseline.nda)
     assert all(dsp_tb.baseline.attrs[k] == v for k, v in raw_tb.baseline.attrs.items())
+
     assert np.all(dsp_tb.timestamp.nda == raw_tb.timestamp.nda)
-    assert all(dsp_tb.timestamp.attrs[k] == v for k, v in raw_tb.timestamp.attrs.items())
+    assert all(
+        dsp_tb.timestamp.attrs[k] == v for k, v in raw_tb.timestamp.attrs.items()
+    )
+
+    assert np.all(dsp_tb.waveform.values.nda == raw_tb.waveform.values.nda)
+    assert np.all(dsp_tb.waveform.dt.nda == raw_tb.waveform.dt.nda)
+    assert np.all(dsp_tb.waveform.t0.nda == raw_tb.waveform.t0.nda)
+    assert all(dsp_tb.waveform.attrs[k] == v for k, v in raw_tb.waveform.attrs.items())
+
+    assert np.all(
+        dsp_tb.tracelist.cumulative_length.nda == raw_tb.tracelist.cumulative_length.nda
+    )
+    dsp_len = dsp_tb.tracelist.cumulative_length.nda[-1]
+    raw_len = raw_tb.tracelist.cumulative_length.nda[-1]
+    assert np.all(
+        dsp_tb.tracelist.flattened_data.nda[:dsp_len]
+        == raw_tb.tracelist.flattened_data.nda[:raw_len]
+    )
+    assert all(
+        dsp_tb.tracelist.attrs[k] == v for k, v in raw_tb.tracelist.attrs.items()
+    )
+
 
 # test different input types
 def test_dsp_in_types(lgnd_test_data):
