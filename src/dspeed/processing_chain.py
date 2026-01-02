@@ -2632,8 +2632,10 @@ def build_processing_chain(
                 init_kwargs = {}
                 for arg in init_args_in:
                     if not isinstance(arg, str):
-                        pass
+                        init_args.append(arg)
+                        continue
 
+                    # find and replace db values
                     for db_var in db_parser.findall(arg):
                         try:
                             db_node = db_dict
