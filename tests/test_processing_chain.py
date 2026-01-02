@@ -665,41 +665,42 @@ def test_database_params(geds_raw_tbl):
     )
     assert lh5_out["test"][0] == 3
 
-    def test_init_args(geds_raw_tbl):
-        dsp_config = {
-            "outputs": ["test"],
-            "processors": {
-                "test": {
-                    "function": "dspeed.processors.poly_fit",
-                    "args": ["waveform", "test(shape=4)"],
-                    "init_args": ["len(waveform)", 3],
-                }
-            },
-        }
+
+def test_init_args(geds_raw_tbl):
+    dsp_config = {
+        "outputs": ["test"],
+        "processors": {
+            "test": {
+                "function": "dspeed.processors.poly_fit",
+                "args": ["waveform", "test(shape=4)"],
+                "init_args": ["len(waveform)", 3],
+            }
+        },
+    }
+    build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
+
+    dsp_config = {
+        "outputs": ["test"],
+        "processors": {
+            "test": {
+                "function": "dspeed.processors.poly_fit",
+                "args": ["waveform", "test(shape=3)"],
+                "init_args": [1, 3],
+            }
+        },
+    }
+    with pytest.raises(ProcessingChainError):
         build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
 
-        dsp_config = {
-            "outputs": ["test"],
-            "processors": {
-                "test": {
-                    "function": "dspeed.processors.poly_fit",
-                    "args": ["waveform", "test(shape=3)"],
-                    "init_args": ["len(waveform)", 3],
-                }
-            },
-        }
-        with pytest.raises(ProcessingChainError):
-            build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
-
-        dsp_config = {
-            "outputs": ["test"],
-            "processors": {
-                "test": {
-                    "function": "dspeed.processors.poly_fit",
-                    "args": ["waveform", "test(shape=4)"],
-                    "init_args": ["len(waveform)", "db.deg"],
-                    "defaults": {"db.deg": 3},
-                }
-            },
-        }
-        build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
+    dsp_config = {
+        "outputs": ["test"],
+        "processors": {
+            "test": {
+                "function": "dspeed.processors.poly_fit",
+                "args": ["waveform", "test(shape=4)"],
+                "init_args": ["len(waveform)", "db.deg"],
+                "defaults": {"db.deg": 3},
+            }
+        },
+    }
+    build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
