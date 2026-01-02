@@ -34,7 +34,18 @@ def _poly_fitter(w_in: np.ndarray, inv: np.ndarray, poly_pars: np.ndarray) -> No
 
 def poly_fit(length, deg):
     """Factory function for generating a polynomial fitter for an input of length
-    `length` to a polynomial of order `deg`."""
+    `length` to a polynomial of order `deg`.
+
+    YAML Configuration Example
+    --------------------------
+
+    .. code-block:: yaml
+
+        fit_pars:
+            function: dspeed.processors.poly_fit
+            args: ["wf_logged", "fit_pars(shape=4)"]
+            init_args: ["len(wf_logged)", 3]
+    """
 
     vals_array = np.zeros(2 * deg + 1, dtype="float64")
 

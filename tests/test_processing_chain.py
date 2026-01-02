@@ -672,11 +672,11 @@ def test_database_params(geds_raw_tbl):
                 "test": {
                     "function": "dspeed.processors.poly_fit",
                     "args": ["waveform", "test(shape=4)"],
-                    "init_args": ["len(waveform)", 3]
+                    "init_args": ["len(waveform)", 3],
                 }
-            }
+            },
         }
-        lh5_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
+        build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
 
         dsp_config = {
             "outputs": ["test"],
@@ -684,12 +684,12 @@ def test_database_params(geds_raw_tbl):
                 "test": {
                     "function": "dspeed.processors.poly_fit",
                     "args": ["waveform", "test(shape=3)"],
-                    "init_args": ["len(waveform)", 3]
+                    "init_args": ["len(waveform)", 3],
                 }
-            }
+            },
         }
         with pytest.raises(ProcessingChainError):
-            lh5_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
+            build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
 
         dsp_config = {
             "outputs": ["test"],
@@ -698,8 +698,8 @@ def test_database_params(geds_raw_tbl):
                     "function": "dspeed.processors.poly_fit",
                     "args": ["waveform", "test(shape=4)"],
                     "init_args": ["len(waveform)", "db.deg"],
-                    "defaults": {"db.deg":3},
+                    "defaults": {"db.deg": 3},
                 }
-            }
+            },
         }
-        lh5_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
+        build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)

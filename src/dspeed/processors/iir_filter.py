@@ -57,7 +57,7 @@ def iir_filter(
         wf_lp:
           function: iir_filter
           module: dspeed.processors
-          args_in:
+          init_args:
             - "15*MHz"
             - 4
             - wf
@@ -138,7 +138,7 @@ def notch_filter(
         wf_notch:
           function: notch_filter
           module: dspeed.processors
-          args_in:
+          init_args:
             - "15*MHz"
             - "1.5*MHz"
             - wf
@@ -196,7 +196,7 @@ def peak_filter(
         wf_peak:
           function: peak_filter
           module: dspeed.processors
-          args_in:
+          init_args:
             - "15*MHz"
             - "1.5*MHz"
             - wf
