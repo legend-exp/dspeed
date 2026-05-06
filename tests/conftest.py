@@ -10,7 +10,7 @@ from tempfile import gettempdir
 import numpy as np
 import pytest
 from legendtestdata import LegendTestData
-from lgdo.lh5 import read
+from lh5 import read
 
 from dspeed.utils import GUFuncWrapper
 

@@ -13,7 +13,8 @@ from collections.abc import Collection, Mapping
 from copy import copy, deepcopy
 from fnmatch import fnmatch
 
-from lgdo import LGDO, Struct, Table, lh5
+import lh5
+from lgdo import LGDO, Struct, Table
 from tqdm.auto import tqdm
 from yaml import safe_load
 
@@ -189,11 +190,11 @@ def build_dsp(
 
     # get the config(s)
     if isinstance(dsp_config, str):
-        with open(lh5.utils.expand_path(dsp_config)) as config_file:
+        with open(lh5.io.utils.expand_path(dsp_config)) as config_file:
             dsp_config = safe_load(config_file)
 
     if isinstance(chan_config, str):
-        with open(lh5.utils.expand_path(chan_config)) as config_file:
+        with open(lh5.io.utils.expand_path(chan_config)) as config_file:
             # safe_load is order preserving, but doesn't load into an OrderedDict
             # and so may not be totally robust here...
             chan_config = safe_load(config_file)
@@ -202,12 +203,12 @@ def build_dsp(
 
     for chan, config in chan_config.items():
         if isinstance(config, str):
-            with open(lh5.utils.expand_path(config)) as config_file:
+            with open(lh5.io.utils.expand_path(config)) as config_file:
                 chan_config[chan] = safe_load(config_file)
 
     # get the database parameters
     if isinstance(database, str):
-        with open(lh5.utils.expand_path(database)) as db_file:
+        with open(lh5.io.utils.expand_path(database)) as db_file:
             database = safe_load(db_file)
 
     if database and not isinstance(database, Mapping):

@@ -1397,7 +1397,7 @@ class ProcessingChain:
             list: The loaded data.
         """
 
-        from lgdo import lh5
+        import lh5
 
         try:
             loaded_data = lh5.read(path_in_file, path_to_file)

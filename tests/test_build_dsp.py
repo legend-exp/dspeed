@@ -1,9 +1,10 @@
 import os
 from pathlib import Path
 
+import lh5
 import numpy as np
 import pytest
-from lgdo import Struct, Table, VectorOfVectors, lh5
+from lgdo import Struct, Table, VectorOfVectors
 from test_utils import isclose
 
 from dspeed import build_dsp
