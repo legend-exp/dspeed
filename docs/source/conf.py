@@ -57,6 +57,7 @@ intersphinx_mapping = {
     "pint": ("https://pint.readthedocs.io/en/stable", None),
     "matplotlib": ("http://matplotlib.org/stable", None),
     "lgdo": ("https://legend-pydataobj.readthedocs.io/en/stable", None),
+    "lh5": ("https://legend-lh5io.readthedocs.io/en/stable", None),
 }  # add new intersphinx mappings here
 
 # sphinx-autodoc

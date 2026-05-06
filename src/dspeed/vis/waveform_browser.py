@@ -11,8 +11,8 @@ import lgdo
 import matplotlib.pyplot as plt
 import numpy as np
 from cycler import cycler
-from lgdo.lh5 import LH5Iterator
 from lgdo.types import Table
+from lh5 import LH5Iterator
 from matplotlib.lines import Line2D
 from pint import Quantity, Unit
 
@@ -68,7 +68,7 @@ class WaveformBrowser:
             the same group will be assigned to each file found
 
         base_path
-            base path for files. See :class:`~lgdo.lh5.LH5Store`.
+            base path for files. See :class:`~lh5.io.store.LH5Store`.
 
         entry_list
             list of event indices to draw. If it is a nested list, use local
