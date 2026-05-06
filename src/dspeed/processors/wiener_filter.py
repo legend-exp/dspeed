@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import lh5
 import numpy as np
-from lgdo import lh5
 from numba import guvectorize
 
 from ..errors import DSPFatal
