@@ -2372,6 +2372,12 @@ def build_processing_chain(
     if "processors" in processors:
         processors = processors["processors"]
 
+    # cast to a plain dict so that subsequent processors[key] = ... does not
+    # go through wrapping __setitem__ overrides (e.g. dbetto.AttrsDict copies
+    # plain dicts into fresh AttrsDicts on assignment, which would silently
+    # decouple the stored value from any local reference)
+    processors = dict(processors)
+
     buffer_len = len(tb_in) if tb_in is not None else 1
     proc_chain = ProcessingChain(block_width, buffer_len)
 
