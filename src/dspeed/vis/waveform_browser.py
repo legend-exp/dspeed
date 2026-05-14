@@ -549,9 +549,14 @@ class WaveformBrowser:
                     leg_labels.append(form)
         else:
             for form in self.legend_format:
+                plain_names = {
+                    name
+                    for _, name, spec, _ in string.Formatter().parse(form)
+                    if name and spec and not (set(spec) & set("~PHLCD"))
+                }
                 for leg_dat in leg_cycle:
                     leg_dat = {
-                        k: v.m if isinstance(v, Quantity) else v
+                        k: v.m if k in plain_names and isinstance(v, Quantity) else v
                         for k, v in leg_dat.items()
                     }
                     leg_labels.append(form.format(**leg_dat))
