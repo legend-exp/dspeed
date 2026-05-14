@@ -53,6 +53,7 @@ class WaveformBrowser:
         align: str = None,
         buffer_len: int = 128,
         block_width: int = 8,
+        additional_outputs: list[str] | None = None,
     ) -> None:
         """
         Parameters
@@ -150,6 +151,10 @@ class WaveformBrowser:
 
         block_width
             block width for :class:`~.processing_chain.ProcessingChain`.
+
+        additional_outputs
+            More output fields for the internal processing chain.
+            Useful for deriving classes.
         """
 
         self.norm_par = norm
@@ -258,6 +263,8 @@ class WaveformBrowser:
             outputs += [self.norm_par]
         if isinstance(self.align_par, str):
             outputs += [self.align_par]
+        if additional_outputs is not None:
+            outputs += additional_outputs
 
         # Remove any values not found in aux_vals
         if self.aux_vals is not None:
@@ -612,7 +619,7 @@ class WaveformBrowser:
         safe
             if ``False``, throw an exception for out of range entries.
         """
-        self.find_entry(entry, append)
+        self.find_entry(entry, append, safe)
         self.draw_current(clear)
 
     def find_next(self, n_wfs: int = None, append: bool = False) -> tuple[int, int]:
