@@ -550,6 +550,10 @@ class WaveformBrowser:
         else:
             for form in self.legend_format:
                 for leg_dat in leg_cycle:
+                    leg_dat = {
+                        k: v.m if isinstance(v, Quantity) else v
+                        for k, v in leg_dat.items()
+                    }
                     leg_labels.append(form.format(**leg_dat))
 
         # Draw legend
