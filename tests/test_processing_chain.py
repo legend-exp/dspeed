@@ -461,13 +461,13 @@ def test_proc_chain_where(spms_raw_tbl):
     assert np.all(np.where(wf < 0, 0, wf) == lh5_out["test1"].values[0])
     assert np.all(np.where(wf < 0, wf, 0) == lh5_out["test2"].values[0])
     tp_min = lh5_out["tp_min"].nda
-    assert lh5_out["test3"].attrs["units"] == "nanosecond"
+    assert lh5_out["test3"].attrs["units"] == "ns"
     assert lh5_out["test3"].nda[0] == tp_min[0] and lh5_out["test3"].nda[1] == 1
-    assert lh5_out["test4"].attrs["units"] == "nanosecond"
+    assert lh5_out["test4"].attrs["units"] == "ns"
     assert lh5_out["test4"].nda[0] == tp_min[0] and lh5_out["test4"].nda[1] == 1000
-    assert lh5_out["test5"].attrs["units"] == "nanosecond"
+    assert lh5_out["test5"].attrs["units"] == "ns"
     assert lh5_out["test5"].nda[0] == 1 and lh5_out["test5"].nda[1] == tp_min[1]
-    assert lh5_out["test6"].attrs["units"] == "nanosecond"
+    assert lh5_out["test6"].attrs["units"] == "ns"
     assert lh5_out["test6"].nda[0] == 1000 and lh5_out["test6"].nda[1] == tp_min[1]
     with pytest.raises(ProcessingChainError):
         lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, outputs=["test7"])
@@ -519,7 +519,7 @@ def test_proc_chain_where(spms_raw_tbl):
         outputs=["test4", "tp_min", "tp_max"],
         n_entries=2,
     )
-    assert lh5_out["test4"].attrs["units"] == "nanosecond"
+    assert lh5_out["test4"].attrs["units"] == "ns"
     assert np.all(lh5_out["test4"].nda[0] == lh5_out["tp_min"].nda[0])
     assert np.all(lh5_out["test4"].nda[1] == lh5_out["tp_max"].nda[1])
 
@@ -539,11 +539,11 @@ def test_proc_chain_where(spms_raw_tbl):
         outputs=["test1", "test2", "test3", "test4"],
         n_entries=2,
     )
-    assert lh5_out["test1"].attrs["units"] == "nanosecond"
+    assert lh5_out["test1"].attrs["units"] == "ns"
     assert lh5_out["test1"].nda[0] == 10 and lh5_out["test1"].nda[1] == 1000
-    assert lh5_out["test2"].attrs["units"] == "nanosecond"
+    assert lh5_out["test2"].attrs["units"] == "ns"
     assert lh5_out["test2"].nda[0] == 10 and lh5_out["test2"].nda[1] == 1000
-    assert lh5_out["test3"].attrs["units"] == "nanosecond"
+    assert lh5_out["test3"].attrs["units"] == "ns"
     assert lh5_out["test3"].nda[0] == 1000 and lh5_out["test3"].nda[1] == 10
     assert lh5_out["test4"].nda[0] == 10 and lh5_out["test4"].nda[1] == 1000
     with pytest.raises(ProcessingChainError):
