@@ -2766,6 +2766,8 @@ def build_processing_chain(
             if isinstance(recipe, str):
                 recipe = processors[recipe]
             buf_out.attrs.update(recipe.get("lh5_attrs", {}))
+            if description := recipe.get("description"):
+                buf_out.attrs["description"] = description
             buf_out.resize(len(tb_out))
             tb_out.add_field(out_par, buf_out)
         except Exception as e:
