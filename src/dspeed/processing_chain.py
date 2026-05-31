@@ -23,6 +23,7 @@ from typing import Any
 
 import lgdo
 import numpy as np
+import psutil
 from numba import guvectorize
 from pint import Quantity, Unit
 from yaml import safe_load
@@ -34,6 +35,8 @@ from .utils import ProcChainVarBase
 from .utils import numba_defaults_kwargs as nb_kwargs
 
 log = logging.getLogger("dspeed")
+
+_psutil_proc = psutil.Process()
 
 # Filler value for variables to be automatically deduced later
 auto = "auto"
@@ -1133,9 +1136,24 @@ class ProcessingChain:
         else:
             return var.vector_len
 
+    def get_profile(self) -> dict[str, dict]:
+        """Get profiling stats for each processor in the processing chain.
+
+        Returns a dict keyed by processor string representation with entries:
+        ``wall_s``, ``rss_delta_max_mb``, ``rss_delta_avg_mb``.
+        """
+        return {
+            str(proc): {
+                "wall_s": proc.time_total,
+                "rss_delta_max_mb": proc.rss_delta_max_mb,
+                "rss_delta_avg_mb": proc.rss_delta_avg_mb,
+            }
+            for proc in self._proc_managers
+        }
+
     def get_timing(self) -> dict[str, float]:
-        """Get the timing of each processor in the processing chain."""
-        return {str(proc): proc.time_total for proc in self._proc_managers}
+        """Get the wall time of each processor in the processing chain."""
+        return {name: s["wall_s"] for name, s in self.get_profile().items()}
 
     # round value
     def _round(
@@ -1465,8 +1483,10 @@ class ProcessorManager:
         self.args = []
         # dict of kws -> raw values and buffers from params; we will fill this soon
         self.kwargs = {}
-        # store time taken by processor
         self.time_total = 0
+        self.rss_delta_max_mb = float("-inf")
+        self.rss_delta_avg_mb = 0.0
+        self._n_calls = 0
 
         # Get the signature and list of valid types for the function
         self.signature = func.signature if signature is None else signature
@@ -1719,14 +1739,19 @@ class ProcessorManager:
                 self.kwargs[arg_name] = param
 
     def execute(self) -> None:
-        start = time.time()
+        rss0 = _psutil_proc.memory_info().rss
+        start = time.perf_counter()
         try:
             self.processor(*self.args, **self.kwargs)
         except Exception as e:
             log.error(f"Error processing {str(self)}: {e}")
             traceback.print_exc()
             raise e
-        self.time_total += time.time() - start
+        self.time_total += time.perf_counter() - start
+        delta_mb = (_psutil_proc.memory_info().rss - rss0) / 1024**2
+        self.rss_delta_max_mb = max(self.rss_delta_max_mb, delta_mb)
+        self._n_calls += 1
+        self.rss_delta_avg_mb += (delta_mb - self.rss_delta_avg_mb) / self._n_calls
 
     def __str__(self) -> str:
         return (
@@ -1827,6 +1852,9 @@ class UnitConversionManager(ProcessorManager):
         ]
         self.kwargs = {}
         self.time_total = 0
+        self.rss_delta_max_mb = float("-inf")
+        self.rss_delta_avg_mb = 0.0
+        self._n_calls = 0
 
 
 class IOManager(metaclass=ABCMeta):

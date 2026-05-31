@@ -23,6 +23,62 @@ from .processing_chain import build_processing_chain
 
 log = logging.getLogger("dspeed")
 
+_PROFILE_TOP_N = 15
+_PROFILE_NAME_W = 52
+
+
+def _log_profile_report(proc_chain, n_entries: int) -> None:
+    profile = proc_chain.get_profile()
+    if not profile:
+        return
+
+    def _rmax(s):
+        v = s["rss_delta_max_mb"]
+        return max(v, 0.0) if v != float("-inf") else 0.0
+
+    total_wall = sum(s["wall_s"] for s in profile.values())
+    total_rss_max = sum(_rmax(s) for s in profile.values())
+    total_rss_avg = sum(s["rss_delta_avg_mb"] for s in profile.values())
+
+    sorted_procs = sorted(profile.items(), key=lambda x: x[1]["wall_s"], reverse=True)
+    n_total = len(sorted_procs)
+    shown, rest = sorted_procs[:_PROFILE_TOP_N], sorted_procs[_PROFILE_TOP_N:]
+
+    w = _PROFILE_NAME_W
+    sep = "─" * (w + 46)
+
+    log.info(
+        f"=== DSP profiling report ({n_total} processors, {n_entries} entries) ==="
+    )
+    log.info(
+        f" {'processor':<{w}}  {'wall_s':>8}  {'%':>6}  {'Δrss_max':>10}  {'Δrss_avg':>10}"
+    )
+    log.info(sep)
+
+    for name, s in shown:
+        wall = s["wall_s"]
+        pct = 100 * wall / total_wall if total_wall else 0.0
+        rmax = _rmax(s)
+        ravg = s["rss_delta_avg_mb"]
+        label = (name[: w - 1] + "…") if len(name) > w else name
+        log.info(
+            f" {label:<{w}}  {wall:>8.3f}  {pct:>5.1f}%  {rmax:>+9.2f} MB  {ravg:>+9.2f} MB"
+        )
+
+    if rest:
+        rest_wall = sum(s["wall_s"] for _, s in rest)
+        rest_pct = 100 * rest_wall / total_wall if total_wall else 0.0
+        label = f"[{len(rest)} more processors]"
+        log.info(
+            f" {label:<{w}}  {rest_wall:>8.3f}  {rest_pct:>5.1f}%  {'...':>12}  {'...':>12}"
+        )
+
+    log.info(sep)
+    log.info(
+        f" {'total':<{w}}  {total_wall:>8.3f}  {'100.0%':>6}"
+        f"  {total_rss_max:>+9.2f} MB  {total_rss_avg:>+9.2f} MB"
+    )
+
 
 def build_dsp(
     raw_in: str | LGDO,
@@ -438,14 +494,7 @@ def build_dsp(
         log.debug(f"Table {tb} loading time: {loading_time:.2f} seconds")
         log.debug(f"Table {tb} write time: {write_time:.2f} seconds")
         log.debug(f"Table {tb} processing time: {processing_time:.2f} seconds")
-
-        if log.getEffectiveLevel() >= logging.DEBUG:
-            times = proc_chain.get_timing()
-            log.debug("Processor timing info: ")
-            for proc, t in dict(
-                sorted(times.items(), key=lambda item: item[1], reverse=True)
-            ).items():
-                log.debug(f"{proc}: {t:.3f} s")
+        _log_profile_report(proc_chain, tot_n_rows)
 
     if isinstance(dsp_st, Struct):
         return dsp_st
