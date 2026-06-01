@@ -645,6 +645,59 @@ def test_output_attrs(geds_raw_tbl):
     assert lh5_out["wf_blsub"].attrs["test_attr"] == "This is a test"
 
 
+def test_output_description(geds_raw_tbl, spms_raw_tbl):
+    # single-output processor
+    dsp_config = {
+        "outputs": ["wf_blsub"],
+        "processors": {
+            "wf_blsub": {
+                "function": "bl_subtract",
+                "module": "dspeed.processors",
+                "args": ["waveform[0:100]", "baseline", "wf_blsub"],
+                "unit": "ADC",
+                "description": "baseline-subtracted waveform",
+            }
+        },
+    }
+    lh5_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
+    assert lh5_out["wf_blsub"].attrs["description"] == "baseline-subtracted waveform"
+
+    # multi-output processor — all outputs share the same description
+    dsp_config = {
+        "outputs": ["tp_min", "tp_max", "wf_min", "wf_max"],
+        "processors": {
+            "tp_min, tp_max, wf_min, wf_max": {
+                "function": "min_max",
+                "module": "dspeed.processors",
+                "args": ["waveform", "tp_min", "tp_max", "wf_min", "wf_max"],
+                "unit": ["ns", "ns", "ADC", "ADC"],
+                "description": "find max and min of waveform with corresponding time points",
+            }
+        },
+    }
+    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
+    for par in ("tp_min", "tp_max", "wf_min", "wf_max"):
+        assert (
+            lh5_out[par].attrs["description"]
+            == "find max and min of waveform with corresponding time points"
+        )
+
+    # processor without description leaves attrs untouched
+    dsp_config = {
+        "outputs": ["wf_blsub"],
+        "processors": {
+            "wf_blsub": {
+                "function": "bl_subtract",
+                "module": "dspeed.processors",
+                "args": ["waveform[0:100]", "baseline", "wf_blsub"],
+                "unit": "ADC",
+            }
+        },
+    }
+    lh5_out = build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
+    assert "description" not in lh5_out["wf_blsub"].attrs
+
+
 def test_database_params(geds_raw_tbl):
     dsp_config = {
         "outputs": ["test"],
