@@ -1145,8 +1145,7 @@ class ProcessingChain:
         return {
             str(proc): {
                 "wall_s": proc.time_total,
-                "rss_delta_max_mb": proc.rss_delta_max_mb,
-                "rss_delta_avg_mb": proc.rss_delta_avg_mb,
+                "rss_setup_mb": proc.rss_setup_mb,
             }
             for proc in self._proc_managers
         }
@@ -1484,9 +1483,7 @@ class ProcessorManager:
         # dict of kws -> raw values and buffers from params; we will fill this soon
         self.kwargs = {}
         self.time_total = 0
-        self.rss_delta_max_mb = float("-inf")
-        self.rss_delta_avg_mb = 0.0
-        self._n_calls = 0
+        self.rss_setup_mb = 0.0
 
         # Get the signature and list of valid types for the function
         self.signature = func.signature if signature is None else signature
@@ -1739,7 +1736,6 @@ class ProcessorManager:
                 self.kwargs[arg_name] = param
 
     def execute(self) -> None:
-        rss0 = _psutil_proc.memory_info().rss
         start = time.perf_counter()
         try:
             self.processor(*self.args, **self.kwargs)
@@ -1748,10 +1744,6 @@ class ProcessorManager:
             traceback.print_exc()
             raise e
         self.time_total += time.perf_counter() - start
-        delta_mb = (_psutil_proc.memory_info().rss - rss0) / 1024**2
-        self.rss_delta_max_mb = max(self.rss_delta_max_mb, delta_mb)
-        self._n_calls += 1
-        self.rss_delta_avg_mb += (delta_mb - self.rss_delta_avg_mb) / self._n_calls
 
     def __str__(self) -> str:
         return (
@@ -1852,9 +1844,7 @@ class UnitConversionManager(ProcessorManager):
         ]
         self.kwargs = {}
         self.time_total = 0
-        self.rss_delta_max_mb = float("-inf")
-        self.rss_delta_avg_mb = 0.0
-        self._n_calls = 0
+        self.rss_setup_mb = 0.0
 
 
 class IOManager(metaclass=ABCMeta):
@@ -2656,6 +2646,8 @@ def build_processing_chain(
                 }
             )
 
+            _rss0 = _psutil_proc.memory_info().rss
+
             # if init_args are defined, parse any strings and then call func
             # as a factory/constructor function
             try:
@@ -2757,6 +2749,9 @@ def build_processing_chain(
 
             else:
                 proc_chain.add_processor(func, *params, kw_params, **kwargs)
+                proc_chain._proc_managers[-1].rss_setup_mb = (
+                    _psutil_proc.memory_info().rss - _rss0
+                ) / 1024**2
 
         except Exception as e:
             raise ProcessingChainError(
