@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import lh5
+
 from dspeed.vis import WaveformBrowser
 
 config_dir = Path(__file__).parent / "configs"
@@ -9,6 +11,55 @@ def test_basics(lgnd_test_data):
     wb = WaveformBrowser(
         lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
         "/geds/raw",
+        dsp_config=f"{config_dir}/hpge-dsp-config.json",
+        lines=["wf_blsub", "wf_trap", "trapEmax"],
+        legend=["waveform", "trapezoidal", "energy = {trapEmax:0.1f}"],
+        styles="seaborn-v0.8",
+        n_drawn=2,
+        x_lim=("20*us", "60*us"),
+        x_unit="us",
+    )
+
+    wb.draw_next()
+    wb.draw_entry(24)
+    wb.draw_entry((2, 24))
+
+
+# test input types
+def test_inputs(lgnd_test_data):
+    # LH5Iterator
+    lh5_it = lh5.LH5Iterator(
+        lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
+        "/geds/raw",
+    )
+
+    wb = WaveformBrowser(
+        lh5_it,
+        dsp_config=f"{config_dir}/hpge-dsp-config.json",
+        lines=["wf_blsub", "wf_trap", "trapEmax"],
+        legend=["waveform", "trapezoidal", "energy = {trapEmax:0.1f}"],
+        styles="seaborn-v0.8",
+        n_drawn=2,
+        x_lim=("20*us", "60*us"),
+        x_unit="us",
+    )
+
+    wb.draw_next()
+    wb.draw_entry(24)
+    wb.draw_entry((2, 24))
+
+    lh5_it = lh5.LH5Iterator(
+        lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
+        "/geds/raw",
+    )
+
+    # Table
+    tb = lh5.read(
+        "/geds/raw",
+        lgnd_test_data.get_path("lh5/LDQTA_r117_20200110T105115Z_cal_geds_raw.lh5"),
+    )
+    wb = WaveformBrowser(
+        tb,
         dsp_config=f"{config_dir}/hpge-dsp-config.json",
         lines=["wf_blsub", "wf_trap", "trapEmax"],
         legend=["waveform", "trapezoidal", "energy = {trapEmax:0.1f}"],

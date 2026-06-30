@@ -160,6 +160,10 @@ class WaveformBrowser:
         # data i/o initialization
         if isinstance(raw_in, LH5Iterator):
             self.lh5_it = raw_in
+            lh5_in = self.lh5_it.read(0)
+        elif isinstance(raw_in, Table):
+            lh5_in = raw_in
+            self.lh5_it = None
         else:
             self.lh5_it = LH5Iterator(
                 raw_in,
@@ -169,14 +173,13 @@ class WaveformBrowser:
                 entry_mask=entry_mask,
                 buffer_len=buffer_len,
             )
-
-        # Get the input buffer and read the first chunk
-        self.lh5_in = self.lh5_it.read(0)
+            lh5_in = self.lh5_it.read(0)
 
         self.aux_vals = aux_values
         # Apply entry selection to aux_vals if needed
         if (
             self.aux_vals is not None
+            and self.lh5_it is not None
             and self.lh5_it.get_global_entrylist() is not None
             and len(self.aux_vals) > len(self.lh5_it.get_global_entrylist())
         ):
@@ -191,7 +194,7 @@ class WaveformBrowser:
             # default: include all input fields of type WaveformTable
             self.lines = {
                 key: []
-                for key, val in self.lh5_in.items()
+                for key, val in lh5_in.items()
                 if isinstance(val, lgdo.WaveformTable)
             }
             log.warning(
@@ -265,12 +268,13 @@ class WaveformBrowser:
 
         self.proc_chain, field_mask, self.lh5_out = build_processing_chain(
             dsp_config,
-            self.lh5_in,
+            lh5_in,
             db_dict=database,
             outputs=outputs,
             block_width=block_width,
         )
-        self.lh5_it.reset_field_mask(field_mask)
+        if self.lh5_it is not None:
+            self.lh5_it.reset_field_mask(field_mask)
         self.proc_chain.execute()
 
         # Check if all of our outputs can be found
@@ -375,20 +379,25 @@ class WaveformBrowser:
                 self.find_entry(idx)
             return
 
-        # Get our current position in the I/O buffers; update if needed
-        i_tb = entry - self.lh5_it.current_i_entry
-        if not (len(self.lh5_out) > i_tb >= 0):
-            self.lh5_it.read(entry)
+        if self.lh5_it is not None:
+            # Get our current position in the I/O buffers; update if needed
+            i_tb = entry - self.lh5_it.current_i_entry
+            if not (len(self.lh5_out) > i_tb >= 0):
+                self.lh5_it.read(entry)
 
-            # Check if entry is out of range
-            if len(self.lh5_out) == 0:
-                if safe:
-                    raise IndexError
-                else:
-                    return
+                # Check if entry is out of range
+                if len(self.lh5_out) == 0:
+                    if safe:
+                        raise IndexError
+                    else:
+                        return
 
-            self.proc_chain.execute()
-            i_tb = 0
+                self.proc_chain.execute()
+                i_tb = 0
+        else:
+            i_tb = entry
+            if not (len(self.lh5_out) > i_tb >= 0):
+                raise IndexError
 
         # get scaling factor/time shift if used
         if self.norm_par is None:
@@ -649,6 +658,12 @@ class WaveformBrowser:
         self.clear_data()
         self.next_entry = 0
 
+    def __len__(self) -> int:
+        if self.lh5_it is not None:
+            return len(self.lh5_it)
+        else:
+            return len(self.lh5_in)
+
     def __iter__(self) -> tuple[int, int]:
-        while self.next_entry < len(self.lh5_it):
+        while self.next_entry < len(self):
             yield self.draw_next()
