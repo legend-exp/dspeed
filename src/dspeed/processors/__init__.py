@@ -80,6 +80,8 @@ _modules = {
     "psd": "fft",
     "fixed_time_pickoff": "fixed_time_pickoff",
     "gaussian_filter1d": "gaussian_filter1d",
+    "get": "get",
+    "get_default": "get",
     "get_multi_local_extrema": "get_multi_local_extrema",
     "get_wf_centroid": "get_wf_centroid",
     "histogram": "histogram",
