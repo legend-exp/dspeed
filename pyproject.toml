@@ -47,6 +47,7 @@ dependencies=[
     "numpy>2",
     "parse",
     "pint",
+    "psutil",
     "pyarrow",
     "pyyaml",
     "scipy",
