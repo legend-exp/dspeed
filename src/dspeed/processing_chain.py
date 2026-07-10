@@ -556,25 +556,29 @@ class ProcessingChain:
 
         # Create input buffer that will be linked and returned if none exists
         if buff is None:
-            dtype = var.get_buffer().dtype
+            dtype = var.dtype
 
             if var is None:
                 raise ProcessingChainError(
                     f"{varname} does not exist and no buffer was provided"
                 )
-            elif (
-                isinstance(var.grid, CoordinateGrid)
-                and len(var.shape) == 1
-                and not var.is_coord
-            ):
-                buff = lgdo.WaveformTable(
-                    size=self._buffer_len, wf_len=var.shape[0], dtype=dtype
-                )
+            elif isinstance(var.grid, CoordinateGrid) and not var.is_coord:
+                if var.vector_len is None:
+                    buff = lgdo.WaveformTable(
+                        size=self._buffer_len, wf_len=var.shape[0], dtype=dtype
+                    )
+                else:
+                    buff = lgdo.WaveformTable(
+                        values=lgdo.VectorOfVectors(
+                            shape_guess=(self._buffer_len, 0),
+                            dtype=dtype,
+                        )
+                    )
             elif len(var.shape) == 0:
                 buff = lgdo.Array(shape=(self._buffer_len), dtype=dtype)
             elif var.vector_len is not None:
                 buff = lgdo.VectorOfVectors(
-                    shape_guess=(self._buffer_len, *var.shape), dtype=dtype
+                    shape_guess=(self._buffer_len, 0), dtype=dtype
                 )
             elif len(var.shape) > 0:
                 buff = lgdo.ArrayOfEqualSizedArrays(
@@ -1126,12 +1130,11 @@ class ProcessingChain:
             return None
         if not isinstance(var, ProcChainVar):
             raise ProcessingChainError(f"cannot call len() on {var}")
-        if not len(var.buffer.shape) == 2:
-            raise ProcessingChainError(f"{var} has wrong number of dims")
-        if var.vector_len is None:
-            return var.buffer.shape[1]
-        else:
+        if var.vector_len is not None:
             return var.vector_len
+        if not len(var.shape) == 1:
+            raise ProcessingChainError(f"{var} has wrong number of dims")
+        return var.shape[0]
 
     def get_timing(self) -> dict[str, float]:
         """Get the timing of each processor in the processing chain."""
@@ -2064,8 +2067,8 @@ class LGDOVectorOfVectorsIOManager(IOManager):
                 f"{var.vector_len} must be an integer to act as a vector len"
             )
 
-        unit = io_vov.attrs.get("units", None)
-        var.update_auto(dtype=io_vov.dtype, shape=10, unit=unit)
+        self.unit = io_vov.attrs.get("units", None)
+        var.update_auto(dtype=io_vov.dtype, unit=self.unit)
 
         if isinstance(var.unit, (CoordinateGrid, Quantity, Unit)):
             if isinstance(var.unit, CoordinateGrid):
@@ -2075,20 +2078,20 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             else:
                 var_u = var.unit
 
-            if unit is None:
-                unit = var_u
-            elif ureg.is_compatible_with(var_u, unit):
-                unit = ureg.Quantity(unit).u
+            if self.unit is None:
+                self.unit = var_u
+            elif ureg.is_compatible_with(var_u, self.unit):
+                self.unit = ureg.Quantity(self.unit).u
             else:
                 raise ProcessingChainError(
                     f"LGDO array and variable {var} have incompatible units "
-                    f"({var_u} and {unit})"
+                    f"({var_u} and {self.unit})"
                 )
-        elif isinstance(var.unit, str) and unit is None:
-            unit = var.unit
+        elif isinstance(var.unit, str) and self.unit is None:
+            self.unit = var.unit
 
         self.var = var
-        self.raw_var = var.get_buffer(unit)
+        self.raw_var = None  # Set this later, once we know the buffer size
         self.len_var = var.vector_len.get_buffer()
         self.set_buffer(io_vov)
 
@@ -2101,7 +2104,7 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             else:
                 io_vov.attrs["units"] = str(self.var.unit)
 
-        if self.raw_var.dtype != io_vov.dtype:
+        if self.var.dtype != io_vov.dtype:
             raise ProcessingChainError(
                 f"LGDO object "
                 f"{self.io_vov.flattened_data.form_datatype()} is "
@@ -2109,29 +2112,8 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             )
 
         self.io_vov = io_vov
-        self.io_vov.flattened_data.resize(
-            len(self.io_vov) * np.prod(self.var.buffer.shape[1:]), trim=True
-        )
 
     @guvectorize(
-        [
-            f"{t}[:],u4[:],u4,u4[:],{t}[:,:]"
-            for t in [
-                "b1",
-                "i1",
-                "i2",
-                "i4",
-                "i8",
-                "u1",
-                "u2",
-                "u4",
-                "u8",
-                "f4",
-                "f8",
-                "c8",
-                "c16",
-            ]
-        ],
         "(n),(l),(),(l),(l,m)",
         **nb_kwargs,
     )
@@ -2150,6 +2132,20 @@ class LGDOVectorOfVectorsIOManager(IOManager):
         if start >= len(self.io_vov):
             raise IndexError
         end = min(end, len(self.io_vov))
+
+        if self.raw_var is None:
+            if self.var.shape is auto:
+                self.var.update_auto(
+                    shape=2
+                    * (
+                        self.io_vov.cumulative_length.nda[start + 1 : end]
+                        - self.io_vov.cumulative_length.nda[start : end - 1]
+                    ).max()
+                )
+                msg = f"No maximum length provided for VectorOfVectors input {self.var}. Use {self.var.shape} using twice the maximum length of the first batch of values. It is recommended to set the shape of this value in the first processor that uses it!"
+                log.warning(msg)
+            self.raw_var = self.var.get_buffer(self.unit)
+
         self.raw_var[:] = 0 if np.issubdtype(self.raw_var.dtype, np.integer) else np.nan
         LGDOVectorOfVectorsIOManager._vov2nda(
             self.io_vov.flattened_data.nda,
@@ -2160,6 +2156,19 @@ class LGDOVectorOfVectorsIOManager(IOManager):
         )
 
     def write(self, start: int, end: int) -> None:
+        if self.raw_var is None:
+            if self.var.shape is auto:
+                self.var.update_auto(
+                    shape=2
+                    * (
+                        self.io_vov.cumulative_length.nda[start + 1 : end]
+                        - self.io_vov.cumulative_length.nda[start : end - 1]
+                    ).max()
+                )
+                msg = f"No maximum length provided for VectorOfVectors output {self.var}. Use {self.var.shape} using twice the maximum length of the first batch of values. It is recommended to set the shape of this value in the first processor that uses it!"
+                log.warning(msg)
+            self.raw_var = self.var.get_buffer(self.unit)
+
         self.io_vov.resize(end)
         self.io_vov.flattened_data.resize(
             int(self.io_vov.cumulative_length[start] + np.sum(self.len_var))
@@ -2185,64 +2194,66 @@ class LGDOWaveformIOManager(IOManager):
         elif t0_units is None:
             t0_units = dt_units
 
+        self.wf_var = variable
         # If needed create a new coordinate grid from the IO buffer
         if (
-            variable.grid is auto
+            self.wf_var.grid is auto
             and isinstance(dt_units, str)
             and dt_units in ureg
             and isinstance(t0_units, str)
             and t0_units in ureg
         ):
-            grid = CoordinateGrid(
-                ureg.Quantity(wf_table.dt[0], dt_units),
-                ProcChainVar(
-                    variable.proc_chain,
-                    variable.name + "_dt",
-                    shape=(),
-                    dtype=wf_table.t0.dtype,
-                    grid=None,
-                    unit=dt_units,
-                    is_coord=True,
+            self.wf_var.update_auto(
+                grid=CoordinateGrid(
+                    ureg.Quantity(wf_table.dt[0], dt_units),
+                    ProcChainVar(
+                        self.wf_var.proc_chain,
+                        self.wf_var.name + "_dt",
+                        shape=(),
+                        dtype=wf_table.t0.dtype,
+                        grid=None,
+                        unit=dt_units,
+                        is_coord=True,
+                    ),
                 ),
+                is_coord=False,
             )
         else:
-            grid = None
+            self.wf_var.update_auto(
+                grid=None,
+                is_coord=False,
+            )
 
-        self.var = variable
-        self.var.update_auto(
-            shape=wf_table.values.shape[1:],
-            dtype=wf_table.values.dtype,
-            grid=grid,
-            unit=wf_table.values_units,
-            is_coord=False,
-        )
-
+        if isinstance(wf_table.values, lgdo.VectorOfVectors):
+            self.val_ioman = LGDOVectorOfVectorsIOManager(wf_table.values, self.wf_var)
+        else:
+            self.val_ioman = LGDOArrayOfEqualSizedArraysIOManager(
+                wf_table.values, self.wf_var
+            )
         if dt_units is None:
-            dt_units = self.var.grid.unit_str()
-            t0_units = self.var.grid.unit_str()
+            dt_units = self.wf_var.grid.unit_str()
+            t0_units = self.wf_var.grid.unit_str()
 
-        self.wf_var = self.var.buffer
-
-        self.t0_var = self.var.grid.get_offset(t0_units)
+        self.t0_var = self.wf_var.grid.get_offset(t0_units)
         self.variable_t0 = isinstance(self.t0_var, np.ndarray)
         self.set_buffer(wf_table)
 
     def set_buffer(self, wf_table):
         if not isinstance(wf_table, lgdo.WaveformTable):
-            raise ValueError(f"IO buffer for {self.var} is not a WaveformTable")
+            raise ValueError(f"IO buffer for {self.wf_var} is not a WaveformTable")
 
-        if "units" not in wf_table.attrs and self.var.unit is not None:
-            if isinstance(self.var.unit, Quantity):
-                wf_table.attrs["units"] = str(self.var.unit.u)
+        if "units" not in wf_table.attrs and self.wf_var.unit is not None:
+            if isinstance(self.wf_var.unit, Quantity):
+                wf_table.attrs["units"] = str(self.wf_var.unit.u)
             else:
-                wf_table.attrs["units"] = str(self.var.unit)
+                wf_table.attrs["units"] = str(self.wf_var.unit)
 
         self.io_wf = wf_table
         if not self.variable_t0:
-            self.io_wf.t0[:] = self.var.offset
+            self.io_wf.t0[:] = self.wf_var.offset
 
-        dt_units = self.var.period.u
-        self.io_wf.dt[:] = self.var.grid.get_period(dt_units)
+        dt_units = self.wf_var.period.u
+        self.io_wf.dt[:] = self.wf_var.grid.get_period(dt_units)
         self.io_wf.dt_units = dt_units
         self.io_wf.t0_units = dt_units
 
@@ -2250,19 +2261,21 @@ class LGDOWaveformIOManager(IOManager):
         if start >= len(self.io_wf):
             raise IndexError
         end = min(end, len(self.io_wf))
-        self.wf_var[0 : end - start, ...] = self.io_wf.values[start:end, ...]
+        self.val_ioman.read(start, end)
         self.t0_var[0 : end - start, ...] = self.io_wf.t0[start:end, ...]
 
     def write(self, start: int, end: int) -> None:
         self.io_wf.resize(end)
-        self.io_wf.values[start:end, ...] = self.wf_var[0 : end - start, ...]
+        self.val_ioman.write(start, end)
+
         if self.variable_t0:
             self.io_wf.t0[start:end, ...] = self.t0_var[0 : end - start, ...]
 
     def __str__(self) -> str:
+        tmp = str(self.val_ioman)
+        tmp = tmp[tmp.find("(") + 1 : tmp.rfind(")")]
         return (
-            f"{self.var} linked to lgdo.WaveformTable("
-            f"values(shape={self.io_wf.values.shape}, dtype={self.io_wf.values.dtype}, attrs={self.io_wf.values.attrs}), "
+            f"{self.wf_var} linked to lgdo.WaveformTable(values({tmp}), "
             f"dt(shape={self.io_wf.dt.shape}, dtype={self.io_wf.dt.dtype}, attrs={self.io_wf.dt.attrs}), "
             f"t0(shape={self.io_wf.t0.shape}, dtype={self.io_wf.t0.dtype}, attrs={self.io_wf.t0.attrs}))"
         )
