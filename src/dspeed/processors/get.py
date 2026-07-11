@@ -27,7 +27,6 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
     ],
     "(n),()->()",
     **nb_kwargs,
-    forceobj=True,
 )
 def get(a_in, i, a_out):
     """Get value at position ``i`` of array ``a_in``. Negative indices
@@ -69,7 +68,6 @@ def get(a_in, i, a_out):
     ],
     "(n),(),()->()",
     **nb_kwargs,
-    forceobj=True,
 )
 def get_default(a_in, i, default, a_out):
     """Get value at position ``i`` of array ``a_in``. Negative indices
