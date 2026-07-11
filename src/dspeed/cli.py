@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 
 from dbetto import Props
 
@@ -33,7 +32,10 @@ def dspeed_cli():
 
     # global options
     parser.add_argument(
-        "--version", action="store_true", help="""Print dspeed version and exit"""
+        "--version",
+        action="version",
+        version=__version__,
+        help="""Print dspeed version and exit""",
     )
     parser.add_argument(
         "--verbose",
@@ -153,10 +155,6 @@ def dspeed_cli():
         logging.setup(logging.DEBUG, logging.root)
     else:
         logging.setup()
-
-    if args.version:
-        print(__version__)  # noqa: T201
-        sys.exit()
 
     if len(args.raw_lh5_file) > 1 and args.output is not None:
         raise NotImplementedError("not possible to set multiple output file names yet")
