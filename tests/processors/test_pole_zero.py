@@ -2,7 +2,13 @@ import numpy as np
 import pytest
 
 from dspeed.errors import DSPFatal
-from dspeed.processors import double_pole_zero, pole_zero
+from dspeed.processors import (
+    convolve_damped_oscillator,
+    convolve_exp,
+    double_pole_zero,
+    inject_damped_oscillation,
+    pole_zero,
+)
 
 
 def test_pole_zero(compare_numba_vs_python):
@@ -88,3 +94,186 @@ def test_double_pole_zero(compare_numba_vs_python):
     result = compare_numba_vs_python(double_pole_zero, pulse_in, tau1, tau2, frac)
     assert result.dtype == np.float32
     assert np.allclose(result, w_out_expected, rtol=1e-6)
+
+
+def test_convolve_exp(compare_numba_vs_python):
+    """
+    Test that convolve_exp works with test convolutions with known results.
+    """
+
+    def test_with_delta(wf_len: int, t_offset: int, amp: float, tau: float):
+        delta = np.zeros(wf_len, "float32")
+        delta[t_offset] = amp
+        out = compare_numba_vs_python(convolve_exp, delta, tau)
+
+        if np.isnan(tau):
+            assert np.isnan(out).all()
+            return
+
+        if tau != 0:
+            exp = np.zeros_like(delta)
+            exp[t_offset:] = amp * np.exp(-np.arange(wf_len - t_offset) / tau)
+        else:
+            exp = delta
+
+        assert np.max(np.abs(out - exp)) < 1.0e-6
+
+    test_with_delta(1000, 100, 10, 100)
+    test_with_delta(1000, 500, 10, 100)
+    test_with_delta(1000, 100, 10, 1)
+    test_with_delta(1000, 100, 10, 10000)
+    test_with_delta(100, 10, 10, 0)
+    test_with_delta(100, 10, 10, np.nan)
+
+    def test_with_step(wf_len: int, t_offset: int, amp: float, tau: float):
+        step = np.zeros(wf_len, "float64")
+        step[t_offset + 1 :] = amp
+        out = compare_numba_vs_python(convolve_exp, step, tau)
+
+        exp = np.zeros_like(step)
+        exp[t_offset:] = (
+            amp
+            * (1 - np.exp(-np.arange(wf_len - t_offset) / tau))
+            / (1 - np.exp(-1 / tau))
+        )
+
+        assert np.max(np.abs(out - exp)) < 1.0e-6
+
+    test_with_step(1000, 0, 10, 100)
+    test_with_step(1000, 500, 10, 100)
+    test_with_step(1000, 500, 10, 1)
+    test_with_step(1000, 500, 10, 10000)
+
+
+def test_convolve_damped_oscillator(compare_numba_vs_python):
+    """
+    Test that convolve_exp works with test convolutions with known results.
+    """
+
+    def test_with_delta(
+        wf_len: int, t_offset: int, amp: float, tau: float, omega: float, phase: float
+    ):
+        delta = np.zeros(wf_len, "float32")
+        delta[t_offset] = amp
+        out = compare_numba_vs_python(
+            convolve_damped_oscillator, delta, tau, omega, phase
+        )
+
+        if np.isnan(tau) or np.isnan(omega) or np.isnan(phase):
+            assert np.isnan(out).all()
+            return
+
+        if tau != 0:
+            exp = np.zeros_like(delta)
+            exp[t_offset:] = (
+                amp
+                * np.exp(-np.arange(wf_len - t_offset) / tau)
+                * np.cos(np.arange(wf_len - t_offset) * omega + phase)
+            )
+        else:
+            exp = delta
+
+        assert np.max(np.abs(out - exp)) < 1.0e-6
+
+    test_with_delta(1000, 100, 10, 100, 0.1, 0)
+    test_with_delta(1000, 500, 10, 100, 0.1, 0)
+    test_with_delta(1000, 100, 10, 1, 0.1, 0)
+    test_with_delta(1000, 100, 10, 10000, 0.1, 0)
+    test_with_delta(1000, 100, 10, 100, 0.9, 0)
+    test_with_delta(1000, 100, 10, 100, 0.001, 0)
+    test_with_delta(1000, 100, 10, 100, 0.1, np.pi / 4)
+    test_with_delta(1000, 100, 10, 100, 0.1, np.pi / 2)
+
+    test_with_delta(100, 10, 10, 0, 0.1, 0)
+    test_with_delta(1000, 100, 10, np.nan, 0.1, 0)
+    test_with_delta(100, 10, 10, 100, np.nan, 0)
+    test_with_delta(1000, 100, 10, 100, 0.1, np.nan)
+
+    def test_with_step(
+        wf_len: int, t_offset: int, amp: float, tau: float, omega: float, phase: float
+    ):
+        step = np.zeros(wf_len, "float64")
+        step[t_offset + 1 :] = amp
+        out = compare_numba_vs_python(
+            convolve_damped_oscillator, step, tau, omega, phase
+        )
+
+        exp = np.zeros_like(step)
+        exp[t_offset:] = np.real(
+            amp
+            * np.exp(phase * 1j)
+            * (1 - np.exp(np.arange(wf_len - t_offset) * (-1 / tau + omega * 1j)))
+            / (1 - np.exp(-1 / tau + omega * 1j))
+        )
+
+        assert np.max(np.abs(out - exp)) < 1.0e-6
+
+    test_with_step(1000, 100, 10, 100, 0.1, 0)
+    test_with_step(1000, 500, 10, 100, 0.1, 0)
+    test_with_step(1000, 100, 10, 1, 0.1, 0)
+    test_with_step(1000, 100, 10, 10000, 0.1, 0)
+    test_with_step(1000, 100, 10, 100, 0.9, 0)
+    test_with_step(1000, 100, 10, 100, 0.001, 0)
+    test_with_step(1000, 100, 10, 100, 0.1, np.pi / 4)
+    test_with_step(1000, 100, 10, 100, 0.1, np.pi / 2)
+
+
+def test_inject_damped_oscillation(compare_numba_vs_python):
+    """
+    Test that convolve_exp works with test convolutions with known results.
+    """
+
+    def test(
+        wf_len: int,
+        t_offset: int,
+        amp: float,
+        tau: float,
+        omega: float,
+        phase: float,
+        frac: float,
+    ):
+        step = np.zeros(wf_len, "float64")
+        step[t_offset:] = amp
+
+        out = compare_numba_vs_python(
+            inject_damped_oscillation, step, tau, omega, phase, frac
+        )
+
+        if np.isnan(tau) or np.isnan(omega) or np.isnan(phase) or np.isnan(frac):
+            assert np.isnan(out).all()
+            return
+
+        if tau != 0:
+            exp = np.zeros_like(step)
+            exp[t_offset:] = (
+                frac
+                * amp
+                * np.exp(-np.arange(wf_len - t_offset) / tau)
+                * np.cos(np.arange(wf_len - t_offset) * omega + phase)
+            )
+            exp += step
+        else:
+            exp = np.copy(step)
+            exp[t_offset] += frac * amp * np.cos(phase)
+
+        assert np.max(np.abs(out - exp)) < 1.0e-6
+
+    test(1000, 100, 10, 100, 0.1, 0, 1.0)
+    test(1000, 100, 10, 100, 0.1, 0, 0.0)
+    test(1000, 100, 10, 100, 0.1, 0, 0.5)
+    test(1000, 500, 10, 100, 0.1, 0, 0.5)
+    test(1000, 100, 10, 1, 0.1, 0, 0.5)
+    test(1000, 100, 10, 10000, 0.1, 0, 0.5)
+    test(1000, 100, 10, 100, 0.9, 0, 0.5)
+    test(1000, 100, 10, 100, 0.001, 0, 0.5)
+    test(1000, 100, 10, 100, 0.1, np.pi / 4, 0.5)
+    test(1000, 100, 10, 100, 0.1, np.pi / 2, 0.5)
+
+    test(100, 10, 10, 0, 0.1, 0, 0.5)
+    test(1000, 100, 10, np.nan, 0.1, 0, 0.5)
+    test(100, 10, 10, 100, np.nan, 0, 0.5)
+    test(1000, 100, 10, 100, 0.1, np.nan, 0.5)
+    with pytest.raises(DSPFatal):
+        test(100, 10, 10, 100, 0.1, 0, -0.1)
+    with pytest.raises(DSPFatal):
+        test(100, 10, 10, 100, 0.1, 0, 1.1)

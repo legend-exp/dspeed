@@ -1,21 +1,33 @@
-"""Pole-zero cancellation processors for waveform shaping."""
+"""Pole-zero transformation processors for waveform shaping."""
 
 from __future__ import annotations
 
 import numpy as np
-from numba import guvectorize
+from numba import guvectorize, vectorize
 
 from ..errors import DSPFatal
+from ..processors import recursive_filter
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
+@vectorize(
+    ["float64(float32)", "float64(float64)"],
+    **nb_kwargs,
+)
+def rc_exp(tau):
+    "Return RC decay exponential with zero handling"
+    return np.exp(-1 / tau) if tau != 0 else 0
+
+
+# Note: for historical reasons, this does not use the recursive_filter
+# This may change in the future
 @guvectorize(
     ["void(float32[:], float32, float32[:])", "void(float64[:], float64, float64[:])"],
     "(n),()->(n)",
     **nb_kwargs,
 )
 def pole_zero(w_in: np.ndarray, t_tau: float, w_out: np.ndarray) -> None:
-    """Apply a pole-zero cancellation using the provided time
+    """Apply a single pole-zero cancellation using the provided time
     constant to the waveform.
 
     Parameters
@@ -65,6 +77,8 @@ def pole_zero(w_in: np.ndarray, t_tau: float, w_out: np.ndarray) -> None:
         raise DSPFatal("Pole-zero filter produced nans in output.")
 
 
+# Note: for historical reasons, this does not use the recursive_filter
+# This may change in the future
 @guvectorize(
     [
         "void(float32[:], float32, float32, float32, float32[:])",
@@ -182,3 +196,147 @@ def double_pole_zero(
         # Shuffle the buffer for the next iteration
         w_tmp[0] = w_tmp[1]
         w_tmp[1] = w_tmp[2]
+
+
+@guvectorize(
+    ["void(float32[:], float32, float32[:])", "void(float64[:], float64, float64[:])"],
+    "(n),()->(n)",
+    **nb_kwargs,
+    forceobj=True,
+)
+def convolve_exp(w_in: np.ndarray, tau: float, w_out: np.ndarray) -> None:
+    """Convolve waveform with exponential kernel.
+
+    Notes
+    -----
+    kernel is normalized to have a maximum amplitude of 1. To normalize
+    by area instead, divide result by tau.
+
+    Parameters
+    ----------
+    w_in
+        the input waveform
+    tau
+        decay time of exponential kernel
+    w_out
+        output waveform after convolution
+    """
+    recursive_filter(
+        w_in,
+        np.ones((1), dtype="float64"),  # a
+        np.stack(np.broadcast_arrays(1, -rc_exp(tau)), dtype="float64", axis=-1),  # b
+        w_in[..., 0],  # init_in
+        w_in[..., 0],  # init_out
+        w_out,
+    )
+
+
+@guvectorize(
+    [
+        "void(float32[:], float64, float64, float64, float32[:])",
+        "void(float64[:], float64, float64, float64, float64[:])",
+    ],
+    "(n),(),(),()->(n)",
+    **nb_kwargs(forceobj=True),
+)
+def convolve_damped_oscillator(
+    w_in: np.ndarray, tau: float, omega: float, phase: float, w_out: np.ndarray
+) -> None:
+    """Convolve waveform with damped oscillator kernel.
+
+    Notes
+    -----
+    kernel is normalized to have a maximum amplitude of 1. To normalize
+    by area instead, divide result by tau.
+
+    Parameters
+    ----------
+    w_in
+        the input waveform
+    tau
+        decay time of exponential
+    omega
+        angular frequency of oscillation
+    phase
+        starting phase of oscillation
+    w_out
+        output waveform after convolution
+    """
+    rc = rc_exp(tau)
+    recursive_filter(
+        w_in,
+        np.stack(
+            np.broadcast_arrays(np.cos(phase), -rc * np.cos(omega - phase)),
+            dtype="float64",
+            axis=-1,
+        ),  # a
+        np.stack(
+            np.broadcast_arrays(1, -2 * rc * np.cos(omega), rc * rc),
+            dtype="float64",
+            axis=-1,
+        ),  # b
+        w_in[..., 0],  # init_in
+        w_in[..., 0],  # init_out
+        w_out,
+    )
+
+
+@guvectorize(
+    [
+        "void(float32[:], float64, float64, float64, float64, float32[:])",
+        "void(float64[:], float64, float64, float64, float64, float64[:])",
+    ],
+    "(n),(),(),(),()->(n)",
+    **nb_kwargs(forceobj=True),
+)
+def inject_damped_oscillation(
+    w_in: np.ndarray,
+    tau: float,
+    omega: float,
+    phase: float,
+    frac: float,
+    w_out: np.ndarray,
+) -> None:
+    """
+    Inject a damped oscillation component/pole into the electronics response
+
+    Parameters
+    ----------
+    w_in
+        the input waveform.
+    tau
+        time constant of decay
+    omega:
+        angular frequency of oscillation
+    phase:
+        phase shift of oscillation
+    frac
+        fraction of amplitude in injected pole
+    w_out
+        output waveform after injecting decay component
+    """
+    if not 0 <= frac <= 1:
+        raise DSPFatal("frac must be between zero and one.")
+
+    cw = np.cos(omega)
+    cp = np.cos(phase)
+    cwp = np.cos(omega - phase)
+    rc = rc_exp(tau)
+    recursive_filter(
+        w_in,
+        np.stack(
+            np.broadcast_arrays(
+                1 + frac * cp,
+                -(2 * rc * cw + frac * cp + frac * rc * cwp),
+                rc * (rc + frac * cwp),
+            ),
+            dtype="float64",
+            axis=-1,
+        ),  # a
+        np.stack(
+            np.broadcast_arrays(1, -2 * rc * cw, rc * rc), dtype="float64", axis=-1
+        ),  # b
+        w_in[..., 0],  # init_in
+        0,  # init_out
+        w_out,
+    )
