@@ -36,7 +36,11 @@ log = logging.getLogger("dspeed")
 
 # Filler value for variables to be automatically deduced later
 auto = "auto"
-class EndExecute(Exception): pass
+
+
+class EndExecute(Exception):
+    pass
+
 
 # Map from ast interpreter operations to functions to call and format string
 ast_ops_dict = {
@@ -503,7 +507,9 @@ class ProcessingChain:
         """
 
         param = self.get_variable(varname)
-        assert param.is_const or param._buffer is None
+        if not param.is_const and param._buffer is not None:
+            msg = f"{param} is already defined, cannot set_constant"
+            raise ProcessingChainError(msg)
         param.is_const = True
 
         if isinstance(val, Quantity):
@@ -1216,7 +1222,7 @@ class ProcessingChain:
         if var is None:
             return None
         if not isinstance(var, ProcChainVar):
-            if isinstance(var, Quantity):
+            if isinstance(var, Quantity) and isinstance(to_nearest, Quantity):
                 return fun(float(var / to_nearest.u), to_nearest.m) * to_nearest.u
             else:
                 return fun(var, to_nearest)
@@ -1280,7 +1286,7 @@ class ProcessingChain:
             proc_man = ProcessorManager(
                 self,
                 GUFuncWrapper(
-                    lambda a_in, a_out: np.copyto(a_out, a_in, casting='unsafe'),
+                    lambda a_in, a_out: np.copyto(a_out, a_in, casting="unsafe"),
                     name="astype",
                     signature="()->()",
                     types=f"{var.dtype.char}->{dtype.char}",
@@ -1455,7 +1461,7 @@ class ProcessingChain:
                 loaded_data = loaded_data.value
             else:
                 loaded_data = loaded_data.nda
-        except ValueError:
+        except (ValueError, lh5.types.exceptions.LH5DecodeError, OSError):
             raise ProcessingChainError(f"LH5 file not found: {path_to_file}")
 
         return loaded_data
@@ -1923,7 +1929,9 @@ class NumpyIOManager(IOManager):
         self.set_buffer(io_buf)
 
     def set_buffer(self, io_buf: np.ndarray) -> None:
-        assert isinstance(io_buf, np.ndarray)
+        if not isinstance(io_buf, np.ndarray):
+            msg = f"{self.var} must be set using a numpy array"
+            raise ProcessingChainError(msg)
 
         if self.var.shape != io_buf.shape[1:] or self.var.dtype != io_buf.dtype:
             raise ProcessingChainError(
@@ -1984,7 +1992,9 @@ class LGDOArrayIOManager(IOManager):
         self.set_buffer(io_array)
 
     def set_buffer(self, io_array):
-        assert isinstance(io_array, lgdo.Array)
+        if not isinstance(io_array, lgdo.Array):
+            msg = f"{self.var} must be set using a lgdo.Array"
+            raise ProcessingChainError(msg)
 
         if "units" not in io_array.attrs and self.var.unit is not None:
             if isinstance(self.var.unit, Quantity):
@@ -2143,7 +2153,9 @@ class LGDOVectorOfVectorsIOManager(IOManager):
         self.set_buffer(io_vov)
 
     def set_buffer(self, io_vov: lgdo.VectorOfVectors):
-        assert isinstance(io_vov, lgdo.VectorOfVectors)
+        if not isinstance(io_vov, lgdo.VectorOfVectors):
+            msg = f"{self.var} must be set using a lgdo.VectorOfVectors"
+            raise ProcessingChainError(msg)
 
         if "units" not in io_vov.attrs and self.var.unit is not None:
             if isinstance(self.var.unit, Quantity):
