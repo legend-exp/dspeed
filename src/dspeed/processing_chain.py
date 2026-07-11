@@ -1927,8 +1927,8 @@ class NumpyIOManager(IOManager):
 
         if self.var.shape != io_buf.shape[1:] or self.var.dtype != io_buf.dtype:
             raise ProcessingChainError(
-                f"numpy.array<{self.io_buf.shape}>({{{self.io_buf.dtype}}}@{self.io_buf.data}) "
-                "is not compatible with variable {self.var}"
+                f"numpy.array<{io_buf.shape}>({{{io_buf.dtype}}}@{io_buf.data}) "
+                f"is not compatible with variable {self.var}"
             )
 
         self.io_buf = io_buf
@@ -1998,7 +1998,7 @@ class LGDOArrayIOManager(IOManager):
         ):
             raise ProcessingChainError(
                 f"LGDO object "
-                f"{self.io_array.form_datatype()} is "
+                f"{io_array.form_datatype()} is "
                 f"incompatible with {str(self.var)}"
             )
 
@@ -2071,7 +2071,7 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
         ):
             raise ProcessingChainError(
                 f"LGDO object "
-                f"{self.io_buf.form_datatype()} is "
+                f"{io_array.form_datatype()} is "
                 f"incompatible with {str(self.var)}"
             )
 
@@ -2154,7 +2154,7 @@ class LGDOVectorOfVectorsIOManager(IOManager):
         if self.var.dtype != io_vov.dtype:
             raise ProcessingChainError(
                 f"LGDO object "
-                f"{self.io_vov.flattened_data.form_datatype()} is "
+                f"{io_vov.flattened_data.form_datatype()} is "
                 f"incompatible with {str(self.var)}"
             )
 
