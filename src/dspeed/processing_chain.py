@@ -945,10 +945,14 @@ class ProcessingChain:
             if not isinstance(val, ProcChainVar) or not len(val.shape) > 0:
                 raise ProcessingChainError("Cannot apply subscript to", node.value)
 
-            def get_index(slice_value):
+            def get_index(slice_value, var_len=None):
                 ret = self._parse_expr(slice_value, expr, dry_run, var_name_list)
                 if ret is None:
                     return ret
+
+                if isinstance(ret, ProcChainVar):
+                    return ret
+
                 if isinstance(ret, Quantity):
                     ret = float(ret / val.period)
                 if isinstance(ret, Real):
@@ -957,14 +961,44 @@ class ProcessingChain:
                         log.warning(
                             f"slice value {slice_value} is non-integer. Rounding to {round_ret}"
                         )
-                    return round_ret
-                return int(ret)
+                    ret = round_ret
 
-            if isinstance(node.slice, ast.Constant):
-                index = get_index(node.slice)
-                out_buf = val.buffer[..., index]
-                out_name = f"{str(val)}[{index}]"
-                out_grid = val.grid if val.is_coord else None
+                if ret < 0 and var_len is not None:
+                    ret = self.get_variable(f"{var_len}{ret}")
+                return ret
+
+            if not isinstance(node.slice, (ast.Slice, ast.Tuple)):
+                index = get_index(node.slice, val.vector_len)
+
+                if isinstance(index, int):
+                    out_buf = val.buffer[..., index]
+                    out_name = f"{str(val)}[{index}]"
+                    out_grid = val.grid if val.is_coord else None
+
+                # if index is a ProcChainVar, call get
+                else:
+                    from dspeed.processors import get_default
+
+                    out = ProcChainVar(
+                        self,
+                        name=f"{str(val)}[{index}]",
+                        shape=(),
+                        dtype=val.dtype,
+                        grid=val.grid if val.is_coord else None,
+                        unit=val.unit,
+                        is_coord=val.is_coord,
+                    )
+                    default = (
+                        np.nan
+                        if np.issubdtype(val.dtype, np.floating)
+                        else np.iinfo(val.dtype).max
+                    )
+                    proc_man = ProcessorManager(
+                        self, get_default, [val, index, default, out]
+                    )
+                    self._proc_managers.append(proc_man)
+                    log.debug(f"added processor: {proc_man}")
+                    return out
 
             elif isinstance(node.slice, ast.Slice):
                 sl = slice(
@@ -972,6 +1006,15 @@ class ProcessingChain:
                     get_index(node.slice.upper),
                     get_index(node.slice.step),
                 )
+
+                if (
+                    isinstance(sl.start, ProcChainVar)
+                    or isinstance(sl.stop, ProcChainVar)
+                    or isinstance(sl.step, ProcChainVar)
+                ):
+                    msg = "Slice values must be constants"
+                    raise ProcessingChainError(msg)
+
                 out_buf = val.buffer[..., sl]
                 out_name = "{}[{}:{}{}]".format(
                     str(val),
@@ -1004,9 +1047,9 @@ class ProcessingChain:
                             off += start
                     out_grid = CoordinateGrid(pd, off)
 
-            elif isinstance(node.slice, ast.ExtSlice):
+            elif isinstance(node.slice, ast.Tuple):
                 # TODO: implement this...
-                raise ProcessingChainError("ExtSlice still isn't implemented...")
+                raise ProcessingChainError("Tuple still isn't implemented...")
 
             # Create our return variable and set the buffer to the slice
             out = ProcChainVar(

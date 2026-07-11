@@ -72,6 +72,31 @@ def test_waveform_slicing(geds_raw_tbl):
     assert isinstance(tbl_out["wf_blsub"], lgdo.WaveformTable)
     assert tbl_out["wf_blsub"].wf_len == 500
 
+    # test with variable length array and variables as indices
+    tbl_in = lgdo.Table(
+        {
+            "vov_in": lgdo.VectorOfVectors(
+                flattened_data=np.arange(150.0),
+                cumulative_length=[10, 30, 60, 100, 150],
+                attrs={"units": "ns"},
+            )
+        }
+    )
+    dsp_config = {
+        "outputs": ["vals", "v_end"],
+        "processors": {
+            "vals": "vov_in(shape=50)[len(vov_in)//2]",
+            "v_end": "vov_in(shape=50)[-1]",
+            "var_slice": "vov_in[indices:20]",
+        },
+    }
+    tbl_out = build_dsp(tbl_in, dsp_config=dsp_config)
+
+    assert np.all(tbl_out["vals"].nda == np.array([5.0, 20.0, 45.0, 80.0, 125.0]))
+    assert tbl_out["vals"].attrs["units"] == "ns"
+    assert np.all(tbl_out["v_end"].nda == np.array([9.0, 29.0, 59.0, 99.0, 149.0]))
+    assert tbl_out["v_end"].attrs["units"] == "ns"
+
 
 def test_processor_none_arg(geds_raw_tbl):
     dsp_config = {
