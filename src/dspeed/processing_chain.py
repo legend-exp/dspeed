@@ -30,7 +30,7 @@ from yaml import safe_load
 from . import processors
 from .errors import DSPFatal, ProcessingChainError
 from .units import unit_registry as ureg
-from .utils import ProcChainVarBase
+from .utils import GUFuncWrapper, ProcChainVarBase
 
 log = logging.getLogger("dspeed")
 
@@ -1278,11 +1278,15 @@ class ProcessingChain:
             )
             proc_man = ProcessorManager(
                 self,
-                np.copyto,
-                [out, var],
-                kw_params={"casting": "'unsafe'"},
-                signature="(),(),()",
-                types=f"{dtype.char}{var.dtype.char}",
+                GUFuncWrapper(
+                    lambda a_in, a_out: np.copyto(a_out, a_in, casting='unsafe'),
+                    name="astype",
+                    signature="()->()",
+                    types=f"{var.dtype.char}->{dtype.char}",
+                    vectorized=True,
+                    copy_out=False,
+                ),
+                [var, out],
             )
             self._proc_managers.append(proc_man)
             log.debug(f"added processor: {proc_man}")
