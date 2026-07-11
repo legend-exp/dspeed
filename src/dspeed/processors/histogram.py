@@ -9,6 +9,8 @@ from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
+# Note: the maximum value is not added to the histogram
+# Note: when w_in is all the same, this currently returns a histogram of all 0s
 @guvectorize(
     [
         "void(float32[:], float32[:], float32[:])",
@@ -68,24 +70,23 @@ def histogram(
     wf_min = min(w_in)
     wf_max = max(w_in)
 
-    # create the bin borders
-    borders_out[0] = wf_min
-    delta = 0
-
     # number of bins
     bin_in = len(weights_out)
 
     # define the bin edges
     delta = (wf_max - wf_min) / (bin_in)
-    for i in range(0, bin_in, 1):
-        borders_out[i + 1] = wf_min + delta * (i + 1)
+    borders_out[:] = np.linspace(wf_min, wf_max, len(borders_out))
+
+    if delta == 0:
+        return
 
     # make the histogram
     for i in range(0, len(w_in), 1):
-        for k in range(1, len(borders_out), 1):
-            if (w_in[i] - borders_out[k]) < 0:
-                weights_out[k - 1] += 1
-                break
+        if w_in[i] == wf_max:
+            continue
+
+        k = int(np.floor((w_in[i] - borders_out[0]) / delta))
+        weights_out[k] += 1
 
 
 @guvectorize(
@@ -167,42 +168,37 @@ def histogram_around_mode(
         wf_min = min(w_in)
         wf_max = max(w_in)
 
-        # create the bin borders
-        borders_out[0] = wf_min
-        delta = 0
+        # number of bins
+        bin_in = len(weights_out)
 
         # define the bin edges
-        delta = (wf_max - wf_min) / (n_bins)
-        for i in range(0, n_bins):
-            borders_out[i + 1] = wf_min + delta * (i + 1)
+        delta = (wf_max - wf_min) / (bin_in)
+        borders_out[:] = np.linspace(wf_min, wf_max, len(borders_out))
 
-        # make the histogram
-        for i in range(0, len(w_in)):
-            for k in range(0, n_bins):
-                if (w_in[i] - borders_out[k + 1]) < 0:
-                    weights_out[k] += 1
-                    break
+        if delta == 0:
+            center = wf_min
+        else:
+            # make the histogram
+            for i in range(0, len(w_in)):
+                if w_in[i] == wf_max:
+                    continue
+                k = int(np.floor((w_in[i] - borders_out[0]) / delta))
+                weights_out[k] += 1
 
-        # find the mode
-        center = borders_out[np.argmax(weights_out)] + 0.5 * delta
-        # align center to bin_width
-        center = np.round(center / bin_width) * bin_width
+            # find the mode
+            center = borders_out[np.argmax(weights_out)] + 0.5 * delta
+            # align center to bin_width
+            center = np.round(center / bin_width) * bin_width
 
     # (re)set
     weights_out[:] = 0
 
     hist_min = center - bin_width * (n_bins // 2) - 0.5 * bin_width
-    # hist_max = hist_min + bin_width * n_bins
 
     # create the bin borders
-    for i in range(0, n_bins + 1):
-        borders_out[i] = hist_min + bin_width * i
+    borders_out[:] = hist_min + bin_width * np.arange(n_bins + 1)
     # make the histogram
     for i in range(0, len(w_in)):
-        # we might be below the histogram range, so we need to check
-        if w_in[i] < borders_out[0]:
-            continue
-        for k in range(0, n_bins):
-            if (w_in[i] - borders_out[k + 1]) < 0:
-                weights_out[k] += 1
-                break
+        k = int(np.floor((w_in[i] - borders_out[0]) / bin_width))
+        if 0 <= k < n_bins:
+            weights_out[k] += 1
