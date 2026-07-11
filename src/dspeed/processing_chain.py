@@ -36,6 +36,7 @@ log = logging.getLogger("dspeed")
 
 # Filler value for variables to be automatically deduced later
 auto = "auto"
+class EndExecute(Exception): pass
 
 # Map from ast interpreter operations to functions to call and format string
 ast_ops_dict = {
@@ -662,7 +663,7 @@ class ProcessingChain:
         for i in range(start, stop, self._block_width):
             try:
                 self._execute_procs(i, min(i + self._block_width, stop))
-            except IndexError:
+            except EndExecute:
                 break
 
     def __call__(self, tb_in: lgdo.Table, out: lgdo.Table = None) -> lgdo.Table:
@@ -2005,7 +2006,7 @@ class LGDOArrayIOManager(IOManager):
 
     def read(self, start: int, end: int) -> None:
         if start >= len(self.io_array):
-            raise IndexError
+            raise EndExecute
         end = min(end, len(self.io_array))
         self.raw_var[0 : end - start, ...] = self.io_array[start:end, ...]
 
@@ -2078,7 +2079,7 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
 
     def read(self, start: int, end: int) -> None:
         if start >= len(self.io_array):
-            raise IndexError
+            raise EndExecute
         end = min(end, len(self.io_array))
         self.raw_var[0 : end - start, ...] = self.io_array[start:end, ...]
 
@@ -2173,7 +2174,7 @@ class LGDOVectorOfVectorsIOManager(IOManager):
 
     def read(self, start: int, end: int) -> None:
         if start >= len(self.io_vov):
-            raise IndexError
+            raise EndExecute
         end = min(end, len(self.io_vov))
 
         if self.raw_var is None:
@@ -2302,7 +2303,7 @@ class LGDOWaveformIOManager(IOManager):
 
     def read(self, start: int, end: int) -> None:
         if start >= len(self.io_wf):
-            raise IndexError
+            raise EndExecute
         end = min(end, len(self.io_wf))
         self.val_ioman.read(start, end)
         self.t0_var[0 : end - start, ...] = self.io_wf.t0[start:end, ...]
