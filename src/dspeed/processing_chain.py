@@ -23,7 +23,7 @@ from typing import Any
 
 import lgdo
 import numpy as np
-from numba import guvectorize
+from numba import jit
 from pint import Quantity, Unit
 from yaml import safe_load
 
@@ -31,7 +31,6 @@ from . import processors
 from .errors import DSPFatal, ProcessingChainError
 from .units import unit_registry as ureg
 from .utils import ProcChainVarBase
-from .utils import numba_defaults_kwargs as nb_kwargs
 
 log = logging.getLogger("dspeed")
 
@@ -2156,10 +2155,7 @@ class LGDOVectorOfVectorsIOManager(IOManager):
 
         self.io_vov = io_vov
 
-    @guvectorize(
-        "(n),(l),(),(l),(l,m)",
-        **nb_kwargs,
-    )
+    @jit
     def _vov2nda(flat_arr_in, cl_in, start_idx_in, l_out, aoa_out):  # noqa: N805
         prev_cl = start_idx_in
         for i, cl in enumerate(cl_in):
