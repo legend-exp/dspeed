@@ -114,7 +114,6 @@ _modules = {
     "optimize_1pz": "optimize",
     "optimize_2pz": "optimize",
     "pad": "pad",
-    "param_lookup": "param_lookup",
     "peak_snr_threshold": "peak_snr_threshold",
     "inject_general_logistic": "pmt_pulse_injector",
     "inject_gumbel": "pmt_pulse_injector",
