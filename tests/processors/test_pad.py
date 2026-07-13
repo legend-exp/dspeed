@@ -58,7 +58,6 @@ def test_pad(compare_numba_vs_python):
         },
     }
     tb_out = build_dsp(tb_in, dsp_config=dsp_config, n_entries=1)
-    print(tb_out["a_out"].nda)
     assert np.all(tb_out["a_out"].nda[0, :500] == 0)
     assert np.all(tb_out["a_out"].nda[0, 500:600] == tb_in["vov_in"][0])
     assert np.all(tb_out["a_out"].nda[0, 600:] == 100)
