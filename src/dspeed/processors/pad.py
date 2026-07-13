@@ -8,12 +8,23 @@ from numba import guvectorize
 from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
+
 @guvectorize(
-    ["void(float32[:], int64, float32, float32, float32, float32[:])", "void(float64[:], int64, float64, float64, float64, float64[:])"],
+    [
+        "void(float32[:], int64, float32, float32, float32, float32[:])",
+        "void(float64[:], int64, float64, float64, float64, float64[:])",
+    ],
     "(n),(),(),(),(),(m)",
     **nb_kwargs,
 )
-def pad(w_in: np.ndarray, len_in: int, offset: float, start_val: float, end_val: float, w_out: np.ndarray) -> None:
+def pad(
+    w_in: np.ndarray,
+    len_in: int,
+    offset: float,
+    start_val: float,
+    end_val: float,
+    w_out: np.ndarray,
+) -> None:
     """Pad the start, up to offset, and end of a vector input to a fixed length output.
 
     Note
@@ -55,7 +66,7 @@ def pad(w_in: np.ndarray, len_in: int, offset: float, start_val: float, end_val:
     if np.isnan(w_in[:len_in]).any() or np.isnan(offset):
         return
 
-    if len_in>len(w_in):
+    if len_in > len(w_in):
         raise DSPFatal("Length longer than input array")
 
     i_beg = int(offset)
