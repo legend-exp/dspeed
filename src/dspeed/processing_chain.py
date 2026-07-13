@@ -11,6 +11,7 @@ import itertools as it
 import json
 import logging
 import re
+import sys
 import time
 from abc import ABCMeta, abstractmethod
 from collections.abc import Collection, MutableMapping
@@ -1780,10 +1781,14 @@ class ProcessorManager:
             self.time_total += time.time() - start
 
         execute.__name__ = self.processor.__name__
-        execute.__qualname__ = str(self)
-        execute.__code__ = execute.__code__.replace(
-            co_name=str(self), co_qualname=str(self)
-        )
+        if sys.version_info >= (3, 11):
+            execute.__qualname__ = str(self)
+            execute.__code__ = execute.__code__.replace(
+                co_name=str(self), co_qualname=str(self)
+            )
+        else:
+            execute.__code__ = execute.__code__.replace(co_name=str(self))
+
         self.execute = execute
 
     def __str__(self) -> str:
@@ -1893,10 +1898,13 @@ class UnitConversionManager(ProcessorManager):
             self.time_total += time.time() - start
 
         execute.__name__ = self.processor.__name__
-        execute.__qualname__ = str(self)
-        execute.__code__ = execute.__code__.replace(
-            co_name=str(self), co_qualname=str(self)
-        )
+        if sys.version_info >= (3, 11):
+            execute.__qualname__ = str(self)
+            execute.__code__ = execute.__code__.replace(
+                co_name=str(self), co_qualname=str(self)
+            )
+        else:
+            execute.__code__ = execute.__code__.replace(co_name=str(self))
         self.execute = execute
 
 
