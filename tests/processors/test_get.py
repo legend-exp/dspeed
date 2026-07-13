@@ -1,5 +1,7 @@
 import numpy as np
+import pytest
 
+from dspeed.errors import DSPFatal
 from dspeed.processors import get, get_default
 
 
@@ -8,8 +10,8 @@ def test_get(compare_numba_vs_python):
     a_out = compare_numba_vs_python(get, v_in, np.array([0, 1, 2]))
     assert np.all(a_out == np.array([1, 5, 9]))
 
-    a_out_ob = compare_numba_vs_python(get, v_in, np.array([1, 3, 5]))
-    assert a_out_ob[0] == 2 and np.all(np.isnan(a_out_ob[1:]))
+    with pytest.raises(DSPFatal):
+        compare_numba_vs_python(get, v_in, np.array([1, 3, 5]))
 
 
 def test_get_default(compare_numba_vs_python):

@@ -12,6 +12,7 @@ import pytest
 from legendtestdata import LegendTestData
 from lh5 import read
 
+from dspeed.errors import DSPFatal
 from dspeed.utils import GUFuncWrapper
 
 config_dir = Path(__file__).parent / "dsp" / "configs"
@@ -106,7 +107,11 @@ def compare_numba_vs_python():
             # and check/return all args
 
             # numba outputs
-            func(*inputs)
+            raise_dsp_fatal = False
+            try:
+                func(*inputs)
+            except DSPFatal:
+                raise_dsp_fatal = True
             outputs_numba = [copy.deepcopy(arg) for arg in inputs]
 
             # unwrapped python outputs
@@ -116,7 +121,15 @@ def compare_numba_vs_python():
                 "".join([np.array(ar).dtype.char for ar in outputs_numba]),
                 copy_out=False,
             )
-            func_unwrapped(*inputs)
+            try:
+                func_unwrapped(*inputs)
+            except DSPFatal as e:
+                if raise_dsp_fatal:
+                    raise e
+                else:
+                    raise RuntimeError(
+                        "Python function raised DSPFatal while Numba did not!"
+                    )
             outputs_python = [copy.deepcopy(arg) for arg in inputs]
 
         elif len(inputs) == func.nin:

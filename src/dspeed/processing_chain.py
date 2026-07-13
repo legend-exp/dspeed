@@ -11,8 +11,8 @@ import itertools as it
 import json
 import logging
 import re
+import sys
 import time
-import traceback
 from abc import ABCMeta, abstractmethod
 from collections.abc import Collection, MutableMapping
 from copy import deepcopy
@@ -23,20 +23,24 @@ from typing import Any
 
 import lgdo
 import numpy as np
-from numba import guvectorize
+from numba import jit
 from pint import Quantity, Unit
 from yaml import safe_load
 
 from . import processors
 from .errors import DSPFatal, ProcessingChainError
 from .units import unit_registry as ureg
-from .utils import ProcChainVarBase
-from .utils import numba_defaults_kwargs as nb_kwargs
+from .utils import GUFuncWrapper, ProcChainVarBase
 
 log = logging.getLogger("dspeed")
 
 # Filler value for variables to be automatically deduced later
 auto = "auto"
+
+
+class EndExecute(Exception):
+    pass
+
 
 # Map from ast interpreter operations to functions to call and format string
 ast_ops_dict = {
@@ -503,7 +507,9 @@ class ProcessingChain:
         """
 
         param = self.get_variable(varname)
-        assert param.is_const or param._buffer is None
+        if not param.is_const and param._buffer is not None:
+            msg = f"{param} is already defined, cannot set_constant"
+            raise ProcessingChainError(msg)
         param.is_const = True
 
         if isinstance(val, Quantity):
@@ -556,25 +562,29 @@ class ProcessingChain:
 
         # Create input buffer that will be linked and returned if none exists
         if buff is None:
-            dtype = var.get_buffer().dtype
+            dtype = var.dtype
 
             if var is None:
                 raise ProcessingChainError(
                     f"{varname} does not exist and no buffer was provided"
                 )
-            elif (
-                isinstance(var.grid, CoordinateGrid)
-                and len(var.shape) == 1
-                and not var.is_coord
-            ):
-                buff = lgdo.WaveformTable(
-                    size=self._buffer_len, wf_len=var.shape[0], dtype=dtype
-                )
+            elif isinstance(var.grid, CoordinateGrid) and not var.is_coord:
+                if var.vector_len is None:
+                    buff = lgdo.WaveformTable(
+                        size=self._buffer_len, wf_len=var.shape[0], dtype=dtype
+                    )
+                else:
+                    buff = lgdo.WaveformTable(
+                        values=lgdo.VectorOfVectors(
+                            shape_guess=(self._buffer_len, 0),
+                            dtype=dtype,
+                        )
+                    )
             elif len(var.shape) == 0:
                 buff = lgdo.Array(shape=(self._buffer_len), dtype=dtype)
             elif var.vector_len is not None:
                 buff = lgdo.VectorOfVectors(
-                    shape_guess=(self._buffer_len, *var.shape), dtype=dtype
+                    shape_guess=(self._buffer_len, 0), dtype=dtype
                 )
             elif len(var.shape) > 0:
                 buff = lgdo.ArrayOfEqualSizedArrays(
@@ -659,7 +669,7 @@ class ProcessingChain:
         for i in range(start, stop, self._block_width):
             try:
                 self._execute_procs(i, min(i + self._block_width, stop))
-            except IndexError:
+            except EndExecute:
                 break
 
     def __call__(self, tb_in: lgdo.Table, out: lgdo.Table = None) -> lgdo.Table:
@@ -941,10 +951,14 @@ class ProcessingChain:
             if not isinstance(val, ProcChainVar) or not len(val.shape) > 0:
                 raise ProcessingChainError("Cannot apply subscript to", node.value)
 
-            def get_index(slice_value):
+            def get_index(slice_value, var_len=None):
                 ret = self._parse_expr(slice_value, expr, dry_run, var_name_list)
                 if ret is None:
                     return ret
+
+                if isinstance(ret, ProcChainVar):
+                    return ret
+
                 if isinstance(ret, Quantity):
                     ret = float(ret / val.period)
                 if isinstance(ret, Real):
@@ -953,14 +967,44 @@ class ProcessingChain:
                         log.warning(
                             f"slice value {slice_value} is non-integer. Rounding to {round_ret}"
                         )
-                    return round_ret
-                return int(ret)
+                    ret = round_ret
 
-            if isinstance(node.slice, ast.Constant):
-                index = get_index(node.slice)
-                out_buf = val.buffer[..., index]
-                out_name = f"{str(val)}[{index}]"
-                out_grid = val.grid if val.is_coord else None
+                if ret < 0 and var_len is not None:
+                    ret = self.get_variable(f"{var_len}{ret}")
+                return ret
+
+            if not isinstance(node.slice, (ast.Slice, ast.Tuple)):
+                index = get_index(node.slice, val.vector_len)
+
+                if isinstance(index, int):
+                    out_buf = val.buffer[..., index]
+                    out_name = f"{str(val)}[{index}]"
+                    out_grid = val.grid if val.is_coord else None
+
+                # if index is a ProcChainVar, call get
+                else:
+                    from dspeed.processors import get_default
+
+                    out = ProcChainVar(
+                        self,
+                        name=f"{str(val)}[{index}]",
+                        shape=(),
+                        dtype=val.dtype,
+                        grid=val.grid if val.is_coord else None,
+                        unit=val.unit,
+                        is_coord=val.is_coord,
+                    )
+                    default = (
+                        np.nan
+                        if np.issubdtype(val.dtype, np.floating)
+                        else np.iinfo(val.dtype).max
+                    )
+                    proc_man = ProcessorManager(
+                        self, get_default, [val, index, default, out]
+                    )
+                    self._proc_managers.append(proc_man)
+                    log.debug(f"added processor: {proc_man}")
+                    return out
 
             elif isinstance(node.slice, ast.Slice):
                 sl = slice(
@@ -968,6 +1012,15 @@ class ProcessingChain:
                     get_index(node.slice.upper),
                     get_index(node.slice.step),
                 )
+
+                if (
+                    isinstance(sl.start, ProcChainVar)
+                    or isinstance(sl.stop, ProcChainVar)
+                    or isinstance(sl.step, ProcChainVar)
+                ):
+                    msg = "Slice values must be constants"
+                    raise ProcessingChainError(msg)
+
                 out_buf = val.buffer[..., sl]
                 out_name = "{}[{}:{}{}]".format(
                     str(val),
@@ -1000,9 +1053,9 @@ class ProcessingChain:
                             off += start
                     out_grid = CoordinateGrid(pd, off)
 
-            elif isinstance(node.slice, ast.ExtSlice):
+            elif isinstance(node.slice, ast.Tuple):
                 # TODO: implement this...
-                raise ProcessingChainError("ExtSlice still isn't implemented...")
+                raise ProcessingChainError("Tuple still isn't implemented...")
 
             # Create our return variable and set the buffer to the slice
             out = ProcChainVar(
@@ -1126,12 +1179,11 @@ class ProcessingChain:
             return None
         if not isinstance(var, ProcChainVar):
             raise ProcessingChainError(f"cannot call len() on {var}")
-        if not len(var.buffer.shape) == 2:
-            raise ProcessingChainError(f"{var} has wrong number of dims")
-        if var.vector_len is None:
-            return var.buffer.shape[1]
-        else:
+        if var.vector_len is not None:
             return var.vector_len
+        if not len(var.shape) == 1:
+            raise ProcessingChainError(f"{var} has wrong number of dims")
+        return var.shape[0]
 
     def get_timing(self) -> dict[str, float]:
         """Get the timing of each processor in the processing chain."""
@@ -1170,7 +1222,7 @@ class ProcessingChain:
         if var is None:
             return None
         if not isinstance(var, ProcChainVar):
-            if isinstance(var, Quantity):
+            if isinstance(var, Quantity) and isinstance(to_nearest, Quantity):
                 return fun(float(var / to_nearest.u), to_nearest.m) * to_nearest.u
             else:
                 return fun(var, to_nearest)
@@ -1233,11 +1285,15 @@ class ProcessingChain:
             )
             proc_man = ProcessorManager(
                 self,
-                np.copyto,
-                [out, var],
-                kw_params={"casting": "'unsafe'"},
-                signature="(),(),()",
-                types=f"{dtype.char}{var.dtype.char}",
+                GUFuncWrapper(
+                    lambda a_in, a_out: np.copyto(a_out, a_in, casting="unsafe"),
+                    name="astype",
+                    signature="()->()",
+                    types=f"{var.dtype.char}->{dtype.char}",
+                    vectorized=True,
+                    copy_out=False,
+                ),
+                [var, out],
             )
             self._proc_managers.append(proc_man)
             log.debug(f"added processor: {proc_man}")
@@ -1405,7 +1461,7 @@ class ProcessingChain:
                 loaded_data = loaded_data.value
             else:
                 loaded_data = loaded_data.nda
-        except ValueError:
+        except (ValueError, lh5.types.exceptions.LH5DecodeError, OSError):
             raise ProcessingChainError(f"LH5 file not found: {path_to_file}")
 
         return loaded_data
@@ -1718,15 +1774,22 @@ class ProcessorManager:
             else:
                 self.kwargs[arg_name] = param
 
-    def execute(self) -> None:
-        start = time.time()
-        try:
+        # This makes it so that execute will show up in stack traces as str(self)!
+        def execute():
+            start = time.time()
             self.processor(*self.args, **self.kwargs)
-        except Exception as e:
-            log.error(f"Error processing {str(self)}: {e}")
-            traceback.print_exc()
-            raise e
-        self.time_total += time.time() - start
+            self.time_total += time.time() - start
+
+        execute.__name__ = self.processor.__name__
+        if sys.version_info >= (3, 11):
+            execute.__qualname__ = str(self)
+            execute.__code__ = execute.__code__.replace(
+                co_name=str(self), co_qualname=str(self)
+            )
+        else:
+            execute.__code__ = execute.__code__.replace(co_name=str(self))
+
+        self.execute = execute
 
     def __str__(self) -> str:
         return (
@@ -1828,6 +1891,22 @@ class UnitConversionManager(ProcessorManager):
         self.kwargs = {}
         self.time_total = 0
 
+        # This makes it so that execute will show up in stack traces as str(self)!
+        def execute():
+            start = time.time()
+            self.processor(*self.args, **self.kwargs)
+            self.time_total += time.time() - start
+
+        execute.__name__ = self.processor.__name__
+        if sys.version_info >= (3, 11):
+            execute.__qualname__ = str(self)
+            execute.__code__ = execute.__code__.replace(
+                co_name=str(self), co_qualname=str(self)
+            )
+        else:
+            execute.__code__ = execute.__code__.replace(co_name=str(self))
+        self.execute = execute
+
 
 class IOManager(metaclass=ABCMeta):
     r"""Base class.
@@ -1873,12 +1952,14 @@ class NumpyIOManager(IOManager):
         self.set_buffer(io_buf)
 
     def set_buffer(self, io_buf: np.ndarray) -> None:
-        assert isinstance(io_buf, np.ndarray)
+        if not isinstance(io_buf, np.ndarray):
+            msg = f"{self.var} must be set using a numpy array"
+            raise ProcessingChainError(msg)
 
         if self.var.shape != io_buf.shape[1:] or self.var.dtype != io_buf.dtype:
             raise ProcessingChainError(
-                f"numpy.array<{self.io_buf.shape}>({{{self.io_buf.dtype}}}@{self.io_buf.data}) "
-                "is not compatible with variable {self.var}"
+                f"numpy.array<{io_buf.shape}>({{{io_buf.dtype}}}@{io_buf.data}) "
+                f"is not compatible with variable {self.var}"
             )
 
         self.io_buf = io_buf
@@ -1934,7 +2015,9 @@ class LGDOArrayIOManager(IOManager):
         self.set_buffer(io_array)
 
     def set_buffer(self, io_array):
-        assert isinstance(io_array, lgdo.Array)
+        if not isinstance(io_array, lgdo.Array):
+            msg = f"{self.var} must be set using a lgdo.Array"
+            raise ProcessingChainError(msg)
 
         if "units" not in io_array.attrs and self.var.unit is not None:
             if isinstance(self.var.unit, Quantity):
@@ -1948,7 +2031,7 @@ class LGDOArrayIOManager(IOManager):
         ):
             raise ProcessingChainError(
                 f"LGDO object "
-                f"{self.io_array.form_datatype()} is "
+                f"{io_array.form_datatype()} is "
                 f"incompatible with {str(self.var)}"
             )
 
@@ -1956,7 +2039,7 @@ class LGDOArrayIOManager(IOManager):
 
     def read(self, start: int, end: int) -> None:
         if start >= len(self.io_array):
-            raise IndexError
+            raise EndExecute
         end = min(end, len(self.io_array))
         self.raw_var[0 : end - start, ...] = self.io_array[start:end, ...]
 
@@ -2021,7 +2104,7 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
         ):
             raise ProcessingChainError(
                 f"LGDO object "
-                f"{self.io_buf.form_datatype()} is "
+                f"{io_array.form_datatype()} is "
                 f"incompatible with {str(self.var)}"
             )
 
@@ -2029,7 +2112,7 @@ class LGDOArrayOfEqualSizedArraysIOManager(IOManager):
 
     def read(self, start: int, end: int) -> None:
         if start >= len(self.io_array):
-            raise IndexError
+            raise EndExecute
         end = min(end, len(self.io_array))
         self.raw_var[0 : end - start, ...] = self.io_array[start:end, ...]
 
@@ -2064,8 +2147,8 @@ class LGDOVectorOfVectorsIOManager(IOManager):
                 f"{var.vector_len} must be an integer to act as a vector len"
             )
 
-        unit = io_vov.attrs.get("units", None)
-        var.update_auto(dtype=io_vov.dtype, shape=10, unit=unit)
+        self.unit = io_vov.attrs.get("units", None)
+        var.update_auto(dtype=io_vov.dtype, unit=self.unit)
 
         if isinstance(var.unit, (CoordinateGrid, Quantity, Unit)):
             if isinstance(var.unit, CoordinateGrid):
@@ -2075,25 +2158,27 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             else:
                 var_u = var.unit
 
-            if unit is None:
-                unit = var_u
-            elif ureg.is_compatible_with(var_u, unit):
-                unit = ureg.Quantity(unit).u
+            if self.unit is None:
+                self.unit = var_u
+            elif ureg.is_compatible_with(var_u, self.unit):
+                self.unit = ureg.Quantity(self.unit).u
             else:
                 raise ProcessingChainError(
                     f"LGDO array and variable {var} have incompatible units "
-                    f"({var_u} and {unit})"
+                    f"({var_u} and {self.unit})"
                 )
-        elif isinstance(var.unit, str) and unit is None:
-            unit = var.unit
+        elif isinstance(var.unit, str) and self.unit is None:
+            self.unit = var.unit
 
         self.var = var
-        self.raw_var = var.get_buffer(unit)
+        self.raw_var = None  # Set this later, once we know the buffer size
         self.len_var = var.vector_len.get_buffer()
         self.set_buffer(io_vov)
 
     def set_buffer(self, io_vov: lgdo.VectorOfVectors):
-        assert isinstance(io_vov, lgdo.VectorOfVectors)
+        if not isinstance(io_vov, lgdo.VectorOfVectors):
+            msg = f"{self.var} must be set using a lgdo.VectorOfVectors"
+            raise ProcessingChainError(msg)
 
         if "units" not in io_vov.attrs and self.var.unit is not None:
             if isinstance(self.var.unit, Quantity):
@@ -2101,40 +2186,16 @@ class LGDOVectorOfVectorsIOManager(IOManager):
             else:
                 io_vov.attrs["units"] = str(self.var.unit)
 
-        if self.raw_var.dtype != io_vov.dtype:
+        if self.var.dtype != io_vov.dtype:
             raise ProcessingChainError(
                 f"LGDO object "
-                f"{self.io_vov.flattened_data.form_datatype()} is "
+                f"{io_vov.flattened_data.form_datatype()} is "
                 f"incompatible with {str(self.var)}"
             )
 
         self.io_vov = io_vov
-        self.io_vov.flattened_data.resize(
-            len(self.io_vov) * np.prod(self.var.buffer.shape[1:]), trim=True
-        )
 
-    @guvectorize(
-        [
-            f"{t}[:],u4[:],u4,u4[:],{t}[:,:]"
-            for t in [
-                "b1",
-                "i1",
-                "i2",
-                "i4",
-                "i8",
-                "u1",
-                "u2",
-                "u4",
-                "u8",
-                "f4",
-                "f8",
-                "c8",
-                "c16",
-            ]
-        ],
-        "(n),(l),(),(l),(l,m)",
-        **nb_kwargs,
-    )
+    @jit
     def _vov2nda(flat_arr_in, cl_in, start_idx_in, l_out, aoa_out):  # noqa: N805
         prev_cl = start_idx_in
         for i, cl in enumerate(cl_in):
@@ -2148,8 +2209,22 @@ class LGDOVectorOfVectorsIOManager(IOManager):
 
     def read(self, start: int, end: int) -> None:
         if start >= len(self.io_vov):
-            raise IndexError
+            raise EndExecute
         end = min(end, len(self.io_vov))
+
+        if self.raw_var is None:
+            if self.var.shape is auto:
+                self.var.update_auto(
+                    shape=2
+                    * (
+                        self.io_vov.cumulative_length.nda[start + 1 : end]
+                        - self.io_vov.cumulative_length.nda[start : end - 1]
+                    ).max()
+                )
+                msg = f"No maximum length provided for VectorOfVectors input {self.var}. Use {self.var.shape} using twice the maximum length of the first batch of values. It is recommended to set the shape of this value in the first processor that uses it!"
+                log.warning(msg)
+            self.raw_var = self.var.get_buffer(self.unit)
+
         self.raw_var[:] = 0 if np.issubdtype(self.raw_var.dtype, np.integer) else np.nan
         LGDOVectorOfVectorsIOManager._vov2nda(
             self.io_vov.flattened_data.nda,
@@ -2160,6 +2235,19 @@ class LGDOVectorOfVectorsIOManager(IOManager):
         )
 
     def write(self, start: int, end: int) -> None:
+        if self.raw_var is None:
+            if self.var.shape is auto:
+                self.var.update_auto(
+                    shape=2
+                    * (
+                        self.io_vov.cumulative_length.nda[start + 1 : end]
+                        - self.io_vov.cumulative_length.nda[start : end - 1]
+                    ).max()
+                )
+                msg = f"No maximum length provided for VectorOfVectors output {self.var}. Use {self.var.shape} using twice the maximum length of the first batch of values. It is recommended to set the shape of this value in the first processor that uses it!"
+                log.warning(msg)
+            self.raw_var = self.var.get_buffer(self.unit)
+
         self.io_vov.resize(end)
         self.io_vov.flattened_data.resize(
             int(self.io_vov.cumulative_length[start] + np.sum(self.len_var))
@@ -2185,84 +2273,88 @@ class LGDOWaveformIOManager(IOManager):
         elif t0_units is None:
             t0_units = dt_units
 
+        self.wf_var = variable
         # If needed create a new coordinate grid from the IO buffer
         if (
-            variable.grid is auto
+            self.wf_var.grid is auto
             and isinstance(dt_units, str)
             and dt_units in ureg
             and isinstance(t0_units, str)
             and t0_units in ureg
         ):
-            grid = CoordinateGrid(
-                ureg.Quantity(wf_table.dt[0], dt_units),
-                ProcChainVar(
-                    variable.proc_chain,
-                    variable.name + "_dt",
-                    shape=(),
-                    dtype=wf_table.t0.dtype,
-                    grid=None,
-                    unit=dt_units,
-                    is_coord=True,
+            self.wf_var.update_auto(
+                grid=CoordinateGrid(
+                    ureg.Quantity(wf_table.dt[0], dt_units),
+                    ProcChainVar(
+                        self.wf_var.proc_chain,
+                        self.wf_var.name + "_dt",
+                        shape=(),
+                        dtype=wf_table.t0.dtype,
+                        grid=None,
+                        unit=dt_units,
+                        is_coord=True,
+                    ),
                 ),
+                is_coord=False,
             )
         else:
-            grid = None
+            self.wf_var.update_auto(
+                grid=None,
+                is_coord=False,
+            )
 
-        self.var = variable
-        self.var.update_auto(
-            shape=wf_table.values.shape[1:],
-            dtype=wf_table.values.dtype,
-            grid=grid,
-            unit=wf_table.values_units,
-            is_coord=False,
-        )
-
+        if isinstance(wf_table.values, lgdo.VectorOfVectors):
+            self.val_ioman = LGDOVectorOfVectorsIOManager(wf_table.values, self.wf_var)
+        else:
+            self.val_ioman = LGDOArrayOfEqualSizedArraysIOManager(
+                wf_table.values, self.wf_var
+            )
         if dt_units is None:
-            dt_units = self.var.grid.unit_str()
-            t0_units = self.var.grid.unit_str()
+            dt_units = self.wf_var.grid.unit_str()
+            t0_units = self.wf_var.grid.unit_str()
 
-        self.wf_var = self.var.buffer
-
-        self.t0_var = self.var.grid.get_offset(t0_units)
+        self.t0_var = self.wf_var.grid.get_offset(t0_units)
         self.variable_t0 = isinstance(self.t0_var, np.ndarray)
         self.set_buffer(wf_table)
 
     def set_buffer(self, wf_table):
         if not isinstance(wf_table, lgdo.WaveformTable):
-            raise ValueError(f"IO buffer for {self.var} is not a WaveformTable")
+            raise ValueError(f"IO buffer for {self.wf_var} is not a WaveformTable")
 
-        if "units" not in wf_table.attrs and self.var.unit is not None:
-            if isinstance(self.var.unit, Quantity):
-                wf_table.attrs["units"] = str(self.var.unit.u)
+        if "units" not in wf_table.attrs and self.wf_var.unit is not None:
+            if isinstance(self.wf_var.unit, Quantity):
+                wf_table.attrs["units"] = str(self.wf_var.unit.u)
             else:
-                wf_table.attrs["units"] = str(self.var.unit)
+                wf_table.attrs["units"] = str(self.wf_var.unit)
 
         self.io_wf = wf_table
         if not self.variable_t0:
-            self.io_wf.t0[:] = self.var.offset
+            self.io_wf.t0[:] = self.wf_var.offset
 
-        dt_units = self.var.period.u
-        self.io_wf.dt[:] = self.var.grid.get_period(dt_units)
+        dt_units = self.wf_var.period.u
+        self.io_wf.dt[:] = self.wf_var.grid.get_period(dt_units)
         self.io_wf.dt_units = dt_units
         self.io_wf.t0_units = dt_units
 
     def read(self, start: int, end: int) -> None:
         if start >= len(self.io_wf):
-            raise IndexError
+            raise EndExecute
         end = min(end, len(self.io_wf))
-        self.wf_var[0 : end - start, ...] = self.io_wf.values[start:end, ...]
+        self.val_ioman.read(start, end)
         self.t0_var[0 : end - start, ...] = self.io_wf.t0[start:end, ...]
 
     def write(self, start: int, end: int) -> None:
         self.io_wf.resize(end)
-        self.io_wf.values[start:end, ...] = self.wf_var[0 : end - start, ...]
+        self.val_ioman.write(start, end)
+
         if self.variable_t0:
             self.io_wf.t0[start:end, ...] = self.t0_var[0 : end - start, ...]
 
     def __str__(self) -> str:
+        tmp = str(self.val_ioman)
+        tmp = tmp[tmp.find("(") + 1 : tmp.rfind(")")]
         return (
-            f"{self.var} linked to lgdo.WaveformTable("
-            f"values(shape={self.io_wf.values.shape}, dtype={self.io_wf.values.dtype}, attrs={self.io_wf.values.attrs}), "
+            f"{self.wf_var} linked to lgdo.WaveformTable(values({tmp}), "
             f"dt(shape={self.io_wf.dt.shape}, dtype={self.io_wf.dt.dtype}, attrs={self.io_wf.dt.attrs}), "
             f"t0(shape={self.io_wf.t0.shape}, dtype={self.io_wf.t0.dtype}, attrs={self.io_wf.t0.attrs}))"
         )

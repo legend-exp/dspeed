@@ -160,9 +160,9 @@ class WaveformBrowser:
         # data i/o initialization
         if isinstance(raw_in, LH5Iterator):
             self.lh5_it = raw_in
-            lh5_in = self.lh5_it.read(0)
+            self.lh5_in = self.lh5_it.read(0)
         elif isinstance(raw_in, Table):
-            lh5_in = raw_in
+            self.lh5_in = raw_in
             self.lh5_it = None
         else:
             self.lh5_it = LH5Iterator(
@@ -173,7 +173,7 @@ class WaveformBrowser:
                 entry_mask=entry_mask,
                 buffer_len=buffer_len,
             )
-            lh5_in = self.lh5_it.read(0)
+            self.lh5_in = self.lh5_it.read(0)
 
         self.aux_vals = aux_values
         # Apply entry selection to aux_vals if needed
@@ -194,7 +194,7 @@ class WaveformBrowser:
             # default: include all input fields of type WaveformTable
             self.lines = {
                 key: []
-                for key, val in lh5_in.items()
+                for key, val in self.lh5_in.items()
                 if isinstance(val, lgdo.WaveformTable)
             }
             log.warning(
@@ -268,7 +268,7 @@ class WaveformBrowser:
 
         self.proc_chain, field_mask, self.lh5_out = build_processing_chain(
             dsp_config,
-            lh5_in,
+            self.lh5_in,
             db_dict=database,
             outputs=outputs,
             block_width=block_width,
@@ -419,7 +419,8 @@ class WaveformBrowser:
             elif data is None:
                 ref_time = self.aux_vals[self.align_par][entry]
             else:
-                raise
+                msg = f"cannot use {type(data)} for alignment"
+                raise TypeError(msg)
 
         # lines
         lim = math.sqrt(sys.float_info.max)  # limits for v/h lines
@@ -480,7 +481,7 @@ class WaveformBrowser:
         for name, vals in self.legend_vals.items():
             data = self.lh5_out.get(name, None)
 
-            if not data:
+            if data is None:
                 data = ureg.Quantity(self.aux_vals[name][entry])
             elif isinstance(data, lgdo.Array):
                 unit = data.attrs.get("units", None)

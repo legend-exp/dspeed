@@ -72,6 +72,31 @@ def test_waveform_slicing(geds_raw_tbl):
     assert isinstance(tbl_out["wf_blsub"], lgdo.WaveformTable)
     assert tbl_out["wf_blsub"].wf_len == 500
 
+    # test with variable length array and variables as indices
+    tbl_in = lgdo.Table(
+        {
+            "vov_in": lgdo.VectorOfVectors(
+                flattened_data=np.arange(150.0),
+                cumulative_length=[10, 30, 60, 100, 150],
+                attrs={"units": "ns"},
+            )
+        }
+    )
+    dsp_config = {
+        "outputs": ["vals", "v_end"],
+        "processors": {
+            "vals": "vov_in(shape=50)[len(vov_in)//2]",
+            "v_end": "vov_in(shape=50)[-1]",
+            "var_slice": "vov_in[indices:20]",
+        },
+    }
+    tbl_out = build_dsp(tbl_in, dsp_config=dsp_config)
+
+    assert np.all(tbl_out["vals"].nda == np.array([5.0, 20.0, 45.0, 80.0, 125.0]))
+    assert tbl_out["vals"].attrs["units"] == "ns"
+    assert np.all(tbl_out["v_end"].nda == np.array([9.0, 29.0, 59.0, 99.0, 149.0]))
+    assert tbl_out["v_end"].attrs["units"] == "ns"
+
 
 def test_processor_none_arg(geds_raw_tbl):
     dsp_config = {
@@ -595,37 +620,75 @@ def test_proc_chain_as_type(spms_raw_tbl):
     )
 
 
-def test_output_types(spms_raw_tbl):
+def test_io_types(caplog):
+    ar = lgdo.Array(np.arange(5), attrs={"units": "ns"})
+    aoea = lgdo.ArrayOfEqualSizedArrays(
+        nda=np.arange(25.0).reshape((5, 5)), attrs={"units": "ns"}
+    )
+    vov = lgdo.VectorOfVectors(
+        flattened_data=np.arange(15.0),
+        cumulative_length=[3, 8, 10, 14, 15],
+        attrs={"units": "ns"},
+    )
+    wf = lgdo.WaveformTable(
+        values=np.arange(100.0).reshape((5, 20)),
+        values_units="ADC",
+        t0=np.arange(5),
+        t0_units="ns",
+        dt=np.ones(5),
+        dt_units="ns",
+    )
+    wf_vov = lgdo.WaveformTable(
+        values=lgdo.VectorOfVectors(
+            flattened_data=np.arange(50.0),
+            cumulative_length=[10, 15, 25, 45, 50],
+        ),
+        values_units="ADC",
+        t0=np.arange(5),
+        t0_units="ns",
+        dt=np.ones(5),
+        dt_units="ns",
+    )
+    tb = lgdo.Table({"ar": ar, "aoea": aoea, "vov": vov, "wf": wf, "wf_vov": wf_vov})
+
     dsp_config = {
-        "outputs": ["wf_out", "vov_max_out", "n_max_out", "aoa_out"],
+        "outputs": ["ar", "aoea", "vov", "wf", "wf_vov"],
         "processors": {
-            "wf_out": "-waveform",
-            "aoa_out": "n_max_out + [1, 3, 5, 7, 9]",
-            "vov_max_out, vov_min_out, n_max_out, n_min_out": {
-                "function": "get_multi_local_extrema",
-                "module": "dspeed.processors.get_multi_local_extrema",
+            "vov_out": {
+                "function": "numpy.copyto",
                 "args": [
-                    "waveform",
-                    5,
-                    0.1,
-                    1,
-                    10,
-                    0,
-                    "vov_max_out(20, vector_len=n_max_out)",
-                    "vov_min_out(20, vector_len=n_min_out)",
-                    "n_max_out",
-                    "n_min_out",
+                    "vov_out(shape = 10, vector_len = len(vov), unit = vov.unit)",
+                    "vov",
                 ],
-                "unit": ["ns", "ns", "none", "none"],
+                "signature": "()->()",
+                "types": "dd",
+            },
+            "wf_vov_out": {
+                "function": "numpy.copyto",
+                "args": [
+                    "wf_vov_out(shape=25, grid=wf_vov.grid, vector_len = len(wf_vov), unit = wf_vov.unit)",
+                    "wf_vov",
+                ],
+                "signature": "()->()",
+                "types": "dd",
             },
         },
     }
+    lh5_out = build_dsp(tb, dsp_config=dsp_config)
 
-    lh5_out = build_dsp(spms_raw_tbl, dsp_config=dsp_config, n_entries=1)
-    assert isinstance(lh5_out["n_max_out"], lgdo.Array)
-    assert isinstance(lh5_out["wf_out"], lgdo.WaveformTable)
-    assert isinstance(lh5_out["aoa_out"], lgdo.ArrayOfEqualSizedArrays)
-    assert isinstance(lh5_out["vov_max_out"], lgdo.VectorOfVectors)
+    assert lh5_out["ar"] == ar
+    assert lh5_out["aoea"] == aoea
+    assert lh5_out["vov"] == vov
+    assert lh5_out["wf"] == wf
+    assert lh5_out["wf_vov"] == wf_vov
+    assert "No maximum length provided" in caplog.text
+
+    # Using processors that specify the shape should not log a warning
+    caplog.clear()
+    lh5_out = build_dsp(tb, dsp_config=dsp_config, outputs=["vov_out", "wf_vov_out"])
+    assert lh5_out["vov_out"] == vov
+    assert lh5_out["wf_vov_out"] == wf_vov
+    assert "WARNING" not in caplog.text
 
 
 def test_output_attrs(geds_raw_tbl):

@@ -1,4 +1,4 @@
-"""
+"""art
 This module provides high-level routines for running signal processing chains
 on waveform data.
 """
@@ -10,7 +10,7 @@ import os
 import re
 import time
 from collections.abc import Collection, Mapping
-from copy import copy, deepcopy
+from copy import deepcopy
 from fnmatch import fnmatch
 
 import lh5
@@ -174,11 +174,13 @@ def build_dsp(
             )
 
         # check if group points to raw data; sometimes 'raw' is nested, e.g g024/raw
-        for i, tb in enumerate(lh5_tables):
+        tbs_new = []
+        for tb in lh5_tables:
             if lh5.ls(raw_in, f"{tb}/*") == [f"{tb}/raw"]:
-                lh5_tables[i] = f"{tb}/raw"
-            elif not lh5.ls(raw_in, tb):
-                del lh5_tables[i]
+                tbs_new.append(f"{tb}/raw")
+            elif lh5.ls(raw_in, tb):
+                tbs_new.append(tb)
+        lh5_tables = tbs_new
 
         if len(lh5_tables) == 0:
             raise RuntimeError(f"could not find any valid LH5 table in {raw_in}")
@@ -346,8 +348,7 @@ def build_dsp(
             lh5_it.n_entries = tot_n_rows
             tb_in = next(iter(lh5_in))
         else:
-            tb_in = copy(lh5_in)
-            tb_in.resize(tot_n_rows)
+            tb_in = lh5_in[i_start : i_start + tot_n_rows]
             lh5_it = [tb_in]
 
         # Setup timers
@@ -368,7 +369,7 @@ def build_dsp(
         if isinstance(lh5_it, lh5.LH5Iterator):
             lh5_it.reset_field_mask(field_mask)
 
-        if log.getEffectiveLevel() >= logging.INFO:
+        if log.isEnabledFor(logging.INFO):
             progress_bar = tqdm(
                 desc=f"Processing table {tb}",
                 total=tot_n_rows,
@@ -425,13 +426,13 @@ def build_dsp(
                 tb_fill.append(tb_out)
 
             write_time += time.time() - write_start
-            if log.getEffectiveLevel() >= logging.INFO:
+            if log.isEnabledFor(logging.INFO):
                 progress_bar.update(len(tb_in))
 
             curr = time.time()
 
         # Wrap up
-        if log.getEffectiveLevel() >= logging.INFO:
+        if log.isEnabledFor(logging.INFO):
             progress_bar.close()
 
         log.info(f"Table {tb} processed in {time.time() - start:.2f} seconds")
@@ -439,7 +440,7 @@ def build_dsp(
         log.debug(f"Table {tb} write time: {write_time:.2f} seconds")
         log.debug(f"Table {tb} processing time: {processing_time:.2f} seconds")
 
-        if log.getEffectiveLevel() >= logging.DEBUG:
+        if log.isEnabledFor(logging.DEBUG):
             times = proc_chain.get_timing()
             log.debug("Processor timing info: ")
             for proc, t in dict(
