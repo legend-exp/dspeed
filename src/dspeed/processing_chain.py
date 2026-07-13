@@ -12,7 +12,6 @@ import json
 import logging
 import re
 import time
-import traceback
 from abc import ABCMeta, abstractmethod
 from collections.abc import Collection, MutableMapping
 from copy import deepcopy
@@ -1774,15 +1773,18 @@ class ProcessorManager:
             else:
                 self.kwargs[arg_name] = param
 
-    def execute(self) -> None:
-        start = time.time()
-        try:
+        # This makes it so that execute will show up in stack traces as str(self)!
+        def execute():
+            start = time.time()
             self.processor(*self.args, **self.kwargs)
-        except Exception as e:
-            log.error(f"Error processing {str(self)}: {e}")
-            traceback.print_exc()
-            raise e
-        self.time_total += time.time() - start
+            self.time_total += time.time() - start
+
+        execute.__name__ = self.processor.__name__
+        execute.__qualname__ = str(self)
+        execute.__code__ = execute.__code__.replace(
+            co_name=str(self), co_qualname=str(self)
+        )
+        self.execute = execute
 
     def __str__(self) -> str:
         return (
@@ -1883,6 +1885,19 @@ class UnitConversionManager(ProcessorManager):
         ]
         self.kwargs = {}
         self.time_total = 0
+
+        # This makes it so that execute will show up in stack traces as str(self)!
+        def execute():
+            start = time.time()
+            self.processor(*self.args, **self.kwargs)
+            self.time_total += time.time() - start
+
+        execute.__name__ = self.processor.__name__
+        execute.__qualname__ = str(self)
+        execute.__code__ = execute.__code__.replace(
+            co_name=str(self), co_qualname=str(self)
+        )
+        self.execute = execute
 
 
 class IOManager(metaclass=ABCMeta):
