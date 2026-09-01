@@ -1454,6 +1454,7 @@ class ProcessingChain:
         """
 
         import lh5
+        from lh5.io.exceptions import LH5DecodeError
 
         try:
             loaded_data = lh5.read(path_in_file, path_to_file)
@@ -1461,8 +1462,10 @@ class ProcessingChain:
                 loaded_data = loaded_data.value
             else:
                 loaded_data = loaded_data.nda
-        except (ValueError, lh5.types.exceptions.LH5DecodeError, OSError):
-            raise ProcessingChainError(f"LH5 file not found: {path_to_file}")
+        except (ValueError, LH5DecodeError, OSError) as e:
+            raise ProcessingChainError(
+                f"could not load '{path_in_file}' from LH5 file: {path_to_file}"
+            ) from e
 
         return loaded_data
 

@@ -253,8 +253,8 @@ def get_multi_local_extrema(
         else:
             n_max_out[0] = 0
         # Do the same for the minima
-        rge_right = (right_vt_max[~np.isnan(right_vt_min)]).astype(np.int_)
-        rge_left = (left_vt_max[~np.isnan(left_vt_min)]).astype(np.int_)
+        rge_right = (right_vt_min[~np.isnan(right_vt_min)]).astype(np.int_)
+        rge_left = (left_vt_min[~np.isnan(left_vt_min)]).astype(np.int_)
 
         # only continue if both arrays have something in them
         if len(rge_right) > 0 and len(rge_left) > 0:

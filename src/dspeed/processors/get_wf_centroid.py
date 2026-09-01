@@ -61,11 +61,25 @@ def get_wf_centroid(w_in: np.ndarray, shift: int, centroid: int) -> None:
     if shift > len(w_in) - 1:
         raise DSPFatal("shift must be shorter than input waveform size")
 
-    c_a = (
-        np.where(w_in[w_in.argmin() : w_in.argmax()] > 0)[0][0] + w_in.argmin() + shift
-    )
-    c_b = (
-        np.where(w_in[w_in.argmin() : w_in.argmax()] < 0)[0][-1] + w_in.argmin() + shift
-    )
+    # find the first positive and the last negative sample between the first
+    # minimum and the first maximum; if there is no crossing in that window
+    # (e.g. noise events where the minimum comes after the maximum) the
+    # centroid is undefined -> stays NaN. The old np.where(...)[0][0] on the
+    # empty match read out of bounds when boundscheck is disabled.
+    lo = w_in.argmin()
+    hi = w_in.argmax()
+
+    i_pos = -1
+    i_neg = -1
+    for i in range(lo, hi):
+        if i_pos < 0 and w_in[i] > 0:
+            i_pos = i
+        if w_in[i] < 0:
+            i_neg = i
+    if i_pos < 0 or i_neg < 0:
+        return
+
+    c_a = i_pos + shift
+    c_b = i_neg + shift
 
     centroid[0] = round((c_a + c_b) / 2)

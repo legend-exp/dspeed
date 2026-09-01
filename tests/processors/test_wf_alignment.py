@@ -19,9 +19,13 @@ def test_wf_alignment(compare_numba_vs_python):
     w_in = np.ones(len_wf)
     assert np.all(compare_numba_vs_python(wf_alignment, w_in, 1, 1, size, w_out)[-1])
 
-    # tests on centroid
-    with pytest.raises(DSPFatal):
-        compare_numba_vs_python(wf_alignment, w_in, np.nan, 1, size, w_out)[-1]
+    # tests on centroid: undefined (NaN) centroid falls back to the
+    # unaligned leading window instead of raising
+    w_ramp = np.arange(len_wf, dtype="float64")
+    w_out_nan = compare_numba_vs_python(wf_alignment, w_ramp, np.nan, 1, size, w_out)[
+        -1
+    ]
+    assert np.array_equal(w_out_nan, w_ramp[:size])
 
     # tests on shift
     with pytest.raises(DSPFatal):
@@ -40,3 +44,12 @@ def test_wf_alignment(compare_numba_vs_python):
         compare_numba_vs_python(wf_alignment, w_in, 1, 1, 0, w_out)[-1]
     with pytest.raises(DSPFatal):
         compare_numba_vs_python(wf_alignment, w_in, 1, 1, len_wf + 1, w_out)[-1]
+
+
+def test_wf_alignment_nan_centroid(compare_numba_vs_python):
+    # undefined (NaN) centroid must fall back to the unaligned leading
+    # window, like an out-of-range centroid, instead of raising DSPFatal
+    w_in = np.arange(20, dtype="float64")
+    w_out = np.empty(10)
+    res = compare_numba_vs_python(wf_alignment, w_in, np.nan, 1, 10, w_out)[-1]
+    assert np.array_equal(res, w_in[:10])

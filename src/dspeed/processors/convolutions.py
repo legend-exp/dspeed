@@ -95,8 +95,13 @@ def fft_convolve_wf(
         the filtered waveform.
     """
     w_out[:] = np.nan
-    nan_ids = np.isnan(w_in).any(axis=-1)
-    w_in[nan_ids] = 0
+    # keepdims so nan_ids stays an ndarray that broadcasts against both
+    # (block, n) blocks and plain 1-D waveforms
+    nan_ids = np.isnan(w_in).any(axis=-1, keepdims=True)
+    if nan_ids.any():
+        # zero out NaN'd waveforms in a copy: w_in is a view into the shared
+        # processing-chain buffer, which downstream processors also read
+        w_in = np.where(nan_ids, 0, w_in)
 
     if np.isnan(kernel).any():
         return
@@ -116,7 +121,7 @@ def fft_convolve_wf(
     if len(kernel.shape) < len(w_in.shape):
         kernel = kernel.reshape((1, *kernel.shape))
     w_out[:] = fftconvolve(w_in, kernel, mode=mode, axes=-1)
-    w_out[nan_ids] = np.nan
+    w_out[...] = np.where(nan_ids, np.nan, w_out)
 
 
 @guvectorize(
