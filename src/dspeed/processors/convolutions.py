@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 from numba import guvectorize
-from scipy.signal import fftconvolve
+from scipy.fft import irfft, next_fast_len, rfft
 
 from ..errors import DSPFatal
 from ..utils import dspeed_guvectorize
@@ -95,8 +95,13 @@ def fft_convolve_wf(
         the filtered waveform.
     """
     w_out[:] = np.nan
-    nan_ids = np.isnan(w_in).any(axis=-1)
-    w_in[nan_ids] = 0
+    # keepdims so nan_ids stays an ndarray that broadcasts against both
+    # (block, n) blocks and plain 1-D waveforms
+    nan_ids = np.isnan(w_in).any(axis=-1, keepdims=True)
+    if nan_ids.any():
+        # zero out NaN'd waveforms in a copy: w_in is a view into the shared
+        # processing-chain buffer, which downstream processors also read
+        w_in = np.where(nan_ids, 0, w_in)
 
     if np.isnan(kernel).any():
         return
@@ -104,19 +109,33 @@ def fft_convolve_wf(
     if kernel.shape[-1] > w_in.shape[-1]:
         raise DSPFatal("The filter is longer than the input waveform")
 
-    if chr(mode_in) == "f":
-        mode = "full"
-    elif chr(mode_in) == "v":
-        mode = "valid"
-    elif chr(mode_in) == "s":
-        mode = "same"
-    else:
+    if chr(mode_in) not in ("f", "v", "s"):
         raise DSPFatal("Invalid mode")
 
     if len(kernel.shape) < len(w_in.shape):
         kernel = kernel.reshape((1, *kernel.shape))
-    w_out[:] = fftconvolve(w_in, kernel, mode=mode, axes=-1)
-    w_out[nan_ids] = np.nan
+
+    # equivalent to scipy.signal.fftconvolve(w_in, kernel, mode=mode, axes=-1)
+    # with the same FFT length (so results are bit-identical), but skipping
+    # scipy.signal's per-call python overhead, which dominates at block size
+    n = w_in.shape[-1]
+    m = kernel.shape[-1]
+    full = n + m - 1
+    fshape = next_fast_len(full, True)
+    sp = rfft(w_in, fshape, axis=-1)
+    sp *= rfft(kernel, fshape, axis=-1)
+    ret = irfft(sp, fshape, axis=-1)
+
+    if chr(mode_in) == "f":
+        w_out[:] = ret[..., :full]
+    elif chr(mode_in) == "s":
+        start = (full - n) // 2
+        w_out[:] = ret[..., start : start + n]
+    else:
+        out_len = n - m + 1
+        start = (full - out_len) // 2
+        w_out[:] = ret[..., start : start + out_len]
+    w_out[...] = np.where(nan_ids, np.nan, w_out)
 
 
 @guvectorize(

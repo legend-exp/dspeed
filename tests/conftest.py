@@ -29,7 +29,7 @@ def tmptestdir():
 
 def pytest_sessionfinish(session, exitstatus):
     if exitstatus == 0:
-        shutil.rmtree(_tmptestdir)
+        shutil.rmtree(_tmptestdir, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")

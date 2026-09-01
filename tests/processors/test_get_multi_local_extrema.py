@@ -436,3 +436,30 @@ def test_get_multi_local_extrema_dsp_fatal():
         inspect.unwrap(get_multi_local_extrema)(
             wf, 3, 1, -3, 8, 20, max_out, min_out, n_max_out, n_min_out
         )
+
+
+# W-shaped waveform: maxima at 10 and 30, a genuine local minimum at 20.
+# Regression test: the conservative-search minima branch used to build its
+# coincidence lists from the *maxima* arrays, so min_out reported a maximum
+# position instead of the true minimum.
+def test_get_multi_local_extrema_both_cons_minima():
+    wf_w = np.concatenate(
+        [
+            np.linspace(0, 10, 11),  # rise to max at 10
+            np.linspace(9, 0, 10),  # fall to min at 20
+            np.linspace(1, 10, 10),  # rise to max at 30
+            np.linspace(9, 0, 10),  # fall to the end
+        ]
+    )
+
+    max_out = np.full(3, np.nan)
+    min_out = np.full(3, np.nan)
+    n_min_out = np.zeros(1, dtype="uint32")
+    n_max_out = np.zeros(1, dtype="uint32")
+
+    get_multi_local_extrema(wf_w, 3, 3, 2, 0, 5, max_out, min_out, n_max_out, n_min_out)
+
+    assert np.array_equal(max_out, np.array([10, 30, np.nan]), equal_nan=True)
+    assert n_max_out[0] == 2
+    assert np.array_equal(min_out, np.array([20, np.nan, np.nan]), equal_nan=True)
+    assert n_min_out[0] == 1
