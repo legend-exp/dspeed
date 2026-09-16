@@ -1,0 +1,24 @@
+processors:
+    wf_hist , wf_borders:
+        description: projection histogram of scaled waveform onto the adc-axis
+        function: histogram
+        module: dspeed.processors
+        args:
+            - waveform
+            - wf_hist(100)
+            - wf_borders(101)
+        unit: [ADC, ADC]
+    wf_fwhm, wf_idx_out, wf_mode:
+        description:
+            FWHM, mode, and index of projection histogram of scaled waveform onto the
+            adc-axis
+        function: histogram_stats
+        module: dspeed.processors
+        args:
+            - wf_hist
+            - wf_borders
+            - wf_idx_out
+            - wf_mode
+            - wf_fwhm
+            - np.nan
+        unit: [ADC, ADC, ""]
