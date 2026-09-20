@@ -4,6 +4,7 @@ from pathlib import Path
 
 config_dir = Path(__file__).parent / "configs"
 
+# NOTE: dspeed-nbcache is tested in test_utils.py:test_cache_management
 
 def test_cli(lgnd_test_data, tmptestdir):
     subprocess.check_call(["dspeed", "--help"])

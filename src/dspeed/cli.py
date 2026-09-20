@@ -8,6 +8,7 @@ import os
 from dbetto import Props
 
 from . import __version__, build_dsp, logging
+from .utils import clean_numba_cache, precompile_numba
 
 
 def dspeed_cli():
@@ -188,3 +189,71 @@ def dspeed_cli():
             buffer_len=args.chunk,
             block_width=args.block,
         )
+
+
+def dspeed_nbcache():
+    """dspeed's command line interface for managing the numba cache."""
+
+    parser = argparse.ArgumentParser(
+        prog="dspeed-nbcache",
+        description="""Manage cached numba processors for dspeed. Can
+        precompile numba processors, which will run compiler and (if enabled)
+        cache to disk. Can also clean numba processors, which will remove
+        cached numba kernels from several likely disk locations.
+
+        Note on cache management: numba handles control of the cache location
+        via environment variables, as described here:
+        https://numba.readthedocs.io/en/stable/developer/caching.html.
+        """,
+    )
+
+    # global options
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=__version__,
+        help="""Print dspeed version and exit""",
+    )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="""Increase the program verbosity""",
+    )
+    parser.add_argument(
+        "--debug",
+        "-d",
+        action="store_true",
+        help="""Increase the program verbosity to maximum""",
+    )
+
+    # build_dsp
+    parser.add_argument(
+        "mode",
+        choices=["precompile", "clean"],
+        default=None,
+        help="""Precompile will compile and cache (if enabled) all
+        numba processors. Clean will clean the caches at each location,
+        including in-tree, user, and NUMBA_CACHE_DIR (if set)""",
+    )
+
+    args = parser.parse_args()
+
+    if args.mode is None:
+        parser.print_usage()
+        return
+
+    if args.verbose:
+        logging.setup(logging.INFO)
+    elif args.debug:
+        logging.setup(logging.DEBUG)
+    else:
+        logging.setup()
+
+    if args.mode == "precompile":
+        precompile_numba()
+    elif args.mode == "clean":
+        clean_numba_cache()
+    else:
+        msg = f"Invalid mode: {args.mode}"
+        raise ValueError(msg)

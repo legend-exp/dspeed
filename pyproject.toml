@@ -87,6 +87,7 @@ test = [
 
 [project.scripts]
 dspeed = "dspeed.cli:dspeed_cli"
+dspeed-nbcache = "dspeed.cli:dspeed_nbcache"
 
 [tool.setuptools]
 include-package-data = true
