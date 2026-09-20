@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 from abc import ABCMeta
 from collections.abc import Callable, Collection, Iterator, MutableMapping
 from pathlib import Path
@@ -49,8 +50,8 @@ def clean_numba_cache():
                 log.debug(f"rm {f}")
                 f.unlink()
 
-            log.debug(f"rm -r {cache_dir}")
-            cache_dir.rmdir()
+            log.debug(f"rm -rf {cache_dir}")
+            shutil.rmtree(cache_dir)
 
     # in-tree
     log.info("Cleaning in-tree dspeed cache...")
@@ -62,8 +63,8 @@ def clean_numba_cache():
             f.unlink()
 
     # user cache
-    user_cache = Path(numba.misc.appdirs.user_cache_dir()) / "numba"
-    if not numba.misc.appdirs.user_cache_dir() or not user_cache.is_dir():
+    user_cache = Path(numba.misc.appdirs.user_cache_dir("numba"))
+    if not numba.misc.appdirs.user_cache_dir("numba") or not user_cache.is_dir():
         log.info("No user cache found; skipping...")
     else:
         log.info(f"Cleaning user dspeed cache ({user_cache})...")
@@ -78,8 +79,8 @@ def clean_numba_cache():
                 log.debug(f"rm {f}")
                 f.unlink()
 
-            log.debug(f"rm -r {cache_dir}")
-            cache_dir.rmdir()
+            log.debug(f"rm -rf {cache_dir}")
+            shutil.rmtree(cache_dir)
 
     # Note: there is also an IPython cache but this should not be used for dspeed.
     # If we find situations where it is, we may have to implement its cleanup

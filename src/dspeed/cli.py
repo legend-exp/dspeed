@@ -238,10 +238,6 @@ def dspeed_nbcache():
 
     args = parser.parse_args()
 
-    if args.mode is None:
-        parser.print_usage()
-        return
-
     if args.verbose:
         logging.setup(logging.INFO)
     elif args.debug:
@@ -253,6 +249,3 @@ def dspeed_nbcache():
         precompile_numba()
     elif args.mode == "clean":
         clean_numba_cache()
-    else:
-        msg = f"Invalid mode: {args.mode}"
-        raise ValueError(msg)
