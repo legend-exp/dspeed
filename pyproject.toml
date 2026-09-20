@@ -112,6 +112,7 @@ namespaces = false
 
 [tool.coverage]
 run.source = ["dspeed"]
+run.patch = ["subprocess"]
 report.exclude_also = [
   '\.\.\.',
   'if typing.TYPE_CHECKING:',
