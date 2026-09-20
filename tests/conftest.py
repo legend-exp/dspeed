@@ -2,11 +2,13 @@ import copy
 import os
 import shutil
 import uuid
+from collections.abc import Collection
 from getpass import getuser
 from inspect import unwrap
 from pathlib import Path
 from tempfile import gettempdir
 
+import numba
 import numpy as np
 import pytest
 from legendtestdata import LegendTestData
@@ -29,7 +31,7 @@ def tmptestdir():
 
 def pytest_sessionfinish(session, exitstatus):
     if exitstatus == 0:
-        shutil.rmtree(_tmptestdir)
+        shutil.rmtree(_tmptestdir, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")
@@ -89,6 +91,25 @@ def compare_numba_vs_python():
             The output of the function to be used in a unit test.
 
         """
+
+        # first, handle @jit and @njit; in this case no signature, nin, nout, etc.
+        if isinstance(func, numba.core.registry.CPUDispatcher):
+            # outputs not passed as inputs. Copy and return only outputs
+
+            # numba outputs
+            outputs_numba = func(*inputs)
+            func_unwrapped = unwrap(func)
+            outputs_python = func_unwrapped(*inputs)
+
+            if isinstance(outputs_numba, Collection):
+                assert all(
+                    np.allclose(o_nb, o_py, equal_nan=True)
+                    for o_nb, o_py in zip(outputs_numba, outputs_python)
+                )
+            else:
+                assert np.allclose(outputs_numba, outputs_python, equal_nan=True)
+
+            return outputs_numba
 
         if signature_override:
             sig = signature_override

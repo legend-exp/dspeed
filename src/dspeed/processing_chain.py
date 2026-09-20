@@ -125,7 +125,7 @@ class CoordinateGrid:
 
     def get_offset(self, unit: str | Unit = None) -> float:
         """Get the offset (convert)ed to unit. If `unit` is ``None`` use period."""
-        if unit is None:
+        if unit is None or unit == "":
             unit = self.period
         elif isinstance(unit, str):
             unit = ureg.Quantity(unit)
@@ -2275,23 +2275,22 @@ class LGDOWaveformIOManager(IOManager):
 
         self.wf_var = variable
         # If needed create a new coordinate grid from the IO buffer
-        if (
-            self.wf_var.grid is auto
-            and isinstance(dt_units, str)
-            and dt_units in ureg
-            and isinstance(t0_units, str)
-            and t0_units in ureg
-        ):
+        if self.wf_var.grid is auto:
+            if isinstance(dt_units, str) and dt_units in ureg:
+                dt = ureg.Quantity(wf_table.dt[0], dt_units)
+            else:
+                dt = ureg.Quantity(wf_table.dt[0], "dimensionless")
+
             self.wf_var.update_auto(
                 grid=CoordinateGrid(
-                    ureg.Quantity(wf_table.dt[0], dt_units),
+                    dt,
                     ProcChainVar(
                         self.wf_var.proc_chain,
-                        self.wf_var.name + "_dt",
+                        self.wf_var.name + "__t0",
                         shape=(),
                         dtype=wf_table.t0.dtype,
                         grid=None,
-                        unit=dt_units,
+                        unit=t0_units,
                         is_coord=True,
                     ),
                 ),
@@ -2309,17 +2308,22 @@ class LGDOWaveformIOManager(IOManager):
             self.val_ioman = LGDOArrayOfEqualSizedArraysIOManager(
                 wf_table.values, self.wf_var
             )
-        if dt_units is None:
+
+        if dt_units is None and self.wf_var.grid is not None:
             dt_units = self.wf_var.grid.unit_str()
             t0_units = self.wf_var.grid.unit_str()
 
-        self.t0_var = self.wf_var.grid.get_offset(t0_units)
+        self.t0_var = (
+            self.wf_var.grid.get_offset(t0_units) if self.wf_var.grid is not None else 0
+        )
         self.variable_t0 = isinstance(self.t0_var, np.ndarray)
         self.set_buffer(wf_table)
 
     def set_buffer(self, wf_table):
         if not isinstance(wf_table, lgdo.WaveformTable):
             raise ValueError(f"IO buffer for {self.wf_var} is not a WaveformTable")
+
+        self.val_ioman.set_buffer(wf_table.values)
 
         if "units" not in wf_table.attrs and self.wf_var.unit is not None:
             if isinstance(self.wf_var.unit, Quantity):
@@ -2341,7 +2345,9 @@ class LGDOWaveformIOManager(IOManager):
             raise EndExecute
         end = min(end, len(self.io_wf))
         self.val_ioman.read(start, end)
-        self.t0_var[0 : end - start, ...] = self.io_wf.t0[start:end, ...]
+
+        if self.variable_t0:
+            self.t0_var[0 : end - start, ...] = self.io_wf.t0[start:end, ...]
 
     def write(self, start: int, end: int) -> None:
         self.io_wf.resize(end)
