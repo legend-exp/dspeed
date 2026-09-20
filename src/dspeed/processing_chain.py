@@ -2345,7 +2345,9 @@ class LGDOWaveformIOManager(IOManager):
             raise EndExecute
         end = min(end, len(self.io_wf))
         self.val_ioman.read(start, end)
-        self.t0_var[0 : end - start, ...] = self.io_wf.t0[start:end, ...]
+
+        if self.variable_t0:
+            self.t0_var[0 : end - start, ...] = self.io_wf.t0[start:end, ...]
 
     def write(self, start: int, end: int) -> None:
         self.io_wf.resize(end)
