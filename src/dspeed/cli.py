@@ -227,7 +227,6 @@ def dspeed_nbcache():
         help="""Increase the program verbosity to maximum""",
     )
 
-    # build_dsp
     parser.add_argument(
         "mode",
         choices=["precompile", "clean"],

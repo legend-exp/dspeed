@@ -67,7 +67,7 @@ def get_wf_centroid(w_in: np.ndarray, shift: int, centroid: int) -> None:
     c_b = -1
 
     # search from minimum to maximum for last negative and first positive
-    for i in range(i_min, i_max, np.sign(i_max-i_min)):
+    for i in range(i_min, i_max, np.sign(i_max - i_min)):
         if w_in[i] < 0:
             c_a = i
         if w_in[i] > 0 and c_b == -1:

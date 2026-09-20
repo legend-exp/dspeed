@@ -125,7 +125,7 @@ class CoordinateGrid:
 
     def get_offset(self, unit: str | Unit = None) -> float:
         """Get the offset (convert)ed to unit. If `unit` is ``None`` use period."""
-        if unit is None or unit == '':
+        if unit is None or unit == "":
             unit = self.period
         elif isinstance(unit, str):
             unit = ureg.Quantity(unit)
@@ -2313,7 +2313,9 @@ class LGDOWaveformIOManager(IOManager):
             dt_units = self.wf_var.grid.unit_str()
             t0_units = self.wf_var.grid.unit_str()
 
-        self.t0_var = self.wf_var.grid.get_offset(t0_units) if self.wf_var.grid is not None else 0
+        self.t0_var = (
+            self.wf_var.grid.get_offset(t0_units) if self.wf_var.grid is not None else 0
+        )
         self.variable_t0 = isinstance(self.t0_var, np.ndarray)
         self.set_buffer(wf_table)
 

@@ -2,6 +2,7 @@ import numpy as np
 
 from dspeed.processors.utils import contains_nan
 
+
 def test_contains_nan():
     # lengths around the 64-sample block boundary of the vectorized scan
     for dtype in (np.float32, np.float64):

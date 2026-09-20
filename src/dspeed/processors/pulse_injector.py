@@ -7,8 +7,8 @@ from math import exp, log
 import numpy as np
 from numba import guvectorize
 
-from .utils import contains_nan
 from ..utils import numba_defaults_kwargs as nb_kwargs
+from .utils import contains_nan
 
 
 @guvectorize(

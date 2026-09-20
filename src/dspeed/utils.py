@@ -7,34 +7,41 @@ from collections.abc import Callable, Collection, Iterator, MutableMapping
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import numba
+import numpy as np
 
 log = logging.getLogger("dspeed")
+
 
 def precompile_numba():
     """Precompile and cache (if caching is enabled) all numba processors"""
     from dspeed import processors
+
     for proc in processors.__all__:
         getattr(processors, proc)
         log.info(f"Compiled {proc}.")
 
+
 def clean_numba_cache():
     """Find and remove all cached numba files associated with this dspeed installation"""
-    from dspeed import processors
     cache_dirs = list(Path(__file__).parent.resolve().rglob("__pycache__"))
-    subpaths = [ numba.core.caching._CacheLocator.get_suitable_cache_subpath(d) for d in cache_dirs ]
+    subpaths = [
+        numba.core.caching._CacheLocator.get_suitable_cache_subpath(d)
+        for d in cache_dirs
+    ]
 
     # explicit cache dir
     numba_cache = Path(numba.config.CACHE_DIR)
     if not numba.config.CACHE_DIR or not numba_cache.is_dir():
-        log.info(f"NUMBA_CACHE_DIR not set; skipping...")
+        log.info("NUMBA_CACHE_DIR not set; skipping...")
     else:
-        log.info(f"Cleaning dspeed cache at NUMBA_CACHE_DIR ({numba.config.CACHE_DIR})...")
+        log.info(
+            f"Cleaning dspeed cache at NUMBA_CACHE_DIR ({numba.config.CACHE_DIR})..."
+        )
 
         for sp in subpaths:
             log.info(f"  Cleaning {sp}")
-            cache_dir = numba_cache/sp
+            cache_dir = numba_cache / sp
             if not cache_dir.is_dir():
                 continue
 
@@ -55,15 +62,15 @@ def clean_numba_cache():
             f.unlink()
 
     # user cache
-    user_cache = Path(numba.misc.appdirs.user_cache_dir())/"numba"
+    user_cache = Path(numba.misc.appdirs.user_cache_dir()) / "numba"
     if not numba.misc.appdirs.user_cache_dir() or not user_cache.is_dir():
-        log.info(f"No user cache found; skipping...")
+        log.info("No user cache found; skipping...")
     else:
         log.info(f"Cleaning user dspeed cache ({user_cache})...")
 
         for sp in subpaths:
             log.info(f"  Cleaning {sp}")
-            cache_dir = user_cache/sp
+            cache_dir = user_cache / sp
             if not cache_dir.is_dir():
                 continue
 
@@ -76,6 +83,7 @@ def clean_numba_cache():
 
     # Note: there is also an IPython cache but this should not be used for dspeed.
     # If we find situations where it is, we may have to implement its cleanup
+
 
 class GUFuncWrapper:
     """
@@ -154,7 +162,9 @@ class GUFuncWrapper:
             )
         else:
             # numpy signature parser can't handle no outputs
-            self.in_dims, self.out_dims = numba.np.ufunc.sigparse.parse_signature(signature)
+            self.in_dims, self.out_dims = numba.np.ufunc.sigparse.parse_signature(
+                signature
+            )
 
         self.nin = len(self.in_dims)
         self.nout = len(self.out_dims)
