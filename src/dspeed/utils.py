@@ -257,28 +257,3 @@ class ProcChainVarBase(metaclass=ABCMeta):
     """
 
     pass
-
-
-@numba.njit(cache=numba_defaults.cache, boundscheck=numba_defaults.boundscheck)
-def contains_nan(w: np.ndarray) -> bool:
-    """Return whether any element of `w` is NaN.
-
-    Drop-in replacement for ``np.isnan(w).any()`` inside nopython numba
-    kernels, where that expression allocates a boolean array and always
-    scans the full input. This scan allocates nothing and exits early on
-    NaN; the fixed-width inner loop has no early exit so LLVM can
-    vectorize it.
-    """
-    n = len(w)
-    i = 0
-    while i + 64 <= n:
-        found = False
-        for j in range(i, i + 64):
-            found |= w[j] != w[j]
-        if found:
-            return True
-        i += 64
-    for j in range(i, n):
-        if w[j] != w[j]:
-            return True
-    return False

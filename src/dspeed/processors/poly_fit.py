@@ -5,7 +5,8 @@ from __future__ import annotations
 import numpy as np
 from numba import guvectorize
 
-from ..utils import GUFuncWrapper, contains_nan
+from .utils import contains_nan
+from ..utils import GUFuncWrapper
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
 

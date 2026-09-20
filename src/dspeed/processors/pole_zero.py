@@ -7,7 +7,7 @@ from numba import guvectorize, vectorize
 
 from ..errors import DSPFatal
 from ..processors import recursive_filter
-from ..utils import contains_nan
+from .utils import contains_nan
 from ..utils import numba_defaults_kwargs as nb_kwargs
 
 
