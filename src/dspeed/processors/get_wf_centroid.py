@@ -61,11 +61,19 @@ def get_wf_centroid(w_in: np.ndarray, shift: int, centroid: int) -> None:
     if shift > len(w_in) - 1:
         raise DSPFatal("shift must be shorter than input waveform size")
 
-    c_a = (
-        np.where(w_in[w_in.argmin() : w_in.argmax()] > 0)[0][0] + w_in.argmin() + shift
-    )
-    c_b = (
-        np.where(w_in[w_in.argmin() : w_in.argmax()] < 0)[0][-1] + w_in.argmin() + shift
-    )
+    i_min = w_in.argmin()
+    i_max = w_in.argmax()
+    c_a = -1
+    c_b = -1
+
+    # search from minimum to maximum for last negative and first positive
+    for i in range(i_min, i_max, np.sign(i_max-i_min)):
+        if w_in[i] < 0:
+            c_a = i
+        if w_in[i] > 0 and c_b == -1:
+            c_b = i
+
+    if c_a == -1 or c_b == -1:
+        return
 
     centroid[0] = round((c_a + c_b) / 2)
