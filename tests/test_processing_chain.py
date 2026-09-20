@@ -2,8 +2,96 @@ import lgdo
 import numpy as np
 import pytest
 
-from dspeed import build_dsp
+from dspeed import build_dsp, ProcessingChain
 from dspeed.errors import ProcessingChainError
+
+
+def test_processing_chain_io():
+    # Test a simple processing chain to check IO buffers and processor calling
+    # More complex tests will use build_dsp
+    tb_in = lgdo.Table( {
+        "waveform": lgdo.WaveformTable(
+            values = np.arange(100).reshape(10, 10),
+            dt = 1.,
+            t0 = 0.,
+        ),
+        "array": lgdo.Array(
+            nda = np.arange(10),
+            attrs={"units": "ADC"},
+        ),
+        "aoa": lgdo.ArrayOfEqualSizedArrays(
+            nda = np.arange(100).reshape(10, 10),
+            attrs={"units": "ADC"},
+        ),
+        "vov": lgdo.VectorOfVectors(
+            flattened_data=np.arange(89),
+            cumulative_length=[1, 2, 3, 5, 8, 13, 21, 34, 55, 89],
+            attrs={"units": "ADC"},
+        ),
+    } )
+
+    proc_chain = ProcessingChain(block_width=4, buffer_len=10)
+    proc_chain.link_input_buffer("waveform", tb_in.waveform)
+    proc_chain.link_input_buffer("array", tb_in.array)
+    proc_chain.link_input_buffer("aoa", tb_in.aoa)
+    proc_chain.add_variable("vov", shape=50)
+    proc_chain.link_input_buffer("vov", tb_in.vov, )
+
+    # Test by constructing output buffers and calling execute directly
+    tb_out = lgdo.Table( {
+        "waveform": proc_chain.link_output_buffer("waveform"),
+        "array": proc_chain.link_output_buffer("array"),
+        "aoa": proc_chain.link_output_buffer("aoa"),
+        "vov": proc_chain.link_output_buffer("vov"),
+    } )
+
+    # test in-place execution
+    proc_chain.execute()
+    assert tb_out == tb_in
+
+    # test in place execution on only part of buffer
+    tb_in.array.nda[:] += 10
+    proc_chain.execute(5, 8)
+    assert len(tb_out.array) == 8
+    assert np.all(tb_out.array.nda[:5] == np.arange(5))
+    assert np.all(tb_out.array.nda[5:8] == np.arange(15, 18))
+
+    # test in place execution with __call__
+    proc_chain(tb_in, out=tb_out)
+    assert tb_out == tb_in
+
+    # test execution creating new tb
+    # Note this is also testing linking of new output buffer
+    tb_out2 = proc_chain(tb_in)
+    assert tb_out2 == tb_in
+
+    # test execution with new tb_in with different shape
+    tb_in2 = lgdo.Table( {
+        "waveform": lgdo.WaveformTable(
+            values = np.arange(100, 180).reshape(8, 10),
+            dt = 1.,
+            t0 = 0.,
+        ),
+        "array": lgdo.Array(
+            nda = np.arange(10, 18),
+            attrs={"units": "ADC"},
+        ),
+        "aoa": lgdo.ArrayOfEqualSizedArrays(
+            nda = np.arange(100, 180).reshape(8, 10),
+            attrs={"units": "ADC"},
+        ),
+        "vov": lgdo.VectorOfVectors(
+            flattened_data=np.arange(49),
+            cumulative_length=[0, 1, 4, 9, 16, 25, 36, 49],
+            attrs={"units": "ADC"},
+        ),
+    } )
+    proc_chain(tb_in2, out = tb_out)
+    assert tb_in2 == tb_out
+
+    # Now do both tb_in and tb_in2 with new output arrays for good measure
+    assert tb_in == proc_chain(tb_in)
+    assert tb_in2 == proc_chain(tb_in2)
 
 
 def test_waveform_slicing(geds_raw_tbl):
