@@ -2321,6 +2321,8 @@ class LGDOWaveformIOManager(IOManager):
         if not isinstance(wf_table, lgdo.WaveformTable):
             raise ValueError(f"IO buffer for {self.wf_var} is not a WaveformTable")
 
+        self.val_ioman.set_buffer(wf_table.values)
+
         if "units" not in wf_table.attrs and self.wf_var.unit is not None:
             if isinstance(self.wf_var.unit, Quantity):
                 wf_table.attrs["units"] = str(self.wf_var.unit.u)
