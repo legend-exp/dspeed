@@ -2,12 +2,43 @@
 
 from __future__ import annotations
 
+import numba
 import numpy as np
 from numba import guvectorize
 
 from ..utils import GUFuncWrapper
 from ..utils import numba_defaults_kwargs as nb_kwargs
-from .utils import contains_nan
+from .utils import contains_nan, nb_kwargs_util
+
+
+
+@numba.njit(**nb_kwargs_util)
+def _poly_moments(w_in: np.ndarray, arr: np.ndarray) -> None:
+    """arr[j] = sum_i w_in[i] * i**j, for j < len(arr)."""
+    for j in range(len(arr)):
+        arr[j] = 0
+    for i in range(0, len(w_in), 1):
+        for j in range(len(arr)):
+            arr[j] += w_in[i] * (i**j)
+
+
+@numba.njit(**nb_kwargs_util)
+def _poly_fitter_core(
+    w_in: np.ndarray, inv: np.ndarray, poly_pars: np.ndarray, arr: np.ndarray
+) -> None:
+    """:func:`_poly_fitter` for callers that cannot allocate or call BLAS (e.g.
+    CUDA device code): the float64 scratch ``arr`` (length ``len(poly_pars)``) is
+    supplied by the caller and the matrix-vector product is written out. The
+    product's summation order differs from BLAS, so results can differ from
+    :func:`_poly_fitter` in the last bit."""
+    if contains_nan(w_in):
+        return
+    _poly_moments(w_in, arr)
+    for a in range(len(poly_pars)):
+        acc = 0.0
+        for b in range(len(poly_pars)):
+            acc += inv[a, b] * arr[b]
+        poly_pars[a] = acc
 
 
 @guvectorize(
@@ -26,11 +57,9 @@ def _poly_fitter(w_in: np.ndarray, inv: np.ndarray, poly_pars: np.ndarray) -> No
         return
 
     arr = np.zeros(len(poly_pars), dtype="float")
-    for i in range(0, len(w_in), 1):
-        for j in range(len(poly_pars)):
-            arr[j] += w_in[i] * (i**j)
-
+    _poly_moments(w_in, arr)
     poly_pars[:] = inv @ arr
+
 
 
 def poly_fit(length, deg):
@@ -61,7 +90,7 @@ def poly_fit(length, deg):
 
     inv = np.linalg.inv(mat)
 
-    return GUFuncWrapper(
+    fitter = GUFuncWrapper(
         lambda w_in, poly_pars: _poly_fitter(w_in, inv, poly_pars),
         "(n),(m)",
         ["ff", "dd"],
@@ -70,6 +99,9 @@ def poly_fit(length, deg):
         copy_out=False,
         doc_string=f"Fit w_in to order {deg} polynomial.",
     )
+    # exposed for callers that run _poly_fitter_core themselves (e.g. on a GPU)
+    fitter.inv = inv
+    return fitter
 
 
 @guvectorize(
