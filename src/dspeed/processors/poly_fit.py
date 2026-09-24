@@ -11,7 +11,6 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
 from .utils import contains_nan, nb_kwargs_util
 
 
-
 @numba.njit(**nb_kwargs_util)
 def _poly_moments(w_in: np.ndarray, arr: np.ndarray) -> None:
     """arr[j] = sum_i w_in[i] * i**j, for j < len(arr)."""
@@ -59,7 +58,6 @@ def _poly_fitter(w_in: np.ndarray, inv: np.ndarray, poly_pars: np.ndarray) -> No
     arr = np.zeros(len(poly_pars), dtype="float")
     _poly_moments(w_in, arr)
     poly_pars[:] = inv @ arr
-
 
 
 def poly_fit(length, deg):

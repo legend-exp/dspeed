@@ -11,7 +11,6 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
 from .utils import contains_nan, nb_kwargs_util
 
 
-
 @numba.njit(**nb_kwargs_util)
 def _mw_pass(src: np.ndarray, dst: np.ndarray, length: float, reverse: bool) -> None:
     """One moving-average pass of :func:`moving_window_multi`: dst <- window(src), right to
@@ -85,6 +84,7 @@ def _moving_window_multi_core(
             _mw_pass(w_buf, w_out, length, reverse)
         else:
             _mw_pass(w_out, w_buf, length, reverse)
+
 
 @guvectorize(
     ["void(float32[:], float32, float32[:])", "void(float64[:], float64, float64[:])"],

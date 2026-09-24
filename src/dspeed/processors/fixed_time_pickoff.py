@@ -11,7 +11,6 @@ from ..utils import numba_defaults_kwargs as nb_kwargs
 from .utils import contains_nan, nb_kwargs_util
 
 
-
 @numba.njit(**nb_kwargs_util)
 def _fixed_time_pickoff_core(
     w_in: np.ndarray,
@@ -85,6 +84,7 @@ def _fixed_time_pickoff_core(
         )
     else:
         raise DSPFatal("Unrecognized interpolation mode")
+
 
 @guvectorize(
     [

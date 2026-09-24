@@ -212,20 +212,20 @@ def _convolve_wf_core(w_in, kernel, mode_in, w_out) -> None:
     else:
         raise DSPFatal("Invalid mode")
     idx = 0
-    for i in range(n_left):                 # innerprod(w_in[:k], kernel[::-1][-k:])
+    for i in range(n_left):  # innerprod(w_in[:k], kernel[::-1][-k:])
         k = i + n - n_left
         acc = 0.0
         for t in range(k):
             acc = acc + w_in[t] * kernel[k - 1 - t]
         w_out[idx] = acc
         idx += 1
-    for i in range(n1 - n + 1):             # innerprod(w_in[i:i+n], kernel[::-1])
+    for i in range(n1 - n + 1):  # innerprod(w_in[i:i+n], kernel[::-1])
         acc = 0.0
         for t in range(n):
             acc = acc + w_in[i + t] * kernel[n - 1 - t]
         w_out[idx] = acc
         idx += 1
-    for i in range(n_right):                # innerprod(w_in[-k:], kernel[::-1][:k])
+    for i in range(n_right):  # innerprod(w_in[-k:], kernel[::-1][:k])
         k = n - i - 1
         acc = 0.0
         for t in range(k):

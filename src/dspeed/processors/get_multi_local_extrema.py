@@ -309,10 +309,19 @@ def get_multi_local_extrema(
 
 
 @numba.njit(**nb_kwargs_util)
-def _search_extrema(w_in, a_delta_max_in, a_delta_min_in, a_abs_max_in, a_abs_min_in,
-                    vt_max, vt_min, reverse):
+def _search_extrema(
+    w_in,
+    a_delta_max_in,
+    a_delta_min_in,
+    a_abs_max_in,
+    a_abs_min_in,
+    vt_max,
+    vt_min,
+    reverse,
+):
     """One search pass of :func:`get_multi_local_extrema` (left to right, or right to
-    left if ``reverse``); fills vt_max/vt_min (NaN-initialised) and returns the counts."""
+    left if ``reverse``); fills vt_max/vt_min (NaN-initialised) and returns the counts.
+    """
     n_max = 0
     n_min = 0
     find_max = True
@@ -351,7 +360,8 @@ def _search_extrema(w_in, a_delta_max_in, a_delta_min_in, a_abs_max_in, a_abs_mi
 @numba.njit(**nb_kwargs_util)
 def _merge_unique(a, b, merged, out):
     """out <- first len(out) sorted unique non-NaN values of a and b (as numba's
-    np.unique(np.append(a, b)): NaNs sort last and are not merged); returns their count."""
+    np.unique(np.append(a, b)): NaNs sort last and are not merged); returns their count.
+    """
     m = 0
     for k in range(len(a)):
         merged[m] = a[k]
@@ -359,10 +369,12 @@ def _merge_unique(a, b, merged, out):
     for k in range(len(b)):
         merged[m] = b[k]
         m += 1
-    for i in range(1, m):                     # insertion sort, NaN last
+    for i in range(1, m):  # insertion sort, NaN last
         key = merged[i]
         j = i - 1
-        while j >= 0 and ((np.isnan(merged[j]) and not np.isnan(key)) or merged[j] > key):
+        while j >= 0 and (
+            (np.isnan(merged[j]) and not np.isnan(key)) or merged[j] > key
+        ):
             merged[j + 1] = merged[j]
             j -= 1
         merged[j + 1] = key
@@ -382,9 +394,21 @@ def _merge_unique(a, b, merged, out):
 
 @numba.njit(**nb_kwargs_util)
 def _get_multi_local_extrema_core(
-    w_in, a_delta_max_in, a_delta_min_in, search_direction, a_abs_max_in, a_abs_min_in,
-    vt_max_out, vt_min_out, n_max_out, n_min_out,
-    left_vt_max, left_vt_min, right_vt_max, right_vt_min, merged,
+    w_in,
+    a_delta_max_in,
+    a_delta_min_in,
+    search_direction,
+    a_abs_max_in,
+    a_abs_min_in,
+    vt_max_out,
+    vt_min_out,
+    n_max_out,
+    n_min_out,
+    left_vt_max,
+    left_vt_min,
+    right_vt_max,
+    right_vt_min,
+    merged,
 ):
     """:func:`get_multi_local_extrema` for search directions 0, 1 and 3, with the float64
     scratch supplied by the caller (left/right arrays of len(vt_max_out), merged of
@@ -411,11 +435,27 @@ def _get_multi_local_extrema_core(
         raise DSPFatal("Delta must be positive")
     nl_max = nl_min = nr_max = nr_min = 0
     if (search_direction == 0) or (search_direction > 1):
-        nl_max, nl_min = _search_extrema(w_in, a_delta_max_in, a_delta_min_in, a_abs_max_in,
-                                         a_abs_min_in, left_vt_max, left_vt_min, False)
+        nl_max, nl_min = _search_extrema(
+            w_in,
+            a_delta_max_in,
+            a_delta_min_in,
+            a_abs_max_in,
+            a_abs_min_in,
+            left_vt_max,
+            left_vt_min,
+            False,
+        )
     if search_direction > 0:
-        nr_max, nr_min = _search_extrema(w_in, a_delta_max_in, a_delta_min_in, a_abs_max_in,
-                                         a_abs_min_in, right_vt_max, right_vt_min, True)
+        nr_max, nr_min = _search_extrema(
+            w_in,
+            a_delta_max_in,
+            a_delta_min_in,
+            a_abs_max_in,
+            a_abs_min_in,
+            right_vt_max,
+            right_vt_min,
+            True,
+        )
     if search_direction == 0:
         n_max_out[0] = nl_max
         n_min_out[0] = nl_min
