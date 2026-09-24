@@ -43,29 +43,32 @@ def _moving_window_multi_core(
 
     for j in range(len(w_in)):
         w_buf[j] = w_in[j]
-    for i in range(0, int(num_mw), 1):
-        if ((i % 2 == 1) & (mw_type == 0)) | (mw_type == 2):
-            w_out[-1] = w_buf[-1]
-            for i in range(1, int(length), 1):
-                w_out[len(w_buf) - 1 - i] = (
-                    w_out[len(w_buf) - i]
-                    + (w_buf[len(w_buf) - 1 - i] - w_out[-1]) / length
-                )
-            for i in range(int(length), len(w_buf), 1):
-                w_out[len(w_buf) - 1 - i] = (
-                    w_out[len(w_buf) - i]
-                    + (
-                        w_buf[len(w_buf) - 1 - i]
-                        - w_buf[len(w_buf) - 1 - i + int(length)]
-                    )
-                    / length
-                )
+    # the running value is kept in `acc` rather than re-read from w_out (same arithmetic and
+    # rounding: acc has the dtype of w_out); re-reading the value just written serialises the
+    # loop on memory latency, notably on GPUs
+    n = len(w_buf)
+    lw = int(length)
+    for k in range(0, int(num_mw), 1):
+        if ((k % 2 == 1) & (mw_type == 0)) | (mw_type == 2):
+            last = w_buf[n - 1]
+            acc = last
+            w_out[n - 1] = acc
+            for i in range(1, lw, 1):
+                acc = acc + (w_buf[n - 1 - i] - last) / length
+                w_out[n - 1 - i] = acc
+            for i in range(lw, n, 1):
+                acc = acc + (w_buf[n - 1 - i] - w_buf[n - 1 - i + lw]) / length
+                w_out[n - 1 - i] = acc
         else:
-            w_out[0] = w_buf[0]
-            for i in range(1, int(length)):
-                w_out[i] = w_out[i - 1] + (w_buf[i] - w_buf[0]) / length
-            for i in range(int(length), len(w_buf)):
-                w_out[i] = w_out[i - 1] + (w_buf[i] - w_buf[i - int(length)]) / length
+            first = w_buf[0]
+            acc = first
+            w_out[0] = acc
+            for i in range(1, lw):
+                acc = acc + (w_buf[i] - first) / length
+                w_out[i] = acc
+            for i in range(lw, n):
+                acc = acc + (w_buf[i] - w_buf[i - lw]) / length
+                w_out[i] = acc
         for j in range(len(w_out)):
             w_buf[j] = w_out[j]
 
