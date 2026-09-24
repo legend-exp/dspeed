@@ -188,9 +188,10 @@ def reflected_convolve_wf(
 def _convolve_wf_core(w_in, kernel, mode_in, w_out) -> None:
     """:func:`convolve_wf` without np.convolve, for callers that cannot allocate or call BLAS
     (CUDA device code). It follows numba's np.convolve (correlate with the reversed kernel:
-    left overlap, full overlap, right overlap) with a sequential inner product in the output
-    dtype; np.convolve uses BLAS dot for floats, whose summation order differs, so results
-    can differ in the last bits. Modes as character codes: f=102, v=118, s=115."""
+    left overlap, full overlap, right overlap) with a sequential float64 inner product, rounded
+    to the output dtype; np.convolve uses BLAS dot for floats (output-dtype accumulation in a
+    different order), so results can differ in the last bits. Modes as character codes: f=102,
+    v=118, s=115."""
     for i in range(len(w_out)):
         w_out[i] = np.nan
     if contains_nan(w_in) or contains_nan(kernel):
@@ -210,24 +211,23 @@ def _convolve_wf_core(w_in, kernel, mode_in, w_out) -> None:
         n_right = n - n_left - 1
     else:
         raise DSPFatal("Invalid mode")
-    dt = w_out.dtype.type
     idx = 0
     for i in range(n_left):                 # innerprod(w_in[:k], kernel[::-1][-k:])
         k = i + n - n_left
-        acc = dt(0)
+        acc = 0.0
         for t in range(k):
             acc = acc + w_in[t] * kernel[k - 1 - t]
         w_out[idx] = acc
         idx += 1
     for i in range(n1 - n + 1):             # innerprod(w_in[i:i+n], kernel[::-1])
-        acc = dt(0)
+        acc = 0.0
         for t in range(n):
             acc = acc + w_in[i + t] * kernel[n - 1 - t]
         w_out[idx] = acc
         idx += 1
     for i in range(n_right):                # innerprod(w_in[-k:], kernel[::-1][:k])
         k = n - i - 1
-        acc = dt(0)
+        acc = 0.0
         for t in range(k):
             acc = acc + w_in[n1 - k + t] * kernel[n - 1 - t]
         w_out[idx] = acc
