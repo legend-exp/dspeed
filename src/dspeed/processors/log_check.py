@@ -43,7 +43,9 @@ def log_check(w_in: np.ndarray, w_log: np.ndarray) -> None:
     if contains_nan(w_in):
         return
 
-    if np.any(w_in <= 0):
-        return
+    for i in range(len(w_in)):
+        if w_in[i] <= 0:
+            return
 
-    w_log[:] = np.log(w_in[:])
+    for i in range(len(w_in)):
+        w_log[i] = np.log(w_in[i])

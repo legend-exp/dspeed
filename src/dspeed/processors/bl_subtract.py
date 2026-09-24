@@ -44,4 +44,5 @@ def bl_subtract(w_in: np.ndarray, a_baseline: float, w_out: np.ndarray) -> None:
     if contains_nan(w_in) or np.isnan(a_baseline):
         return
 
-    w_out[:] = w_in[:] - a_baseline
+    for i in range(len(w_in)):
+        w_out[i] = w_in[i] - a_baseline
