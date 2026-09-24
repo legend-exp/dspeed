@@ -95,6 +95,7 @@ def poly_diff(
 
     mean[0] = rms[0] = 0
     isum = len(w_in)
+    dt = mean.dtype.type
 
     for i in range(0, len(w_in), 1):
         # the mean and standard deviation
@@ -102,11 +103,13 @@ def poly_diff(
         for j in range(len(poly_pars)):
             temp += poly_pars[j] * i**j
         temp = w_in[i] - temp
-        mean += temp / (i + 1)
-        rms += temp * temp
+        # length-1 outputs as scalars, keeping the former array expressions' typing:
+        # each update is evaluated in float64 and stored back in the output dtype
+        mean[0] = dt(np.float64(mean[0]) + temp / (i + 1))
+        rms[0] = dt(np.float64(rms[0]) + temp * temp)
 
-    rms /= isum - 1
-    np.sqrt(rms, rms)
+    rms[0] = rms[0] / dt(isum - 1)
+    rms[0] = np.sqrt(rms[0])
 
 
 @guvectorize(
@@ -129,14 +132,15 @@ def poly_exp_rms(
         return
 
     mean[0] = rms[0] = 0
+    dt = mean.dtype.type
 
     for i in range(0, len(w_in), 1):
         # the mean and standard deviation
         temp = 0.0
         for j in range(len(poly_pars)):
             temp += poly_pars[j] * i**j
-        mean += (w_in[i] - np.exp(temp)) / (i + 1)
-        rms += (w_in[i] - np.exp(temp)) ** 2
+        mean[0] = dt(np.float64(mean[0]) + (w_in[i] - np.exp(temp)) / (i + 1))
+        rms[0] = dt(np.float64(rms[0]) + (w_in[i] - np.exp(temp)) ** 2)
 
-    rms /= len(w_in) - 1
-    np.sqrt(rms, rms)
+    rms[0] = rms[0] / dt(len(w_in) - 1)
+    rms[0] = np.sqrt(rms[0])
