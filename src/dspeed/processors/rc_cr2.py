@@ -59,10 +59,10 @@ def rc_cr2(w_in: np.array, t_tau: float, w_out: np.array) -> None:
     w_out[2] = w_in[2]
 
     # Make a temporary buffer at higher precision so that the recursive filter doesn't compound any float truncations
-    w_tmp = np.zeros(4, dtype=np.float64)
-    w_tmp[0] = w_in[0]
-    w_tmp[1] = w_in[1]
-    w_tmp[2] = w_in[2]
+    # (held in float64 scalars rather than a scratch array, so that no allocation is needed)
+    w_tmp0 = np.float64(w_in[0])
+    w_tmp1 = np.float64(w_in[1])
+    w_tmp2 = np.float64(w_in[2])
 
     a = np.exp(-1 / t_tau)
 
@@ -76,19 +76,19 @@ def rc_cr2(w_in: np.array, t_tau: float, w_out: np.array) -> None:
     num_3 = 1
 
     for i in range(3, len(w_in)):
-        w_tmp[3] = (
-            -denom_2 * w_tmp[2]
-            - denom_3 * w_tmp[1]
-            - denom_4 * w_tmp[0]
+        w_tmp3 = (
+            -denom_2 * w_tmp2
+            - denom_3 * w_tmp1
+            - denom_4 * w_tmp0
             + num_1 * w_in[i]
             + num_2 * w_in[i - 1]
             + num_3 * w_in[i - 2]
         ) / denom_1
-        w_out[i] = w_tmp[3]  # Put the higher precision buffer into the desired output
+        w_out[i] = w_tmp3  # Put the higher precision buffer into the desired output
         # shuffle the buffers
-        w_tmp[0] = w_tmp[1]
-        w_tmp[1] = w_tmp[2]
-        w_tmp[2] = w_tmp[3]
+        w_tmp0 = w_tmp1
+        w_tmp1 = w_tmp2
+        w_tmp2 = w_tmp3
 
     # Check the output
     if contains_nan(w_out):
