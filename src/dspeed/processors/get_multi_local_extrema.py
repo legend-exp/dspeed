@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import numba
 import numpy as np
 from numba import guvectorize
 
 from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
-from .utils import contains_nan
+from .utils import contains_nan, nb_kwargs_util
 
 
 @guvectorize(
@@ -305,3 +306,168 @@ def get_multi_local_extrema(
 
     else:
         raise DSPFatal("search direction type not found.")
+
+
+@numba.njit(**nb_kwargs_util)
+def _search_extrema(
+    w_in,
+    a_delta_max_in,
+    a_delta_min_in,
+    a_abs_max_in,
+    a_abs_min_in,
+    vt_max,
+    vt_min,
+    reverse,
+):
+    """One search pass of :func:`get_multi_local_extrema` (left to right, or right to
+    left if ``reverse``); fills vt_max/vt_min (NaN-initialised) and returns the counts.
+    """
+    n_max = 0
+    n_min = 0
+    find_max = True
+    n = len(w_in)
+    imax = n - 1 if reverse else 0
+    imin = imax
+    for step in range(n):
+        i = n - 1 - step if reverse else step
+        if w_in[i] > w_in[imax]:
+            imax = i
+        if w_in[i] < w_in[imin]:
+            imin = i
+        if find_max:
+            if (
+                (w_in[i] < w_in[imax] - a_delta_max_in)
+                and (int(n_max) < int(len(vt_max)))
+                and (w_in[imax] > a_abs_max_in)
+            ):
+                vt_max[int(n_max)] = imax
+                n_max += 1
+                imin = i
+                find_max = False
+        else:
+            if (
+                (w_in[i] > w_in[imin] + a_delta_min_in)
+                and (int(n_min) < int(len(vt_min)))
+                and (w_in[imin] < a_abs_min_in)
+            ):
+                vt_min[int(n_min)] = imin
+                n_min += 1
+                imax = i
+                find_max = True
+    return n_max, n_min
+
+
+@numba.njit(**nb_kwargs_util)
+def _merge_unique(a, b, merged, out):
+    """out <- first len(out) sorted unique non-NaN values of a and b (as numba's
+    np.unique(np.append(a, b)): NaNs sort last and are not merged); returns their count.
+    """
+    m = 0
+    for k in range(len(a)):
+        merged[m] = a[k]
+        m += 1
+    for k in range(len(b)):
+        merged[m] = b[k]
+        m += 1
+    for i in range(1, m):  # insertion sort, NaN last
+        key = merged[i]
+        j = i - 1
+        while j >= 0 and (
+            (np.isnan(merged[j]) and not np.isnan(key)) or merged[j] > key
+        ):
+            merged[j + 1] = merged[j]
+            j -= 1
+        merged[j + 1] = key
+    u = 0
+    for i in range(m):
+        v = merged[i]
+        if np.isnan(v):
+            break
+        if u == 0 or v != merged[u - 1]:
+            merged[u] = v
+            u += 1
+    count = min(len(out), u)
+    for k in range(count):
+        out[k] = merged[k]
+    return count
+
+
+@numba.njit(**nb_kwargs_util)
+def _get_multi_local_extrema_core(
+    w_in,
+    a_delta_max_in,
+    a_delta_min_in,
+    search_direction,
+    a_abs_max_in,
+    a_abs_min_in,
+    vt_max_out,
+    vt_min_out,
+    n_max_out,
+    n_min_out,
+    left_vt_max,
+    left_vt_min,
+    right_vt_max,
+    right_vt_min,
+    merged,
+):
+    """:func:`get_multi_local_extrema` for search directions 0, 1 and 3, with the float64
+    scratch supplied by the caller (left/right arrays of len(vt_max_out), merged of
+    2*len(vt_max_out)) and no allocation or sorting library calls, so that CUDA device code
+    can use it. Direction 2 is not implemented here (outputs stay NaN / 0)."""
+    for k in range(len(vt_max_out)):
+        vt_max_out[k] = np.nan
+    for k in range(len(vt_min_out)):
+        vt_min_out[k] = np.nan
+    n_max_out[0] = 0
+    n_min_out[0] = 0
+    for k in range(len(left_vt_max)):
+        left_vt_max[k] = np.nan
+        left_vt_min[k] = np.nan
+        right_vt_max[k] = np.nan
+        right_vt_min[k] = np.nan
+    if contains_nan(w_in) or np.isnan(a_delta_max_in) or np.isnan(a_delta_min_in):
+        return
+    if (not len(vt_max_out) < len(w_in)) or (not len(vt_min_out) < len(w_in)):
+        raise DSPFatal(
+            "The length of your return array must be smaller than the length of your waveform"
+        )
+    if (not a_delta_max_in >= 0) or (not a_delta_min_in >= 0):
+        raise DSPFatal("Delta must be positive")
+    nl_max = nl_min = nr_max = nr_min = 0
+    if (search_direction == 0) or (search_direction > 1):
+        nl_max, nl_min = _search_extrema(
+            w_in,
+            a_delta_max_in,
+            a_delta_min_in,
+            a_abs_max_in,
+            a_abs_min_in,
+            left_vt_max,
+            left_vt_min,
+            False,
+        )
+    if search_direction > 0:
+        nr_max, nr_min = _search_extrema(
+            w_in,
+            a_delta_max_in,
+            a_delta_min_in,
+            a_abs_max_in,
+            a_abs_min_in,
+            right_vt_max,
+            right_vt_min,
+            True,
+        )
+    if search_direction == 0:
+        n_max_out[0] = nl_max
+        n_min_out[0] = nl_min
+        for k in range(len(vt_max_out)):
+            vt_max_out[k] = left_vt_max[k]
+            vt_min_out[k] = left_vt_min[k]
+    elif search_direction == 1:
+        n_max_out[0] = nr_max
+        n_min_out[0] = nr_min
+        for k in range(len(vt_max_out)):
+            vt_max_out[k] = right_vt_max[k]
+            vt_min_out[k] = right_vt_min[k]
+    elif search_direction == 3:
+        n_max_out[0] = _merge_unique(left_vt_max, right_vt_max, merged, vt_max_out)
+        n_min_out[0] = _merge_unique(left_vt_min, right_vt_min, merged, vt_min_out)

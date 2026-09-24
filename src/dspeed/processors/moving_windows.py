@@ -2,12 +2,88 @@
 
 from __future__ import annotations
 
+import numba
 import numpy as np
 from numba import guvectorize
 
 from ..errors import DSPFatal
 from ..utils import numba_defaults_kwargs as nb_kwargs
-from .utils import contains_nan
+from .utils import contains_nan, nb_kwargs_util
+
+
+@numba.njit(**nb_kwargs_util)
+def _mw_pass(src: np.ndarray, dst: np.ndarray, length: float, reverse: bool) -> None:
+    """One moving-average pass of :func:`moving_window_multi`: dst <- window(src), right to
+    left if ``reverse``. The running value is kept in a local of dst's dtype (same arithmetic
+    and rounding as accumulating in dst)."""
+    n = len(src)
+    lw = int(length)
+    if reverse:
+        last = src[n - 1]
+        acc = last
+        dst[n - 1] = acc
+        for i in range(1, lw, 1):
+            acc = acc + (src[n - 1 - i] - last) / length
+            dst[n - 1 - i] = acc
+        for i in range(lw, n, 1):
+            acc = acc + (src[n - 1 - i] - src[n - 1 - i + lw]) / length
+            dst[n - 1 - i] = acc
+    else:
+        first = src[0]
+        acc = first
+        dst[0] = acc
+        for i in range(1, lw):
+            acc = acc + (src[i] - first) / length
+            dst[i] = acc
+        for i in range(lw, n):
+            acc = acc + (src[i] - src[i - lw]) / length
+            dst[i] = acc
+
+
+@numba.njit(**nb_kwargs_util)
+def _moving_window_multi_core(
+    w_in: np.ndarray,
+    length: float,
+    num_mw: int,
+    mw_type: int,
+    w_out: np.ndarray,
+    w_buf: np.ndarray,
+) -> None:
+    """Body of :func:`moving_window_multi` with the scratch buffer ``w_buf``
+    (same shape as ``w_in``) supplied by the caller, so that callers that
+    cannot allocate (e.g. CUDA device code) can use it."""
+    w_out[:] = np.nan
+
+    if contains_nan(w_in):
+        return
+
+    if np.floor(length) != length:
+        raise DSPFatal("The length of the moving window must be an integer")
+
+    if np.floor(num_mw) != num_mw:
+        raise DSPFatal("The number of moving windows must be an integer")
+
+    if int(length) < 0 or int(length) >= len(w_in):
+        raise DSPFatal("The length of the moving window is out of range")
+
+    if int(num_mw) < 0:
+        raise DSPFatal("The number of moving windows much be positive")
+
+    # passes alternate between w_buf and w_out (pass 0 reads w_in) so that the last one writes
+    # w_out: no per-pass copy. Each pass is the same computation as before (see _mw_pass).
+    nmw = int(num_mw)
+    for k in range(0, nmw, 1):
+        reverse = ((k % 2 == 1) & (mw_type == 0)) | (mw_type == 2)
+        to_out = (nmw - 1 - k) % 2 == 0
+        if k == 0:
+            if to_out:
+                _mw_pass(w_in, w_out, length, reverse)
+            else:
+                _mw_pass(w_in, w_buf, length, reverse)
+        elif to_out:
+            _mw_pass(w_buf, w_out, length, reverse)
+        else:
+            _mw_pass(w_out, w_buf, length, reverse)
 
 
 @guvectorize(
@@ -160,48 +236,7 @@ def moving_window_multi(
             - curr_av
           unit: ADC/sample
     """
-    w_out[:] = np.nan
-
-    if contains_nan(w_in):
-        return
-
-    if np.floor(length) != length:
-        raise DSPFatal("The length of the moving window must be an integer")
-
-    if np.floor(num_mw) != num_mw:
-        raise DSPFatal("The number of moving windows must be an integer")
-
-    if int(length) < 0 or int(length) >= len(w_in):
-        raise DSPFatal("The length of the moving window is out of range")
-
-    if int(num_mw) < 0:
-        raise DSPFatal("The number of moving windows much be positive")
-
-    w_buf = w_in.copy()
-    for i in range(0, int(num_mw), 1):
-        if ((i % 2 == 1) & (mw_type == 0)) | (mw_type == 2):
-            w_out[-1] = w_buf[-1]
-            for i in range(1, int(length), 1):
-                w_out[len(w_buf) - 1 - i] = (
-                    w_out[len(w_buf) - i]
-                    + (w_buf[len(w_buf) - 1 - i] - w_out[-1]) / length
-                )
-            for i in range(int(length), len(w_buf), 1):
-                w_out[len(w_buf) - 1 - i] = (
-                    w_out[len(w_buf) - i]
-                    + (
-                        w_buf[len(w_buf) - 1 - i]
-                        - w_buf[len(w_buf) - 1 - i + int(length)]
-                    )
-                    / length
-                )
-        else:
-            w_out[0] = w_buf[0]
-            for i in range(1, int(length)):
-                w_out[i] = w_out[i - 1] + (w_buf[i] - w_buf[0]) / length
-            for i in range(int(length), len(w_buf)):
-                w_out[i] = w_out[i - 1] + (w_buf[i] - w_buf[i - int(length)]) / length
-        w_buf = w_out.copy()
+    _moving_window_multi_core(w_in, length, num_mw, mw_type, w_out, np.empty_like(w_in))
 
 
 @guvectorize(
@@ -246,5 +281,6 @@ def avg_current(w_in: np.ndarray, length: float, w_out: np.ndarray) -> None:
             "length is out of range, must be between 0 and the length of the waveform"
         )
 
-    w_out[:] = w_in[int(length) :] - w_in[: -int(length)]
-    w_out /= length
+    for i in range(min(len(w_out), len(w_in) - int(length))):
+        w_out[i] = w_in[int(length) + i] - w_in[i]
+        w_out[i] /= length

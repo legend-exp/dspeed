@@ -46,10 +46,15 @@ def windower(w_in: np.ndarray, t0_in: int, w_out: np.ndarray) -> None:
     beg = min(int(t0_in), len(w_in))
     end = max(beg + len(w_out), 0)
     if beg < 0:
-        w_out[: len(w_out) - end] = np.nan
-        w_out[len(w_out) - end :] = w_in[:end]
+        for i in range(len(w_out) - end):
+            w_out[i] = np.nan
+        for i in range(end):
+            w_out[len(w_out) - end + i] = w_in[i]
     elif end < len(w_in):
-        w_out[:] = w_in[beg:end]
+        for i in range(end - beg):
+            w_out[i] = w_in[beg + i]
     else:
-        w_out[: len(w_in) - beg] = w_in[beg : len(w_in)]
-        w_out[len(w_in) - beg :] = np.nan
+        for i in range(len(w_in) - beg):
+            w_out[i] = w_in[beg + i]
+        for i in range(len(w_in) - beg, len(w_out)):
+            w_out[i] = np.nan

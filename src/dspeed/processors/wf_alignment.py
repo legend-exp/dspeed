@@ -80,10 +80,15 @@ def wf_alignment(
         raise DSPFatal("size must be shorter than input waveform size")
 
     if (centroid >= size / 2) and (centroid < len(w_in) - size / 2):
-        w_out[:] = w_in[int(centroid - size / 2) : int(centroid + size / 2)]
+        start = int(centroid - size / 2)
+        for i in range(int(centroid + size / 2) - start):
+            w_out[i] = w_in[start + i]
     elif (centroid > size / 2 - shift) and (centroid < size / 2):
         ss = int((size + 1) / 2 - centroid)
-        w_out[:ss] = w_in[0]
-        w_out[ss:] = w_in[: int(centroid + size / 2)]
+        for i in range(ss):
+            w_out[i] = w_in[0]
+        for i in range(int(centroid + size / 2)):
+            w_out[ss + i] = w_in[i]
     else:
-        w_out[:] = w_in[:size]
+        for i in range(int(size)):
+            w_out[i] = w_in[i]

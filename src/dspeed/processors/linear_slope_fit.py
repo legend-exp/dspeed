@@ -145,7 +145,7 @@ def linear_slope_diff(
     mean[0] = np.nan
     rms[0] = np.nan
 
-    if contains_nan(w_in) or np.isnan(slope) or np.isnan(intercept):
+    if contains_nan(w_in) or np.isnan(slope[0]) or np.isnan(intercept[0]):
         return
 
     mean[0] = rms[0] = 0

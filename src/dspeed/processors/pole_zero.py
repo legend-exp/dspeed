@@ -175,28 +175,26 @@ def double_pole_zero(
     transfer_num_2 = a * b
 
     # Create a buffer of float64s, because performing the recursion at float32 causes instabilities in the filter due to truncation
-    w_tmp = np.zeros(3, dtype=np.float64)
-
-    # Initialize the arrays for recursion
-    w_tmp[0] = w_in[0]
-    w_tmp[1] = w_in[1]
+    # (held in float64 scalars rather than a scratch array, so that no allocation is needed)
+    w_tmp0 = np.float64(w_in[0])
+    w_tmp1 = np.float64(w_in[1])
 
     w_out[0] = w_in[0]
     w_out[1] = w_in[1]
 
     for i in range(2, len(w_in), 1):
-        w_tmp[2] = (
+        w_tmp2 = (
             w_in[i]
             + transfer_num_1 * w_in[i - 1]
             + transfer_num_2 * w_in[i - 2]
-            - transfer_denom_1 * w_tmp[1]
-            - transfer_denom_2 * w_tmp[0]
+            - transfer_denom_1 * w_tmp1
+            - transfer_denom_2 * w_tmp0
         )
 
-        w_out[i] = w_tmp[2]  # Put the higher precision buffer into the desired output
+        w_out[i] = w_tmp2  # Put the higher precision buffer into the desired output
         # Shuffle the buffer for the next iteration
-        w_tmp[0] = w_tmp[1]
-        w_tmp[1] = w_tmp[2]
+        w_tmp0 = w_tmp1
+        w_tmp1 = w_tmp2
 
 
 @guvectorize(

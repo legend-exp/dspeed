@@ -131,11 +131,16 @@ def min_max_norm(
     if contains_nan(w_in):
         return
 
+    # w_out[..., i]: element loops (no temporaries) that also accept the (1, n)
+    # output the pure-python GUFuncWrapper path passes when scalars are length-1 arrays
     if abs(a_max[0]) == 0 or abs(a_min[0]) == 0:
-        w_out[:] = w_in[:]
+        for i in range(len(w_in)):
+            w_out[..., i] = w_in[i]
 
     elif abs(a_max[0]) >= abs(a_min[0]):
-        w_out[:] = w_in[:] / abs(a_max[0])
+        for i in range(len(w_in)):
+            w_out[..., i] = w_in[i] / abs(a_max[0])
 
     elif abs(a_max[0]) < abs(a_min[0]):
-        w_out[:] = w_in[:] / abs(a_min[0])
+        for i in range(len(w_in)):
+            w_out[..., i] = w_in[i] / abs(a_min[0])
