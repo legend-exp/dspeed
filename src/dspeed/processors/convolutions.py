@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numba
 import numpy as np
 from numba import guvectorize
 from scipy.signal import fftconvolve
@@ -9,6 +10,7 @@ from scipy.signal import fftconvolve
 from ..errors import DSPFatal
 from ..utils import dspeed_guvectorize
 from ..utils import numba_defaults_kwargs as nb_kwargs
+from .utils import contains_nan, nb_kwargs_util
 
 
 @guvectorize(
@@ -180,3 +182,53 @@ def reflected_convolve_wf(
     w_out[:] = np.convolve(extended_signal, kernel, mode="same")[
         extension_length:-extension_length
     ]
+
+
+@numba.njit(**nb_kwargs_util)
+def _convolve_wf_core(w_in, kernel, mode_in, w_out) -> None:
+    """:func:`convolve_wf` without np.convolve, for callers that cannot allocate or call BLAS
+    (CUDA device code). It follows numba's np.convolve (correlate with the reversed kernel:
+    left overlap, full overlap, right overlap) with a sequential inner product in the output
+    dtype; np.convolve uses BLAS dot for floats, whose summation order differs, so results
+    can differ in the last bits. Modes as character codes: f=102, v=118, s=115."""
+    for i in range(len(w_out)):
+        w_out[i] = np.nan
+    if contains_nan(w_in) or contains_nan(kernel):
+        return
+    n1 = len(w_in)
+    n = len(kernel)
+    if n > n1:
+        raise DSPFatal("The filter is longer than the input waveform")
+    if mode_in == 102:
+        n_left = n - 1
+        n_right = n - 1
+    elif mode_in == 118:
+        n_left = 0
+        n_right = 0
+    elif mode_in == 115:
+        n_left = n // 2
+        n_right = n - n_left - 1
+    else:
+        raise DSPFatal("Invalid mode")
+    dt = w_out.dtype.type
+    idx = 0
+    for i in range(n_left):                 # innerprod(w_in[:k], kernel[::-1][-k:])
+        k = i + n - n_left
+        acc = dt(0)
+        for t in range(k):
+            acc = acc + w_in[t] * kernel[k - 1 - t]
+        w_out[idx] = acc
+        idx += 1
+    for i in range(n1 - n + 1):             # innerprod(w_in[i:i+n], kernel[::-1])
+        acc = dt(0)
+        for t in range(n):
+            acc = acc + w_in[i + t] * kernel[n - 1 - t]
+        w_out[idx] = acc
+        idx += 1
+    for i in range(n_right):                # innerprod(w_in[-k:], kernel[::-1][:k])
+        k = n - i - 1
+        acc = dt(0)
+        for t in range(k):
+            acc = acc + w_in[n1 - k + t] * kernel[n - 1 - t]
+        w_out[idx] = acc
+        idx += 1
