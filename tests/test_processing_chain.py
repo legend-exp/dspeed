@@ -917,3 +917,41 @@ def test_init_args(geds_raw_tbl):
         },
     }
     build_dsp(geds_raw_tbl, dsp_config=dsp_config, n_entries=1)
+
+
+def test_vov_output_unit_conversion_first_block():
+    # A VectorOfVectors output in different units than its variable (sample
+    # index -> ns) must be converted in every block, including the first.
+    n_wfs, wf_len = 10, 20
+    peaks = np.arange(n_wfs) % 15 + 2
+    values = np.zeros((n_wfs, wf_len), dtype="float32")
+    values[np.arange(n_wfs), peaks] = 10
+    tb_in = lgdo.Table(
+        {"waveform": lgdo.WaveformTable(values=values, dt=16, dt_units="ns", t0=0)}
+    )
+    dsp_config = {
+        "outputs": ["tp_max"],
+        "processors": {
+            "tp_max, tp_min, n_max, n_min": {
+                "function": "get_multi_local_extrema",
+                "module": "dspeed.processors",
+                "args": [
+                    "waveform",
+                    5,
+                    5,
+                    0,
+                    5,
+                    -100,
+                    "tp_max(5, vector_len=n_max)",
+                    "tp_min(5, vector_len=n_min)",
+                    "n_max",
+                    "n_min",
+                ],
+                "unit": ["ns", "ns", "", ""],
+            }
+        },
+    }
+    tb_out = build_dsp(tb_in, dsp_config=dsp_config, block_width=4)
+    assert tb_out.tp_max.attrs["units"] == "ns"
+    assert np.array_equal(tb_out.tp_max.cumulative_length.nda, np.arange(1, n_wfs + 1))
+    assert np.array_equal(tb_out.tp_max.flattened_data.nda, peaks * 16.0)
