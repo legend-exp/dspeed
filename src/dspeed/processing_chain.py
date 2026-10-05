@@ -1906,6 +1906,7 @@ class UnitConversionManager(ProcessorManager):
         else:
             execute.__code__ = execute.__code__.replace(co_name=str(self))
         self.execute = execute
+        self.execute()
 
 
 class IOManager(metaclass=ABCMeta):
