@@ -1,13 +1,89 @@
 from __future__ import annotations
 
+import logging
 import os
+import shutil
 from abc import ABCMeta
 from collections.abc import Callable, Collection, Iterator, MutableMapping
+from pathlib import Path
 from typing import Any
 
 import numba
 import numpy as np
-from numba.np.ufunc import sigparse
+
+log = logging.getLogger("dspeed")
+
+
+def precompile_numba():
+    """Precompile and cache (if caching is enabled) all numba processors"""
+    from dspeed import processors
+
+    for proc in processors.__all__:
+        getattr(processors, proc)
+        log.info(f"Compiled {proc}.")
+
+
+def clean_numba_cache():
+    """Find and remove all cached numba files associated with this dspeed installation"""
+    cache_dirs = list(Path(__file__).parent.resolve().rglob("__pycache__"))
+    subpaths = [
+        numba.core.caching._CacheLocator.get_suitable_cache_subpath(d)
+        for d in cache_dirs
+    ]
+
+    # explicit cache dir
+    numba_cache = Path(numba.config.CACHE_DIR)
+    if not numba.config.CACHE_DIR or not numba_cache.is_dir():
+        log.info("NUMBA_CACHE_DIR not set; skipping...")
+    else:
+        log.info(
+            f"Cleaning dspeed cache at NUMBA_CACHE_DIR ({numba.config.CACHE_DIR})..."
+        )
+
+        for sp in subpaths:
+            log.info(f"  Cleaning {sp}")
+            cache_dir = numba_cache / sp
+            if not cache_dir.is_dir():
+                continue
+
+            for f in cache_dir.rglob("*"):
+                log.debug(f"rm {f}")
+                f.unlink()
+
+            log.debug(f"rm -rf {cache_dir}")
+            shutil.rmtree(cache_dir)
+
+    # in-tree
+    log.info("Cleaning in-tree dspeed cache...")
+
+    for cache in cache_dirs:
+        log.info(f"  Cleaning {cache}")
+        for f in list(cache.glob("*.nb?")):
+            log.debug(f"rm {f}")
+            f.unlink()
+
+    # user cache
+    user_cache = Path(numba.misc.appdirs.user_cache_dir("numba"))
+    if not numba.misc.appdirs.user_cache_dir("numba") or not user_cache.is_dir():
+        log.info("No user cache found; skipping...")
+    else:
+        log.info(f"Cleaning user dspeed cache ({user_cache})...")
+
+        for sp in subpaths:
+            log.info(f"  Cleaning {sp}")
+            cache_dir = user_cache / sp
+            if not cache_dir.is_dir():
+                continue
+
+            for f in cache_dir.rglob("*"):
+                log.debug(f"rm {f}")
+                f.unlink()
+
+            log.debug(f"rm -rf {cache_dir}")
+            shutil.rmtree(cache_dir)
+
+    # Note: there is also an IPython cache but this should not be used for dspeed.
+    # If we find situations where it is, we may have to implement its cleanup
 
 
 class GUFuncWrapper:
@@ -87,7 +163,9 @@ class GUFuncWrapper:
             )
         else:
             # numpy signature parser can't handle no outputs
-            self.in_dims, self.out_dims = sigparse.parse_signature(signature)
+            self.in_dims, self.out_dims = numba.np.ufunc.sigparse.parse_signature(
+                signature
+            )
 
         self.nin = len(self.in_dims)
         self.nout = len(self.out_dims)
@@ -257,28 +335,3 @@ class ProcChainVarBase(metaclass=ABCMeta):
     """
 
     pass
-
-
-@numba.njit(cache=numba_defaults.cache, boundscheck=numba_defaults.boundscheck)
-def contains_nan(w: np.ndarray) -> bool:
-    """Return whether any element of `w` is NaN.
-
-    Drop-in replacement for ``np.isnan(w).any()`` inside nopython numba
-    kernels, where that expression allocates a boolean array and always
-    scans the full input. This scan allocates nothing and exits early on
-    NaN; the fixed-width inner loop has no early exit so LLVM can
-    vectorize it.
-    """
-    n = len(w)
-    i = 0
-    while i + 64 <= n:
-        found = False
-        for j in range(i, i + 64):
-            found |= w[j] != w[j]
-        if found:
-            return True
-        i += 64
-    for j in range(i, n):
-        if w[j] != w[j]:
-            return True
-    return False

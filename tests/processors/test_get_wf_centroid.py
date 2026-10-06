@@ -8,6 +8,16 @@ from dspeed.processors import get_wf_centroid
 def test_get_wf_centroid(compare_numba_vs_python):
     len_wf = 20
 
+    w_in = np.ones(len_wf)
+    w_in[10:] = -1
+    assert compare_numba_vs_python(get_wf_centroid, w_in, 0) == 10.0
+    assert compare_numba_vs_python(get_wf_centroid, w_in, 1) == 11.0
+
+    w_in = np.ones(len_wf)
+    w_in[:10] = -1
+    assert compare_numba_vs_python(get_wf_centroid, w_in, 0) == 10.0
+    assert compare_numba_vs_python(get_wf_centroid, w_in, 1) == 11.0
+
     # test for nan if w_in has a nan
     w_in = np.ones(len_wf)
     w_in[4] = np.nan
