@@ -34,6 +34,19 @@ def windower(w_in: np.ndarray, t0_in: int, w_out: np.ndarray) -> None:
         the starting index of the window.
     w_out
         the windowed waveform.
+
+    YAML Configuration Example
+    --------------------------
+    window a waveform 5*us from the start, with 1/4 the length:
+
+    .. code-block:: yaml
+
+        wf_windowed:
+          function: dspeed.processors.windower
+          args:
+            - waveform
+            - 5*us
+            - wf_windowed(len(waveform)//4, offset=5*us, period=waveform.period)
     """
     w_out[:] = np.nan
 
