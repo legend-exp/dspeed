@@ -11,6 +11,8 @@ ERROR = logging.ERROR
 FATAL = logging.FATAL
 CRITICAL = logging.CRITICAL
 
+log = logging.getLogger(__package__)
+
 
 def setup(level: int = logging.INFO, logger: logging.Logger = None) -> None:
     """Setup a colorful logging output.
@@ -39,7 +41,7 @@ def setup(level: int = logging.INFO, logger: logging.Logger = None) -> None:
     )
 
     if logger is None:
-        logger = colorlog.getLogger("dspeed")
+        logger = colorlog.getLogger(__package__)
 
     logger.setLevel(level)
     logger.addHandler(handler)

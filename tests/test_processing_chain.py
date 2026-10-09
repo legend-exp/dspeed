@@ -2,8 +2,105 @@ import lgdo
 import numpy as np
 import pytest
 
-from dspeed import build_dsp
+from dspeed import ProcessingChain, build_dsp
 from dspeed.errors import ProcessingChainError
+
+
+def test_processing_chain_io():
+    # Test a simple processing chain to check IO buffers and processor calling
+    # More complex tests will use build_dsp
+    tb_in = lgdo.Table(
+        {
+            "waveform": lgdo.WaveformTable(
+                values=np.arange(100).reshape(10, 10),
+                dt=1.0,
+                t0=0.0,
+            ),
+            "array": lgdo.Array(
+                nda=np.arange(10),
+                attrs={"units": "ADC"},
+            ),
+            "aoa": lgdo.ArrayOfEqualSizedArrays(
+                nda=np.arange(100).reshape(10, 10),
+                attrs={"units": "ADC"},
+            ),
+            "vov": lgdo.VectorOfVectors(
+                flattened_data=np.arange(89),
+                cumulative_length=[1, 2, 3, 5, 8, 13, 21, 34, 55, 89],
+                attrs={"units": "ADC"},
+            ),
+        }
+    )
+
+    proc_chain = ProcessingChain(block_width=4, buffer_len=10)
+    proc_chain.link_input_buffer("waveform", tb_in.waveform)
+    proc_chain.link_input_buffer("array", tb_in.array)
+    proc_chain.link_input_buffer("aoa", tb_in.aoa)
+    proc_chain.add_variable("vov", shape=50)
+    proc_chain.link_input_buffer(
+        "vov",
+        tb_in.vov,
+    )
+
+    # Test by constructing output buffers and calling execute directly
+    tb_out = lgdo.Table(
+        {
+            "waveform": proc_chain.link_output_buffer("waveform"),
+            "array": proc_chain.link_output_buffer("array"),
+            "aoa": proc_chain.link_output_buffer("aoa"),
+            "vov": proc_chain.link_output_buffer("vov"),
+        }
+    )
+
+    # test in-place execution
+    proc_chain.execute()
+    assert tb_out == tb_in
+
+    # test in place execution on only part of buffer
+    tb_in.array.nda[:] += 10
+    proc_chain.execute(5, 8)
+    assert len(tb_out.array) == 8
+    assert np.all(tb_out.array.nda[:5] == np.arange(5))
+    assert np.all(tb_out.array.nda[5:8] == np.arange(15, 18))
+
+    # test in place execution with __call__
+    proc_chain(tb_in, out=tb_out)
+    assert tb_out == tb_in
+
+    # test execution creating new tb
+    # Note this is also testing linking of new output buffer
+    tb_out2 = proc_chain(tb_in)
+    assert tb_out2 == tb_in
+
+    # test execution with new tb_in with different shape
+    tb_in2 = lgdo.Table(
+        {
+            "waveform": lgdo.WaveformTable(
+                values=np.arange(100, 180).reshape(8, 10),
+                dt=1.0,
+                t0=0.0,
+            ),
+            "array": lgdo.Array(
+                nda=np.arange(10, 18),
+                attrs={"units": "ADC"},
+            ),
+            "aoa": lgdo.ArrayOfEqualSizedArrays(
+                nda=np.arange(100, 180).reshape(8, 10),
+                attrs={"units": "ADC"},
+            ),
+            "vov": lgdo.VectorOfVectors(
+                flattened_data=np.arange(49),
+                cumulative_length=[0, 1, 4, 9, 16, 25, 36, 49],
+                attrs={"units": "ADC"},
+            ),
+        }
+    )
+    proc_chain(tb_in2, out=tb_out)
+    assert tb_in2 == tb_out
+
+    # Now do both tb_in and tb_in2 with new output arrays for good measure
+    assert tb_in == proc_chain(tb_in)
+    assert tb_in2 == proc_chain(tb_in2)
 
 
 def test_waveform_slicing(geds_raw_tbl):
@@ -323,7 +420,14 @@ def test_proc_chain_unit_conversion(spms_raw_tbl):
 # a windowed wf and a down-sampled waveform; they should be the same
 def test_proc_chain_coordinate_grid(spms_raw_tbl):
     dsp_config = {
-        "outputs": ["a_window", "a_downsample", "tp", "tp_window", "tp_downsample"],
+        "outputs": [
+            "a_window",
+            "a_downsample",
+            "tp",
+            "tp_window",
+            "tp_downsample",
+            "tp_max_vov",
+        ],
         "processors": {
             "a_window": {
                 "function": "fixed_time_pickoff",
@@ -348,14 +452,12 @@ def test_proc_chain_coordinate_grid(spms_raw_tbl):
                 "unit": ["ADC"],
             },
             "tp": {
-                "function": "time_point_thresh",
-                "module": "dspeed.processors",
+                "function": "dspeed.processors.time_point_thresh",
                 "args": ["waveform", "a_window", "52.48*us+waveform.offset", 0, "tp"],
                 "unit": "ns",
             },
             "tp_window": {
-                "function": "time_point_thresh",
-                "module": "dspeed.processors",
+                "function": "dspeed.processors.time_point_thresh",
                 "args": [
                     "waveform[2625:4025]",
                     "a_window",
@@ -366,8 +468,7 @@ def test_proc_chain_coordinate_grid(spms_raw_tbl):
                 "unit": "ns",
             },
             "tp_downsample": {
-                "function": "time_point_thresh",
-                "module": "dspeed.processors",
+                "function": "dspeed.processors.time_point_thresh",
                 "args": [
                     "waveform[0:8000:8]",
                     "a_window",
@@ -377,6 +478,21 @@ def test_proc_chain_coordinate_grid(spms_raw_tbl):
                 ],
                 "unit": "ns",
             },
+            "tp_max_vov, tp_min_vov, n_max, n_min": {
+                "function": "dspeed.processors.get_multi_local_extrema",
+                "args": [
+                    "waveform",
+                    20,
+                    20,
+                    0,
+                    "waveform[0]+20",
+                    "waveform[0]",
+                    "tp_max_vov(shape=50, vector_len=n_max, unit='ns')",
+                    "tp_min_vov(shape=50, vector_len=n_min, unit='ns')",
+                    "n_max",
+                    "n_min",
+                ],
+            },
         },
     }
 
@@ -384,6 +500,10 @@ def test_proc_chain_coordinate_grid(spms_raw_tbl):
     assert lh5_out["a_window"][0] == lh5_out["a_downsample"][0]
     assert lh5_out["tp_window"][0] == lh5_out["tp"][0]
     assert -128 < lh5_out["tp_downsample"][0] - lh5_out["tp"][0] < 128
+    assert np.all(
+        lh5_out["tp_max_vov"][0]
+        == np.array([20752.0, 27456.0, 40864.0, 63152.0, 64160.0, 82000.0])
+    )
 
 
 def test_proc_chain_round(spms_raw_tbl):
