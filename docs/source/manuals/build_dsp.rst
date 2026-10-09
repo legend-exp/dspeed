@@ -64,6 +64,22 @@ The signal processors are configured with the ``dsp-config.json`` JSON file
    See :func:`~.dsp.build_dsp.build_dsp` and ``dspeed --help`` for a
    full list of conversion options.
 
+Numba cache management
+----------------------
+``dspeed`` caches compiled numba functions to speed up loading of the library.
+There are rare situations in which the caching mechanism can cause problems (typically
+generating segmentation faults); these situations include cache invalidation
+when updating numba and its dependencies, and race conditions if multiple processes
+are trying to compile and cache processors at the same time. If this occurs, use the
+``dspeed-nbcache`` CLI tool to clean and force-compile the numba functions:
+.. code-block:: console
+
+    $ dspeed clean
+    $ dspeed-nbcache precompile
+
+Numba enables global control of the cache location using `environment variables
+<https://numba.readthedocs.io/en/stable/reference/envvars.html#numba-envvars-caching>`_.
+
 Writing custom processors
 -------------------------
 

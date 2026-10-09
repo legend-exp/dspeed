@@ -11,7 +11,7 @@ from typing import Any
 import numba
 import numpy as np
 
-log = logging.getLogger("dspeed")
+log = logging.getLogger(__name__)
 
 
 def precompile_numba():
