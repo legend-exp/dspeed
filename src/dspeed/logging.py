@@ -13,6 +13,7 @@ CRITICAL = logging.CRITICAL
 
 log = logging.getLogger(__package__)
 
+
 def setup(level: int = logging.INFO, logger: logging.Logger = None) -> None:
     """Setup a colorful logging output.
 

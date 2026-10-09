@@ -8,4 +8,10 @@ from .build_dsp import build_dsp
 from .logging import log
 from .processing_chain import ProcessingChain, build_processing_chain
 
-__all__ = ["build_dsp", "log", "ProcessingChain", "build_processing_chain", "__version__"]
+__all__ = [
+    "build_dsp",
+    "log",
+    "ProcessingChain",
+    "build_processing_chain",
+    "__version__",
+]
