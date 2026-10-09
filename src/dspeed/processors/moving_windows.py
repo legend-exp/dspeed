@@ -55,11 +55,17 @@ def moving_window_left(w_in: np.ndarray, length: float, w_out: np.ndarray) -> No
             "length is out of range, must be between 0 and the length of the waveform"
         )
 
-    w_out[0] = w_in[0]
+    # carry the accumulator in a register (cast back to the element dtype
+    # each step so results match the store/reload version bitwise)
+    tp = w_in.dtype.type
+    acc = w_in[0]
+    w_out[0] = acc
     for i in range(1, int(length)):
-        w_out[i] = w_out[i - 1] + (w_in[i] - w_in[0]) / length
+        acc = tp(acc + (w_in[i] - w_in[0]) / length)
+        w_out[i] = acc
     for i in range(int(length), len(w_in)):
-        w_out[i] = w_out[i - 1] + (w_in[i] - w_in[i - int(length)]) / length
+        acc = tp(acc + (w_in[i] - w_in[i - int(length)]) / length)
+        w_out[i] = acc
 
 
 @guvectorize(
@@ -103,16 +109,18 @@ def moving_window_right(w_in: np.ndarray, length: float, w_out: np.ndarray) -> N
             "length is out of range, must be between 0 and the length of the waveform"
         )
 
-    w_out[-1] = w_in[-1]
+    # carry the accumulator in a register (cast back to the element dtype
+    # each step so results match the store/reload version bitwise)
+    tp = w_in.dtype.type
+    m = len(w_in)
+    acc = w_in[-1]
+    w_out[-1] = acc
     for i in range(1, int(length), 1):
-        w_out[len(w_in) - 1 - i] = (
-            w_out[len(w_in) - i] + (w_in[len(w_in) - 1 - i] - w_out[-1]) / length
-        )
-    for i in range(int(length), len(w_in), 1):
-        w_out[len(w_in) - 1 - i] = (
-            w_out[len(w_in) - i]
-            + (w_in[len(w_in) - 1 - i] - w_in[len(w_in) - 1 - i + int(length)]) / length
-        )
+        acc = tp(acc + (w_in[m - 1 - i] - w_in[-1]) / length)
+        w_out[m - 1 - i] = acc
+    for i in range(int(length), m, 1):
+        acc = tp(acc + (w_in[m - 1 - i] - w_in[m - 1 - i + int(length)]) / length)
+        w_out[m - 1 - i] = acc
 
 
 @guvectorize(
@@ -177,31 +185,45 @@ def moving_window_multi(
     if int(num_mw) < 0:
         raise DSPFatal("The number of moving windows much be positive")
 
-    w_buf = w_in.copy()
-    for i in range(0, int(num_mw), 1):
-        if ((i % 2 == 1) & (mw_type == 0)) | (mw_type == 2):
-            w_out[-1] = w_buf[-1]
+    # ping-pong between w_out and one scratch buffer instead of copying the
+    # full waveform after every pass; the start buffer is chosen so the last
+    # pass always writes into w_out
+    n = len(w_in)
+    tp = w_in.dtype.type
+    scratch = np.empty(n, w_in.dtype)
+    if int(num_mw) % 2 == 1:
+        dst, alt = w_out, scratch
+    else:
+        dst, alt = scratch, w_out
+
+    w_buf = w_in
+    for k in range(0, int(num_mw), 1):
+        if ((k % 2 == 1) & (mw_type == 0)) | (mw_type == 2):
+            acc = w_buf[-1]
+            dst[-1] = acc
             for i in range(1, int(length), 1):
-                w_out[len(w_buf) - 1 - i] = (
-                    w_out[len(w_buf) - i]
-                    + (w_buf[len(w_buf) - 1 - i] - w_out[-1]) / length
+                acc = tp(acc + (w_buf[n - 1 - i] - w_buf[-1]) / length)
+                dst[n - 1 - i] = acc
+            for i in range(int(length), n, 1):
+                acc = tp(
+                    acc + (w_buf[n - 1 - i] - w_buf[n - 1 - i + int(length)]) / length
                 )
-            for i in range(int(length), len(w_buf), 1):
-                w_out[len(w_buf) - 1 - i] = (
-                    w_out[len(w_buf) - i]
-                    + (
-                        w_buf[len(w_buf) - 1 - i]
-                        - w_buf[len(w_buf) - 1 - i + int(length)]
-                    )
-                    / length
-                )
+                dst[n - 1 - i] = acc
         else:
-            w_out[0] = w_buf[0]
+            # carry the accumulator in a register (cast back to the element
+            # dtype each step so results match the store/reload version
+            # bitwise); indexing dst[i-1] forces a reload since numba cannot
+            # prove dst and w_buf don't alias
+            acc = w_buf[0]
+            dst[0] = acc
             for i in range(1, int(length)):
-                w_out[i] = w_out[i - 1] + (w_buf[i] - w_buf[0]) / length
-            for i in range(int(length), len(w_buf)):
-                w_out[i] = w_out[i - 1] + (w_buf[i] - w_buf[i - int(length)]) / length
-        w_buf = w_out.copy()
+                acc = tp(acc + (w_buf[i] - w_buf[0]) / length)
+                dst[i] = acc
+            for i in range(int(length), n):
+                acc = tp(acc + (w_buf[i] - w_buf[i - int(length)]) / length)
+                dst[i] = acc
+        w_buf = dst
+        dst, alt = alt, dst
 
 
 @guvectorize(
