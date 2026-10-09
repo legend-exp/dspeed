@@ -21,7 +21,7 @@ from yaml import safe_load
 from .errors import DSPFatal, ProcessingChainError
 from .processing_chain import build_processing_chain
 
-log = logging.getLogger("dspeed")
+log = logging.getLogger(__name__)
 
 
 def build_dsp(

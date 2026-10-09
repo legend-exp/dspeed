@@ -32,7 +32,7 @@ from .errors import DSPFatal, ProcessingChainError
 from .units import unit_registry as ureg
 from .utils import GUFuncWrapper, ProcChainVarBase
 
-log = logging.getLogger("dspeed")
+log = logging.getLogger(__name__)
 
 # Filler value for variables to be automatically deduced later
 auto = "auto"
