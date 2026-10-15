@@ -13,6 +13,7 @@ import logging
 import re
 import sys
 import time
+import weakref
 from abc import ABCMeta, abstractmethod
 from collections.abc import Collection, MutableMapping
 from copy import deepcopy
@@ -193,7 +194,7 @@ class ProcChainVar(ProcChainVarBase):
             dimension of size _block_width
         """
         assert isinstance(proc_chain, ProcessingChain) and isinstance(name, str)
-        self.proc_chain = proc_chain
+        self._proc_chain_ref = weakref.ref(proc_chain)
         self.name = name
 
         # ndarray containing data buffer of size block_width x shape
@@ -209,6 +210,10 @@ class ProcChainVar(ProcChainVarBase):
         self.is_const = is_const
 
         log.debug(f"added variable: {self.description()}")
+
+    @property
+    def proc_chain(self):
+        return self._proc_chain_ref()
 
     # Use this to enforce type constraints and perform conversions
     def __setattr__(self, name: str, value: Any) -> None:
@@ -1513,7 +1518,7 @@ class ProcessorManager:
             kw_params = {}
 
         # reference back to our processing chain
-        self.proc_chain = proc_chain
+        self._proc_chain_ref = weakref.ref(proc_chain)
         # callable function used to process data
         self.processor = func
         # list of parameters prior to converting to internal representation
@@ -1794,6 +1799,10 @@ class ProcessorManager:
 
         self.execute = execute
 
+    @property
+    def proc_chain(self):
+        return self._proc_chain_ref()
+
     def __str__(self) -> str:
         return (
             self.processor.__name__
@@ -1816,7 +1825,7 @@ class UnitConversionManager(ProcessorManager):
         mode=None,
     ) -> None:
         # reference back to our processing chain
-        self.proc_chain = var.proc_chain
+        self._proc_chain_ref = weakref.ref(var.proc_chain)
         # callable function used to process data
         from .processors.unit_conversion import (
             convert,
