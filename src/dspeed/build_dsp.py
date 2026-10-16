@@ -243,6 +243,9 @@ def build_dsp(
                 this_config = config
                 break
 
+        if not this_config:
+            continue
+
         # get the DB values
         if tb not in ("", "raw"):
             chan_name = next(k for k in tb.split("/") if k not in ("", "raw"))

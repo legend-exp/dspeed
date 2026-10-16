@@ -1,3 +1,5 @@
+import weakref
+
 import lgdo
 import numpy as np
 import pytest
@@ -101,6 +103,68 @@ def test_processing_chain_io():
     # Now do both tb_in and tb_in2 with new output arrays for good measure
     assert tb_in == proc_chain(tb_in)
     assert tb_in2 == proc_chain(tb_in2)
+
+
+def test_garbage_collection():
+    # Test that after deleting reference to processing chain
+    # it gets garbage collected (i.e. test that circular references
+    # are properly weak-ref'd)
+    tb_in = lgdo.Table(
+        {
+            "waveform": lgdo.WaveformTable(
+                values=np.arange(100).reshape(10, 10),
+                dt=1.0,
+                t0=0.0,
+            ),
+            "array": lgdo.Array(
+                nda=np.arange(10),
+                attrs={"units": "ns"},
+            ),
+            "aoa": lgdo.ArrayOfEqualSizedArrays(
+                nda=np.arange(100).reshape(10, 10),
+                attrs={"units": "ADC"},
+            ),
+            "vov": lgdo.VectorOfVectors(
+                flattened_data=np.arange(89),
+                cumulative_length=[1, 2, 3, 5, 8, 13, 21, 34, 55, 89],
+                attrs={"units": "ADC"},
+            ),
+        }
+    )
+
+    proc_chain = ProcessingChain(block_width=4, buffer_len=10)
+    proc_chain.link_input_buffer("waveform", tb_in.waveform)
+    proc_chain.link_input_buffer("array", tb_in.array)
+    proc_chain.link_input_buffer("aoa", tb_in.aoa)
+    proc_chain.add_variable("vov", shape=50)
+    proc_chain.link_input_buffer(
+        "vov",
+        tb_in.vov,
+    )
+
+    # Test by constructing output buffers and calling execute directly
+    tb_out = lgdo.Table(
+        {
+            "waveform": proc_chain.link_output_buffer("waveform"),
+            "array": proc_chain.link_output_buffer("array"),
+            "aoa": proc_chain.link_output_buffer("aoa"),
+            "vov": proc_chain.link_output_buffer("vov"),
+        }
+    )
+    tb_out["array"].attrs["units"] = "us"  # make sure unit converter is weak ref'd!
+
+    proc_chain.execute()
+
+    tb_in_ref = weakref.ref(tb_in)
+    proc_chain_ref = weakref.ref(proc_chain)
+    tb_out_ref = weakref.ref(tb_out)
+    del tb_in
+    del proc_chain
+    del tb_out
+
+    assert tb_in_ref() is None
+    assert proc_chain_ref() is None
+    assert tb_out_ref() is None
 
 
 def test_waveform_slicing(geds_raw_tbl):
