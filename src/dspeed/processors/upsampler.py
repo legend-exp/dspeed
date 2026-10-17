@@ -42,12 +42,16 @@ def upsampler(w_in: np.ndarray, upsample: float, w_out: np.ndarray) -> None:
     if not (upsample > 0):
         raise DSPFatal("Upsample must be greater than 0")
 
+    # fill [t_out, t_out + upsample) per input sample via clipped slice
+    # assignment instead of a per-output-sample bounds check
+    up = int(upsample)
+    m = len(w_out)
     for t_in in range(0, len(w_in)):
         t_out = int(t_in * upsample - np.floor(upsample / 2))
-        for _ in range(0, int(upsample)):
-            if (t_out >= 0) & (t_out < len(w_out)):
-                w_out[t_out] = w_in[t_in]
-            t_out += 1
+        start = max(t_out, 0)
+        stop = min(t_out + up, m)
+        if start < stop:
+            w_out[start:stop] = w_in[t_in]
 
 
 @guvectorize(
